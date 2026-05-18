@@ -8,7 +8,7 @@ const SUPABASE_KEY = 'sb_publishable_H47gHBW02AOIdECpaPiY0A_N1Bmd6H6';
 
 // Usuários autorizados (controle local de acesso)
 const USUARIOS = [
-  { nome: 'Ana Paula', email: 'ana.pa@pereira.com.br',              perfil: 'gerente',   consultor: '' },
+  { nome: 'Ana Paula', email: 'ana.papereira@totvs.com.br',         perfil: 'gerente',   consultor: '' },
   { nome: 'Amanda',    email: 'amanda.pfelix@totvs.com.br',         perfil: 'consultor', consultor: 'Amanda' },
   { nome: 'Daniel',    email: 'daniel.heberle@totvs.com.br',        perfil: 'consultor', consultor: 'Daniel' },
   { nome: 'Dalva',     email: 'francidalva.desousa@totvs.com.br',   perfil: 'consultor', consultor: 'Dalva' },
