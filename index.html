@@ -1732,6 +1732,20 @@
           </div>
         </div>
 
+        <!-- Botão Salvar Informações -->
+        <div style="padding:16px 0 8px 0;">
+          <button id="btn-salvar-info" onclick="salvarInfoNoSupabase()" style="
+            width:100%;padding:11px;border:none;border-radius:8px;
+            background:linear-gradient(135deg,#00c4cc,#0088ff);
+            color:#fff;font-size:13px;font-weight:700;
+            font-family:'Inter',sans-serif;cursor:pointer;
+            display:flex;align-items:center;justify-content:center;gap:8px;
+            transition:opacity .15s;
+          " onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+            💾 Salvar Informações no Banco
+          </button>
+        </div>
+
       </div><!-- /mpanel-info -->
 
       <!-- ══════════════════════════════════
@@ -2281,6 +2295,7 @@ function addCustomTask(isF2) {
 
   // Persist project state
   persistProjectState(p);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(p);
   inp.value = '';
   renderModalView(p);
   render();
@@ -2303,6 +2318,7 @@ function deleteCustomTask(key, isF2) {
   const order = getTaskOrder(p, isF2b).filter(k => k !== key);
   saveTaskOrder(p, order, isF2b);
   persistProjectState(p);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(p);
   renderModalView(p);
   render();
 }
@@ -2639,6 +2655,7 @@ function toggleAct(e, key, val) {
   // toggle: se já é o mesmo valor, limpa; senão aplica
   currentProject.acts[key] = (currentProject.acts[key] === val) ? '' : val;
   persistProjectState(currentProject);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(currentProject);
   renderModalView(currentProject);
   render();
   // toast suave
@@ -3141,6 +3158,7 @@ function addHistEntry() {
     const [y, m, d] = date.split('-');
     currentProject.upd = d + '/' + m + '/' + y;
     persistProjectState(currentProject);
+    if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(currentProject);
     renderModalView(currentProject);
     render();
   }
@@ -3254,6 +3272,9 @@ function onDrop(e) {
 
   render();
   showMoveToast(draggedProject.c, col.label);
+
+  // Salvar no Supabase
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(draggedProject);
 }
 
 function getDragAfterElement(container, y) {
