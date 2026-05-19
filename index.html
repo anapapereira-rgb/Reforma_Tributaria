@@ -2281,6 +2281,7 @@ function addCustomTask(isF2) {
 
   // Persist project state
   persistProjectState(p);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(p);
   inp.value = '';
   renderModalView(p);
   render();
@@ -2303,6 +2304,7 @@ function deleteCustomTask(key, isF2) {
   const order = getTaskOrder(p, isF2b).filter(k => k !== key);
   saveTaskOrder(p, order, isF2b);
   persistProjectState(p);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(p);
   renderModalView(p);
   render();
 }
@@ -2639,6 +2641,7 @@ function toggleAct(e, key, val) {
   // toggle: se já é o mesmo valor, limpa; senão aplica
   currentProject.acts[key] = (currentProject.acts[key] === val) ? '' : val;
   persistProjectState(currentProject);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(currentProject);
   renderModalView(currentProject);
   render();
   // toast suave
@@ -3137,6 +3140,7 @@ function addHistEntry() {
     const [y, m, d] = date.split('-');
     currentProject.upd = d + '/' + m + '/' + y;
     persistProjectState(currentProject);
+    if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(currentProject);
     renderModalView(currentProject);
     render();
   }
@@ -3250,6 +3254,9 @@ function onDrop(e) {
 
   render();
   showMoveToast(draggedProject.c, col.label);
+
+  // Salvar no Supabase
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(draggedProject);
 }
 
 function getDragAfterElement(container, y) {
