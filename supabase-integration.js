@@ -10,7 +10,6 @@ const USUARIOS = [
   { nome: 'Ana Paula', email: 'ana.papereira@totvs.com.br',        perfil: 'gerente',   consultor: '' },
   { nome: 'Ana Paula', email: 'apaulacolombo@gmail.com',            perfil: 'gerente',   consultor: '' },
   { nome: 'João',      email: 'joao.alves@totvs.com.br',           perfil: 'gerente',   consultor: '' },
-  { nome: 'João',      email: 'kairof.ronaldo@totvs.com.br',       perfil: 'gerente',   consultor: '' },
   { nome: 'Amanda',    email: 'amanda.pfelix@totvs.com.br',        perfil: 'consultor', consultor: 'Amanda' },
   { nome: 'Daniel',    email: 'daniel.heberle@totvs.com.br',       perfil: 'consultor', consultor: 'Daniel' },
   { nome: 'Dalva',     email: 'francidalva.desousa@totvs.com.br',  perfil: 'consultor', consultor: 'Dalva' },
@@ -149,6 +148,39 @@ async function salvarHistoricoNoSupabase(h, projId, proj) {
       autor:CURRENT_USER?.nome||''
     }, token);
   }
+}
+
+// ============================================================
+//  SALVAR INFORMAÇÕES DO CLIENTE NO SUPABASE (client_info)
+// ============================================================
+async function salvarClienteInfoNoSupabase(proj, data) {
+  if (!CURRENT_USER?.access_token || !proj) return;
+  const token = CURRENT_USER.access_token;
+  const fase  = RAW.f1.includes(proj) ? 1 : 2;
+  const uuid  = proj._uuid || await getProjectUuid(proj.c, fase);
+  if (!uuid) return;
+
+  showSyncIndicator();
+
+  await fetch(`${SUPABASE_URL}/rest/v1/client_info?project_id=eq.${uuid}`, {
+    method: 'PATCH',
+    headers: sbHeaders(token),
+    body: JSON.stringify({
+      contato_nome:     data.contatoFiscal  || '',
+      contato_telefone: data.contatoTI      || '',
+      versao_sistema:   (data.versoes || []).join(', '),
+      tipo_acesso:      data.acesso         || '',
+      data_inicio_f2:   data.dataInicio     || '',
+      observacoes: [
+        data.hmgLink ? `HMG: ${data.hmgLink}`   : '',
+        data.hmgUser ? `Usuário HMG: ${data.hmgUser}` : '',
+        data.prdLink ? `PRD: ${data.prdLink}`   : '',
+        data.prdUser ? `Usuário PRD: ${data.prdUser}` : '',
+      ].filter(Boolean).join('\n'),
+      updated_at: new Date().toISOString()
+    })
+  });
+  console.log('✅ Informações do cliente salvas no Supabase:', proj.c);
 }
 
 // ============================================================
