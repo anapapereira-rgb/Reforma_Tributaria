@@ -9,7 +9,7 @@ const SUPABASE_KEY = 'sb_publishable_H47gHBW02AOIdECpaPiY0A_N1Bmd6H6';
 const USUARIOS = [
   { nome: 'Ana Paula', email: 'ana.papereira@totvs.com.br',        perfil: 'gerente',   consultor: '' },
   { nome: 'João',      email: 'joao.alves@totvs.com.br',           perfil: 'gerente',   consultor: '' },
-  { nome: 'Ana',      email: 'apaulacolombo@gmail.com.br',         perfil: 'gerente',   consultor: '' },
+  { nome: 'Ana',      email: 'apaulacolombo@gmail.com',            perfil: 'gerente',   consultor: '' },
   { nome: 'Amanda',    email: 'amanda.pfelix@totvs.com.br',        perfil: 'consultor', consultor: 'Amanda' },
   { nome: 'Daniel',    email: 'daniel.heberle@totvs.com.br',       perfil: 'consultor', consultor: 'Daniel' },
   { nome: 'Dalva',     email: 'francidalva.desousa@totvs.com.br',  perfil: 'consultor', consultor: 'Dalva' },
