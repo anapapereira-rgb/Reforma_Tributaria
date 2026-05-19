@@ -10,6 +10,7 @@ const USUARIOS = [
   { nome: 'Ana Paula', email: 'ana.papereira@totvs.com.br',        perfil: 'gerente',   consultor: '' },
   { nome: 'Ana Paula', email: 'apaulacolombo@gmail.com',            perfil: 'gerente',   consultor: '' },
   { nome: 'João',      email: 'joao.alves@totvs.com.br',           perfil: 'gerente',   consultor: '' },
+  { nome: 'João',      email: 'kairof.ronaldo@totvs.com.br',       perfil: 'gerente',   consultor: '' },
   { nome: 'Amanda',    email: 'amanda.pfelix@totvs.com.br',        perfil: 'consultor', consultor: 'Amanda' },
   { nome: 'Daniel',    email: 'daniel.heberle@totvs.com.br',       perfil: 'consultor', consultor: 'Daniel' },
   { nome: 'Dalva',     email: 'francidalva.desousa@totvs.com.br',  perfil: 'consultor', consultor: 'Dalva' },
