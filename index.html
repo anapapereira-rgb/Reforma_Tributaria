@@ -4029,3 +4029,51 @@ render();
 </body>
 </html>
 
+<script>
+// Função do botão "Salvar Informações no Banco" — aba Informações
+async function salvarInfoNoSupabase() {
+  if (!currentProject) { alert('Nenhum projeto aberto.'); return; }
+  const btn = document.getElementById('btn-salvar-info');
+  const textoOriginal = btn.innerHTML;
+
+  btn.innerHTML = '⏳ Salvando...';
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+
+  try {
+    const data = typeof _ciRead === 'function' ? _ciRead() : {};
+
+    if (typeof saveCiData === 'function') {
+      saveCiData(projectId(currentProject), data);
+    }
+    if (typeof salvarClienteInfoNoSupabase === 'function') {
+      await salvarClienteInfoNoSupabase(currentProject, data);
+    }
+    if (typeof salvarProjetoNoSupabase === 'function') {
+      await salvarProjetoNoSupabase(currentProject);
+    }
+
+    btn.innerHTML = '✅ Salvo com sucesso!';
+    btn.style.background = 'linear-gradient(135deg,#22c55e,#16a34a)';
+    btn.style.opacity = '1';
+
+    setTimeout(() => {
+      btn.innerHTML = textoOriginal;
+      btn.style.background = 'linear-gradient(135deg,#00c4cc,#0088ff)';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+    }, 2500);
+
+  } catch(e) {
+    console.error('Erro ao salvar informações:', e);
+    btn.innerHTML = '❌ Erro ao salvar';
+    btn.style.background = 'linear-gradient(135deg,#ef4444,#dc2626)';
+    btn.style.opacity = '1';
+    setTimeout(() => {
+      btn.innerHTML = textoOriginal;
+      btn.style.background = 'linear-gradient(135deg,#00c4cc,#0088ff)';
+      btn.disabled = false;
+    }, 2500);
+  }
+}
+</script>
