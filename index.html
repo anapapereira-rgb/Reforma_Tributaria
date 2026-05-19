@@ -1872,6 +1872,7 @@ function getHistory() {
 }
 function saveHistory(h) {
   try { localStorage.setItem('kanban_history', JSON.stringify(h)); } catch(e) {}
+  if (typeof salvarHistoricoNoSupabase === 'function') salvarHistoricoNoSupabase(h, currentProjectId, currentProject);
 }
 function projectId(p) {
   return (p.c + '|' + (p.cons||'')).toLowerCase().replace(/\s+/g,'_');
@@ -2557,6 +2558,7 @@ function _todayStr() {
 }
 function _saveAndRender(refreshModal) {
   persistProjectState(currentProject);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(currentProject);
   if (refreshModal) renderModalView(currentProject);
   render();
   const toast = document.getElementById('saveToast');
@@ -2596,6 +2598,7 @@ function setTaskDate2(e, key) {
 
 function _saveAndRender2(refreshModal) {
   persistProjectState(currentProject);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(currentProject);
   if (refreshModal) renderModalView(currentProject);
   render();
   const toast = document.getElementById('saveToast');
@@ -2656,6 +2659,7 @@ function setSuporte(val) {
   wrap.classList.toggle('sus-active', val==='Sustentação' || val==='Totvs Matriz');
   sub.textContent = val ? val : 'Nenhum suporte definido';
   persistProjectState(currentProject);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(currentProject);
   render();
 }
 
@@ -2683,10 +2687,15 @@ function confirmDeleteCard() {
   closeConfirmDelete();
 
   // Remover do RAW (F1 e F2)
-  ['f1', 'f2'].forEach(fase => {
-    const idx = RAW[fase].findIndex(p => projectId(p) === pid);
-    if (idx !== -1) RAW[fase].splice(idx, 1);
+  let projDeletado = null;
+  let faseDeletada = 1;
+  ['f1', 'f2'].forEach((f, fi) => {
+    const idx = RAW[f].findIndex(p => projectId(p) === pid);
+    if (idx !== -1) { projDeletado = RAW[f][idx]; faseDeletada = fi+1; RAW[f].splice(idx, 1); }
   });
+
+  // Excluir no Supabase
+  if (projDeletado && typeof excluirProjetoNoSupabase === 'function') excluirProjetoNoSupabase(projDeletado, faseDeletada);
 
   // Limpar localStorage: edits
   try {
@@ -2896,7 +2905,7 @@ function saveEdits() {
   });
 
   // Salvar no Supabase
-  persistProjectState(currentProject);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(currentProject);
 
   // Refresh view
   renderModalView(currentProject);
@@ -3814,6 +3823,9 @@ function createProject() {
   const stored = getNewProjects();
   stored.push({ ...newProject });
   saveNewProjects(stored);
+
+  // Salvar no Supabase
+  if (typeof criarProjetoNoSupabase === 'function') criarProjetoNoSupabase(newProject, fase);
 
   closeNewModal();
 
