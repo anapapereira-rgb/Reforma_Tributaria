@@ -2895,6 +2895,9 @@ function saveEdits() {
     acts: { ...editState.acts }
   });
 
+  // Salvar no Supabase
+  persistProjectState(currentProject);
+
   // Refresh view
   renderModalView(currentProject);
   render(); // re-render board
