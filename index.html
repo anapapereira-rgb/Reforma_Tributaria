@@ -2086,25 +2086,38 @@ function makeCard(p) {
 function renderStats(data) {
   const el = document.getElementById('statsRow');
   if (phase === 1) {
-    const done = data.filter(p => p.st === 'CONCLUÍDO').length;
-    const prog = data.filter(p => p.st === 'EM ANDAMENTO').length;
-    const at = data.filter(p => p.prazo === 'ATRASADO').length;
+    const total   = data.length;
+    const cancel  = data.filter(p => p.st === 'CANCELADO').length;
+    const concl   = data.filter(p => p.st === 'CONCLUÍDO').length;
+    const prog    = data.filter(p => p.st === 'EM ANDAMENTO').length;
+    const ni      = data.filter(p => p.st === 'NÃO INICIADO').length;
+    const at      = data.filter(p => p.prazo === 'ATRASADO').length;
+    // Regra: concluídos + cancelados para o % de conclusão
+    const conclTotal = concl + cancel;
+    const pct     = Math.round(conclTotal / Math.max(total, 1) * 100);
     el.innerHTML = `
-      <div class="stat-card"><div class="stat-icon" style="background:#6366f122">📋</div><div class="stat-info"><div class="val">${data.length}</div><div class="lbl">Total projetos</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">✅</div><div class="stat-info"><div class="val" style="color:var(--green)">${done}</div><div class="lbl">Concluídos</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#6366f122">📋</div><div class="stat-info"><div class="val">${total}</div><div class="lbl">Total projetos</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#64748b22">⏸</div><div class="stat-info"><div class="val" style="color:var(--muted)">${ni}</div><div class="lbl">Não iniciados</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#3b82f622">🔄</div><div class="stat-info"><div class="val" style="color:#60a5fa">${prog}</div><div class="lbl">Em andamento</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#ef444422">⚠️</div><div class="stat-info"><div class="val" style="color:var(--red)">${at}</div><div class="lbl">Atrasados</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${Math.round(done/Math.max(data.length,1)*100)}%</div><div class="lbl">Conclusão</div></div></div>`;
+      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">✅</div><div class="stat-info"><div class="val" style="color:var(--green)">${conclTotal}</div><div class="lbl">Concluídos</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#ef444422">🚫</div><div class="stat-info"><div class="val" style="color:var(--red)">${cancel}</div><div class="lbl">Cancelados</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${pct}%</div><div class="lbl">Conclusão</div></div></div>`;
   } else {
-    const done = data.filter(p => p.st === 'CONCLUÍDO').length;
-    const prog = data.filter(p => p.st !== 'NÃO INICIADO' && p.st !== 'CONCLUÍDO').length;
-    const ni   = data.filter(p => p.st === 'NÃO INICIADO').length;
+    const total   = data.length;
+    const cancel  = data.filter(p => p.st === 'CANCELADO').length;
+    const concl   = data.filter(p => p.st === 'CONCLUÍDO').length;
+    const prog    = data.filter(p => p.st !== 'NÃO INICIADO' && p.st !== 'CONCLUÍDO' && p.st !== 'CANCELADO').length;
+    const ni      = data.filter(p => p.st === 'NÃO INICIADO').length;
+    // Regra: concluídos + cancelados para o % de conclusão
+    const conclTotal = concl + cancel;
+    const pct     = Math.round(conclTotal / Math.max(total, 1) * 100);
     el.innerHTML = `
-      <div class="stat-card"><div class="stat-icon" style="background:#6366f122">📋</div><div class="stat-info"><div class="val">${data.length}</div><div class="lbl">Total projetos</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">✅</div><div class="stat-info"><div class="val" style="color:var(--green)">${done}</div><div class="lbl">Concluídos</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#6366f122">📋</div><div class="stat-info"><div class="val">${total}</div><div class="lbl">Total projetos</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#64748b22">⏸</div><div class="stat-info"><div class="val" style="color:var(--muted)">${ni}</div><div class="lbl">Não iniciados</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#3b82f622">🔄</div><div class="stat-info"><div class="val" style="color:#60a5fa">${prog}</div><div class="lbl">Em andamento</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#1e293b22">⏸</div><div class="stat-info"><div class="val" style="color:var(--muted)">${ni}</div><div class="lbl">Não iniciado</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${Math.round(done/Math.max(data.length,1)*100)}%</div><div class="lbl">Conclusão</div></div></div>`;
+      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">✅</div><div class="stat-info"><div class="val" style="color:var(--green)">${conclTotal}</div><div class="lbl">Concluídos</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#ef444422">🚫</div><div class="stat-info"><div class="val" style="color:var(--red)">${cancel}</div><div class="lbl">Cancelados</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${pct}%</div><div class="lbl">Conclusão</div></div></div>`;
   }
 }
 
@@ -3740,16 +3753,18 @@ function renderDashboard() {
   // ── helpers ──────────────────────────────────────────
   function calcStats(data) {
     const total    = data.length;
-    const cancel   = data.filter(p => p.atv === 'CANCELADO').length;
+    const cancel   = data.filter(p => p.st === 'CANCELADO').length;
     const active   = total - cancel;
-    const concl    = data.filter(p => p.st === 'CONCLUÍDO' && p.atv !== 'CANCELADO').length;
-    const andament = data.filter(p => p.st !== 'NÃO INICIADO' && p.st !== 'CONCLUÍDO' && p.atv !== 'CANCELADO').length;
-    const ni       = data.filter(p => p.st === 'NÃO INICIADO' && p.atv !== 'CANCELADO').length;
-    const atrasado = data.filter(p => p.prazo === 'ATRASADO' && p.atv !== 'CANCELADO').length;
-    const sustent  = data.filter(p => (p.sus==='Sustentação'||p.sus==='Sim') && p.atv !== 'CANCELADO').length;
-    const totvs    = data.filter(p => (p.sus==='Totvs Matriz'||p.sus==='Não') && p.atv !== 'CANCELADO').length;
-    const pct      = active > 0 ? Math.round(concl/active*100) : 0;
-    return {total,cancel,active,concl,andament,ni,atrasado,sustent,totvs,pct};
+    const concl    = data.filter(p => p.st === 'CONCLUÍDO').length;
+    const andament = data.filter(p => p.st !== 'NÃO INICIADO' && p.st !== 'CONCLUÍDO' && p.st !== 'CANCELADO').length;
+    const ni       = data.filter(p => p.st === 'NÃO INICIADO').length;
+    const atrasado = data.filter(p => p.prazo === 'ATRASADO' && p.st !== 'CANCELADO').length;
+    const sustent  = data.filter(p => (p.sus==='Sustentação'||p.sus==='Sim') && p.st !== 'CANCELADO').length;
+    const totvs    = data.filter(p => (p.sus==='Totvs Matriz'||p.sus==='Não') && p.st !== 'CANCELADO').length;
+    // Regra: concluídos + cancelados no % de conclusão
+    const conclTotal = concl + cancel;
+    const pct      = total > 0 ? Math.round(conclTotal/total*100) : 0;
+    return {total,cancel,active,concl,conclTotal,andament,ni,atrasado,sustent,totvs,pct};
   }
 
   function byConsultor(data) {
@@ -3842,14 +3857,15 @@ function renderDashboard() {
       <!-- Header -->
       <div style="background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid ${accentColor}44;border-radius:10px;padding:14px 16px">
         <div style="font-size:11px;font-weight:700;color:${accentColor};text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${title}</div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
           ${[
-            {v:stats.total,l:'Total',c:'var(--text)',bg:''},
-            {v:stats.active,l:'Ativos',c:'#60a5fa',bg:''},
-            {v:stats.concl,l:'Concluídos',c:'#22c55e',bg:''},
-            {v:stats.cancel,l:'Cancelados',c:'#ef4444',bg:''},
+            {v:stats.total,      l:'Total',          c:'var(--text)'},
+            {v:stats.ni,         l:'Não Iniciados',  c:'var(--muted)'},
+            {v:stats.andament,   l:'Em Andamento',   c:'#60a5fa'},
+            {v:stats.conclTotal, l:'Concluídos',     c:'#22c55e'},
+            {v:stats.cancel,     l:'Cancelados',     c:'#ef4444'},
           ].map(s=>`<div style="background:var(--surface3);border-radius:8px;padding:8px 10px;text-align:center">
-            <div style="font-size:22px;font-weight:800;color:${s.c};line-height:1">${s.v}</div>
+            <div style="font-size:20px;font-weight:800;color:${s.c};line-height:1">${s.v}</div>
             <div style="font-size:10px;color:var(--muted);margin-top:2px">${s.l}</div>
           </div>`).join('')}
         </div>
@@ -3865,6 +3881,7 @@ function renderDashboard() {
           <span>⚠ <span style="color:#f59e0b">${stats.atrasado}</span> atrasados</span>
           <span>🔄 <span style="color:#60a5fa">${stats.andament}</span> em andamento</span>
           <span>⏸ <span style="color:var(--muted)">${stats.ni}</span> não iniciados</span>
+          <span>🚫 <span style="color:#ef4444">${stats.cancel}</span> cancelados</span>
         </div>
       </div>
 
