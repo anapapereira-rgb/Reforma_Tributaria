@@ -3016,24 +3016,31 @@ function saveCiData(pid, data) {
 function renderClientInfo(p) {
   const pid = projectId(p);
 
-  // Limpa os campos enquanto carrega
-  const camposTexto = ['ci-contato-fiscal','ci-contato-ti','ci-hmg-link','ci-hmg-user',
-                       'ci-hmg-pass','ci-prd-link','ci-prd-user','ci-prd-pass'];
-  camposTexto.forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  // Limpa todos os campos enquanto carrega
+  ['ci-contato-fiscal','ci-contato-ti','ci-hmg-link','ci-hmg-user',
+   'ci-hmg-pass','ci-prd-link','ci-prd-user','ci-prd-pass'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
   CI_VERSIONS.forEach(v => { const btn = document.getElementById('ci-v-'+v); if(btn) btn.classList.remove('selected'); });
   ['Local','Cloud'].forEach(ac => { const btn = document.getElementById('ci-ac-'+ac); if(btn) btn.classList.remove('selected'); });
 
-  // Função que preenche os campos com os dados
+  // Preenche os campos — aceita tanto formato do banco (snake_case) quanto localStorage (camelCase)
   function preencherCampos(d) {
-    document.getElementById('ci-contato-fiscal').value = d.contatoFiscal || d.contato_nome || '';
-    document.getElementById('ci-contato-ti').value     = d.contatoTI || d.contato_telefone || '';
-    document.getElementById('ci-hmg-link').value       = d.hmgLink || '';
-    document.getElementById('ci-hmg-user').value       = d.hmgUser || '';
-    document.getElementById('ci-hmg-pass').value       = d.hmgPass || '';
-    document.getElementById('ci-prd-link').value       = d.prdLink || '';
-    document.getElementById('ci-prd-user').value       = d.prdUser || '';
-    document.getElementById('ci-prd-pass').value       = d.prdPass || '';
+    // Contatos
+    document.getElementById('ci-contato-fiscal').value = d.contatoFiscal || d.contato_nome     || '';
+    document.getElementById('ci-contato-ti').value     = d.contatoTI     || d.contato_telefone || '';
 
+    // Acesso Base Homologação
+    document.getElementById('ci-hmg-link').value = d.hmgLink  || d.hmg_link  || '';
+    document.getElementById('ci-hmg-user').value = d.hmgUser  || d.hmg_user  || '';
+    document.getElementById('ci-hmg-pass').value = d.hmgPass  || d.hmg_pass  || '';
+
+    // Acesso Base Produção
+    document.getElementById('ci-prd-link').value = d.prdLink  || d.prd_link  || '';
+    document.getElementById('ci-prd-user').value = d.prdUser  || d.prd_user  || '';
+    document.getElementById('ci-prd-pass').value = d.prdPass  || d.prd_pass  || '';
+
+    // Data Início Fase 2
     if (document.getElementById('ci-datainicio')) {
       const cName = (p.c || '').trim().toUpperCase();
       let mapVal = '';
@@ -3046,35 +3053,25 @@ function renderClientInfo(p) {
       _ciUpdateHeaderDate();
     }
 
-    // Versões
-    const versoes = d.versoes || (d.versao_sistema ? d.versao_sistema.split(', ') : []);
+    // Versão Atual
+    const versoes = d.versoes || (d.versao_sistema ? d.versao_sistema.split(', ').map(v=>v.trim()).filter(Boolean) : []);
     CI_VERSIONS.forEach(v => {
       const btn = document.getElementById('ci-v-' + v);
       if (btn) btn.classList.toggle('selected', versoes.includes(v));
     });
 
-    // Acesso
+    // Acesso (Local/Cloud)
     const acesso = d.acesso || d.tipo_acesso || '';
     ['Local','Cloud'].forEach(ac => {
       const btn = document.getElementById('ci-ac-' + ac);
       if (btn) btn.classList.toggle('selected', acesso === ac);
     });
 
-    // Extrai links das observações se vieram do banco
-    if (d.observacoes && !d.hmgLink) {
-      const obs = d.observacoes;
-      const hmgMatch = obs.match(/HMG:\s*(.+)/);
-      const prdMatch = obs.match(/PRD:\s*(.+)/);
-      if (hmgMatch) document.getElementById('ci-hmg-link').value = hmgMatch[1].trim();
-      if (prdMatch) document.getElementById('ci-prd-link').value = prdMatch[1].trim();
-    }
-
-    // Salva no localStorage como cache local
-    const dadosParaSalvar = _ciRead();
-    try { localStorage.setItem(_ciKey(pid), JSON.stringify(dadosParaSalvar)); } catch(e) {}
+    // Cache no localStorage
+    try { localStorage.setItem(_ciKey(pid), JSON.stringify(_ciRead())); } catch(e) {}
   }
 
-  // 1. Tenta carregar do Supabase primeiro
+  // Carrega do Supabase — colunas individuais
   if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER?.access_token && p._uuid) {
     const token = CURRENT_USER.access_token;
     fetch(`${SUPABASE_URL}/rest/v1/client_info?project_id=eq.${p._uuid}&select=*`, {
@@ -3088,16 +3085,10 @@ function renderClientInfo(p) {
       if (rows && rows[0]) {
         preencherCampos(rows[0]);
       } else {
-        // Fallback: localStorage
-        const d = getCiData(pid);
-        preencherCampos(d);
+        preencherCampos(getCiData(pid));
       }
     })
-    .catch(() => {
-      // Fallback: localStorage
-      const d = getCiData(pid);
-      preencherCampos(d);
-    });
+    .catch(() => preencherCampos(getCiData(pid)));
   } else {
     // Sem Supabase: usa localStorage
     const d = getCiData(pid);

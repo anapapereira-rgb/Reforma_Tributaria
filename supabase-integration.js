@@ -153,6 +153,7 @@ async function salvarHistoricoNoSupabase(h, projId, proj) {
 
 // ============================================================
 //  SALVAR INFORMAÇÕES DO CLIENTE NO SUPABASE (client_info)
+//  Todos os campos salvos em colunas individuais
 // ============================================================
 async function salvarClienteInfoNoSupabase(proj, data) {
   if (!CURRENT_USER?.access_token || !proj) return;
@@ -163,25 +164,32 @@ async function salvarClienteInfoNoSupabase(proj, data) {
 
   showSyncIndicator();
 
-  await fetch(`${SUPABASE_URL}/rest/v1/client_info?project_id=eq.${uuid}`, {
+  const payload = {
+    contato_nome:     data.contatoFiscal || '',
+    contato_telefone: data.contatoTI     || '',
+    versao_sistema:   (data.versoes || []).join(', '),
+    tipo_acesso:      data.acesso        || '',
+    data_inicio_f2:   data.dataInicio    || '',
+    hmg_link:         data.hmgLink       || '',
+    hmg_user:         data.hmgUser       || '',
+    hmg_pass:         data.hmgPass       || '',
+    prd_link:         data.prdLink       || '',
+    prd_user:         data.prdUser       || '',
+    prd_pass:         data.prdPass       || '',
+    updated_at:       new Date().toISOString()
+  };
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/client_info?project_id=eq.${uuid}`, {
     method: 'PATCH',
     headers: sbHeaders(token),
-    body: JSON.stringify({
-      contato_nome:     data.contatoFiscal  || '',
-      contato_telefone: data.contatoTI      || '',
-      versao_sistema:   (data.versoes || []).join(', '),
-      tipo_acesso:      data.acesso         || '',
-      data_inicio_f2:   data.dataInicio     || '',
-      observacoes: [
-        data.hmgLink ? `HMG: ${data.hmgLink}`   : '',
-        data.hmgUser ? `Usuário HMG: ${data.hmgUser}` : '',
-        data.prdLink ? `PRD: ${data.prdLink}`   : '',
-        data.prdUser ? `Usuário PRD: ${data.prdUser}` : '',
-      ].filter(Boolean).join('\n'),
-      updated_at: new Date().toISOString()
-    })
+    body: JSON.stringify(payload)
   });
-  console.log('✅ Informações do cliente salvas no Supabase:', proj.c);
+
+  if (!res.ok) {
+    console.error('Erro ao salvar client_info:', await res.text());
+  } else {
+    console.log('Informações do cliente salvas:', proj.c);
+  }
 }
 
 // ============================================================
