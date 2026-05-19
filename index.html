@@ -3015,35 +3015,94 @@ function saveCiData(pid, data) {
 
 function renderClientInfo(p) {
   const pid = projectId(p);
-  const d = getCiData(pid);
-  document.getElementById('ci-contato-fiscal').value = d.contatoFiscal || '';
-  document.getElementById('ci-contato-ti').value     = d.contatoTI || '';
-  document.getElementById('ci-hmg-link').value       = d.hmgLink || '';
-  document.getElementById('ci-hmg-user').value       = d.hmgUser || '';
-  document.getElementById('ci-hmg-pass').value       = d.hmgPass || '';
-  document.getElementById('ci-prd-link').value       = d.prdLink || '';
-  if (document.getElementById('ci-datainicio')) {
-    const cName = (p.c || '').trim().toUpperCase();
-    let mapVal = '';
-    for (const [k, v] of Object.entries(DATE_MAP_F2)) {
-      if (k.toUpperCase() === cName || cName.includes(k.toUpperCase()) || k.toUpperCase().includes(cName)) {
-        mapVal = v; break;
+
+  // Limpa os campos enquanto carrega
+  const camposTexto = ['ci-contato-fiscal','ci-contato-ti','ci-hmg-link','ci-hmg-user',
+                       'ci-hmg-pass','ci-prd-link','ci-prd-user','ci-prd-pass'];
+  camposTexto.forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  CI_VERSIONS.forEach(v => { const btn = document.getElementById('ci-v-'+v); if(btn) btn.classList.remove('selected'); });
+  ['Local','Cloud'].forEach(ac => { const btn = document.getElementById('ci-ac-'+ac); if(btn) btn.classList.remove('selected'); });
+
+  // Função que preenche os campos com os dados
+  function preencherCampos(d) {
+    document.getElementById('ci-contato-fiscal').value = d.contatoFiscal || d.contato_nome || '';
+    document.getElementById('ci-contato-ti').value     = d.contatoTI || d.contato_telefone || '';
+    document.getElementById('ci-hmg-link').value       = d.hmgLink || '';
+    document.getElementById('ci-hmg-user').value       = d.hmgUser || '';
+    document.getElementById('ci-hmg-pass').value       = d.hmgPass || '';
+    document.getElementById('ci-prd-link').value       = d.prdLink || '';
+    document.getElementById('ci-prd-user').value       = d.prdUser || '';
+    document.getElementById('ci-prd-pass').value       = d.prdPass || '';
+
+    if (document.getElementById('ci-datainicio')) {
+      const cName = (p.c || '').trim().toUpperCase();
+      let mapVal = '';
+      for (const [k, v] of Object.entries(DATE_MAP_F2)) {
+        if (k.toUpperCase() === cName || cName.includes(k.toUpperCase()) || k.toUpperCase().includes(cName)) {
+          mapVal = v; break;
+        }
       }
+      document.getElementById('ci-datainicio').value = d.dataInicio || d.data_inicio_f2 || mapVal || '';
+      _ciUpdateHeaderDate();
     }
-    document.getElementById('ci-datainicio').value = d.dataInicio || mapVal || '';
+
+    // Versões
+    const versoes = d.versoes || (d.versao_sistema ? d.versao_sistema.split(', ') : []);
+    CI_VERSIONS.forEach(v => {
+      const btn = document.getElementById('ci-v-' + v);
+      if (btn) btn.classList.toggle('selected', versoes.includes(v));
+    });
+
+    // Acesso
+    const acesso = d.acesso || d.tipo_acesso || '';
+    ['Local','Cloud'].forEach(ac => {
+      const btn = document.getElementById('ci-ac-' + ac);
+      if (btn) btn.classList.toggle('selected', acesso === ac);
+    });
+
+    // Extrai links das observações se vieram do banco
+    if (d.observacoes && !d.hmgLink) {
+      const obs = d.observacoes;
+      const hmgMatch = obs.match(/HMG:\s*(.+)/);
+      const prdMatch = obs.match(/PRD:\s*(.+)/);
+      if (hmgMatch) document.getElementById('ci-hmg-link').value = hmgMatch[1].trim();
+      if (prdMatch) document.getElementById('ci-prd-link').value = prdMatch[1].trim();
+    }
+
+    // Salva no localStorage como cache local
+    const dadosParaSalvar = _ciRead();
+    try { localStorage.setItem(_ciKey(pid), JSON.stringify(dadosParaSalvar)); } catch(e) {}
   }
-  document.getElementById('ci-prd-user').value       = d.prdUser || '';
-  document.getElementById('ci-prd-pass').value       = d.prdPass || '';
-  // version checkboxes
-  CI_VERSIONS.forEach(v => {
-    const btn = document.getElementById('ci-v-' + v);
-    if (btn) btn.classList.toggle('selected', !!(d.versoes && d.versoes.includes(v)));
-  });
-  // access
-  ['Local','Cloud'].forEach(ac => {
-    const btn = document.getElementById('ci-ac-' + ac);
-    if (btn) btn.classList.toggle('selected', d.acesso === ac);
-  });
+
+  // 1. Tenta carregar do Supabase primeiro
+  if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER?.access_token && p._uuid) {
+    const token = CURRENT_USER.access_token;
+    fetch(`${SUPABASE_URL}/rest/v1/client_info?project_id=eq.${p._uuid}&select=*`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + token
+      }
+    })
+    .then(r => r.ok ? r.json() : [])
+    .then(rows => {
+      if (rows && rows[0]) {
+        preencherCampos(rows[0]);
+      } else {
+        // Fallback: localStorage
+        const d = getCiData(pid);
+        preencherCampos(d);
+      }
+    })
+    .catch(() => {
+      // Fallback: localStorage
+      const d = getCiData(pid);
+      preencherCampos(d);
+    });
+  } else {
+    // Sem Supabase: usa localStorage
+    const d = getCiData(pid);
+    preencherCampos(d);
+  }
 }
 
 function _ciRead() {
