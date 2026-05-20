@@ -91,7 +91,7 @@ async function salvarProjetoNoSupabase(p) {
   if (!CURRENT_USER?.access_token) return;
   showSyncIndicator();
   const token = CURRENT_USER.access_token;
-  const fase  = RAW.f1.includes(p) ? 1 : 2;
+  const fase  = RAW.f1.includes(p) ? 1 : RAW.f2.includes(p) ? 2 : 3;
   const uuid  = p._uuid || await getProjectUuid(p.c, fase);
   if (!uuid) { console.warn('UUID não encontrado para', p.c); return; }
 
@@ -106,8 +106,8 @@ async function salvarProjetoNoSupabase(p) {
     ultima_atualizacao:p.upd||'', updated_at:new Date().toISOString()
   }, token);
 
-  const tasksObj  = fase===1 ? (p.tasks||{}) : (p.tasks2||{});
-  const listaBase = fase===1 ? F1_TASKS : F2_TASKS;
+  const tasksObj  = fase===1 ? (p.tasks||{}) : fase===2 ? (p.tasks2||{}) : (p.tasks3||{});
+  const listaBase = fase===1 ? F1_TASKS : fase===2 ? F2_TASKS : [];
   let idx=0;
   for (const [key, td] of Object.entries(tasksObj)) {
     const isCustom = key.startsWith('cx_')||key.startsWith('cx2_');
@@ -183,9 +183,10 @@ async function salvarClienteInfoNoSupabase(proj, data) {
     updated_at:       new Date().toISOString()
   };
 
-  // Busca os projetos das duas fases para o mesmo cliente
+  // Busca os projetos das três fases para o mesmo cliente
   const projF1 = RAW.f1.find(p => p.c === proj.c);
   const projF2 = RAW.f2.find(p => p.c === proj.c);
+  const projF3 = (RAW.f3||[]).find(p => p.c === proj.c);
 
   const uuids = [];
   if (projF1) {
@@ -194,6 +195,10 @@ async function salvarClienteInfoNoSupabase(proj, data) {
   }
   if (projF2) {
     const u = projF2._uuid || await getProjectUuid(projF2.c, 2);
+    if (u) uuids.push(u);
+  }
+  if (projF3) {
+    const u = projF3._uuid || await getProjectUuid(projF3.c, 3);
     if (u) uuids.push(u);
   }
 
@@ -468,6 +473,49 @@ function adicionarBotaoRefresh() {
 }
 
 // ============================================================
+//  GARANTE QUE CADA CLIENTE DA F2 TAMBÉM EXISTE NA F3
+// ============================================================
+async function _garantirProjetosF3(token) {
+  for (const p2 of RAW.f2) {
+    // Verifica se já existe na f3
+    const jaExiste = (RAW.f3||[]).find(p => p.c === p2.c);
+    if (jaExiste) continue;
+
+    // Cria o projeto na f3 como cópia da f2
+    const novoF3 = {
+      cliente:            p2.c,
+      fase:               3,
+      consultor:          p2.cons  || '',
+      pacote:             p2.pkg   || 'P',
+      status:             'NÃO INICIADO',
+      prazo:              '',
+      atividade_atual:    '',
+      responsavel_tarefa: '',
+      suporte:            p2.sus   || '',
+      act_ambiente: '', act_acesso: '', act_planilha: '', act_hmg: '',
+      act_validacao: '', act_prd: '', act_dif: '', act_nfse: '',
+      ultima_atualizacao: ''
+    };
+
+    const res = await sbPost('projects', novoF3, token);
+    if (res && res[0]) {
+      const novoProjeto = {
+        c:    p2.c, cons: p2.cons, pkg: p2.pkg,
+        st:   'NÃO INICIADO', prazo: '', atv: '',
+        blk:  '', sus: p2.sus, upd: '',
+        acts: { amb:'', ac:'', pl:'', hmg:'', val:'', prd:'', dif:'', nfse:'' },
+        tasks3: {},
+        _uuid: res[0].id
+      };
+      if (!RAW.f3) RAW.f3 = [];
+      RAW.f3.push(novoProjeto);
+      PROJECT_ID_CACHE[`${p2.c}_f3`] = res[0].id;
+      console.log(`✅ Projeto F3 criado automaticamente: ${p2.c}`);
+    }
+  }
+}
+
+// ============================================================
 //  CARREGAR DADOS DO SUPABASE
 // ============================================================
 async function carregarDadosDoSupabase(silencioso = false) {
@@ -481,7 +529,7 @@ async function carregarDadosDoSupabase(silencioso = false) {
     }
 
     const projects = await sbGet('projects', query, token);
-    RAW.f1=[]; RAW.f2=[];
+    RAW.f1=[]; RAW.f2=[]; RAW.f3=[];
 
     if (projects && projects.length > 0) {
       projects.forEach(proj => {
@@ -504,13 +552,18 @@ async function carregarDadosDoSupabase(silencioso = false) {
           });
           if(proj.fase===1) p.tasks=tasksObj;
           if(proj.fase===2) p.tasks2=tasksObj;
+          if(proj.fase===3) p.tasks3=tasksObj;
         }
         PROJECT_ID_CACHE[`${proj.cliente}_f${proj.fase}`]=proj.id;
         if(proj.fase===1) RAW.f1.push(p);
         if(proj.fase===2) RAW.f2.push(p);
+        if(proj.fase===3) { if(!RAW.f3) RAW.f3=[]; RAW.f3.push(p); }
       });
     }
-    console.log(`✅ ${RAW.f1.length} F1 · ${RAW.f2.length} F2 carregados.`);
+    console.log(`✅ ${RAW.f1.length} F1 · ${RAW.f2.length} F2 · ${RAW.f3.length} F3 carregados.`);
+
+    // Auto-cria projetos Fase 3 para clientes que têm Fase 2 mas não têm Fase 3
+    if (RAW.f3.length === 0) await _garantirProjetosF3(token);
   } catch(e) { console.error('Erro ao carregar:', e); }
 
   if (!silencioso) showLoadingOverlay(false);
@@ -523,8 +576,9 @@ async function carregarDadosDoSupabase(silencioso = false) {
 async function criarProjetoNoSupabase(novo, fase) {
   if (!CURRENT_USER?.access_token) return;
   const token = CURRENT_USER.access_token;
+  const faseNum = parseInt(fase);
   const res = await sbPost('projects', {
-    cliente:novo.c, fase, consultor:novo.cons||'', pacote:novo.pkg||'P',
+    cliente:novo.c, fase:faseNum, consultor:novo.cons||'', pacote:novo.pkg||'P',
     status:novo.st||'NÃO INICIADO', prazo:novo.prazo||'',
     atividade_atual:novo.atv||'', responsavel_tarefa:novo.blk||'', suporte:novo.sus||'',
     act_ambiente:'', act_acesso:'', act_planilha:'', act_hmg:'',

@@ -2463,16 +2463,19 @@ function openModal(p) {
 function _orderKey(p, isF2) { return 'tord_' + (isF2?'2_':'1_') + projectId(p); }
 
 function getTaskOrder(p, isF2) {
-  const base = isF2 ? F2_TASKS.map(t=>t.k) : F1_TASKS.map(t=>t.k);
+  // isF2 can be true (fase 2), false (fase 1), or 3 (fase 3)
+  const isF3 = isF2 === 3 || phase === 3;
+  const base = isF3 ? [] : isF2 ? F2_TASKS.map(t=>t.k) : F1_TASKS.map(t=>t.k);
   try {
     const stored = JSON.parse(localStorage.getItem(_orderKey(p, isF2)));
     if (Array.isArray(stored) && stored.length > 0) {
-      // merge: add new keys not yet in stored order
       const merged = [...stored];
       base.forEach(k => { if (!merged.includes(k)) merged.push(k); });
       return merged;
     }
   } catch(e) {}
+  // For fase 3 use existing tasks3 keys
+  if (isF3) return Object.keys(p.tasks3 || {});
   return [...base];
 }
 
@@ -2481,6 +2484,8 @@ function saveTaskOrder(p, order, isF2) {
 }
 
 function getTasksObj(p, isF2) {
+  const isF3 = isF2 === 3 || phase === 3;
+  if (isF3) return p.tasks3 || {};
   return isF2 ? (p.tasks2 || EMPTY_TASKS2()) : (p.tasks || EMPTY_TASKS());
 }
 
@@ -2492,14 +2497,18 @@ function addCustomTask(isF2) {
 
   const p = currentProject;
   if (!p) return;
+  const isF3 = phase === 3;
   const isF2b = phase === 2;
 
   // Generate unique key
-  const prefix = isF2b ? 'cx2_' : 'cx_';
+  const prefix = isF3 ? 'cx3_' : isF2b ? 'cx2_' : 'cx_';
   const key = prefix + Date.now();
 
   // Add to task data
-  if (isF2b) {
+  if (isF3) {
+    if (!p.tasks3) p.tasks3 = {};
+    p.tasks3[key] = { status: '', resp: '', date: '', _label: label };
+  } else if (isF2b) {
     if (!p.tasks2) p.tasks2 = EMPTY_TASKS2();
     p.tasks2[key] = { status: '', resp: '', date: '', _label: label };
   } else {
@@ -2508,9 +2517,10 @@ function addCustomTask(isF2) {
   }
 
   // Add to order
-  const order = getTaskOrder(p, isF2b);
+  const orderKey = isF3 ? 3 : isF2b;
+  const order = getTaskOrder(p, orderKey);
   order.push(key);
-  saveTaskOrder(p, order, isF2b);
+  saveTaskOrder(p, order, orderKey);
 
   // Persist project state
   persistProjectState(p);
@@ -2518,24 +2528,26 @@ function addCustomTask(isF2) {
   inp.value = '';
   renderModalView(p);
   render();
-  // Show Fase 1 as entry screen
-  setTimeout(() => switchPhase(1), 50);
 }
 
 // ── DELETE SINGLE TASK (custom only) ──
 function deleteCustomTask(key, isF2) {
   const p = currentProject;
   if (!p) return;
+  const isF3  = phase === 3;
   const isF2b = phase === 2;
 
-  if (isF2b) {
+  if (isF3) {
+    if (p.tasks3) delete p.tasks3[key];
+  } else if (isF2b) {
     if (p.tasks2) delete p.tasks2[key];
   } else {
     if (p.tasks) delete p.tasks[key];
   }
 
-  const order = getTaskOrder(p, isF2b).filter(k => k !== key);
-  saveTaskOrder(p, order, isF2b);
+  const orderKey = isF3 ? 3 : isF2b;
+  const order = getTaskOrder(p, orderKey).filter(k => k !== key);
+  saveTaskOrder(p, order, orderKey);
   persistProjectState(p);
   if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(p);
   renderModalView(p);
@@ -2570,16 +2582,18 @@ function onTaskDrop(e, targetKey) {
 
   const p = currentProject;
   if (!p) return;
+  const isF3  = phase === 3;
   const isF2b = phase === 2;
+  const orderKey = isF3 ? 3 : isF2b;
 
-  const order = getTaskOrder(p, isF2b);
+  const order = getTaskOrder(p, orderKey);
   const fromIdx = order.indexOf(_dragTaskKey);
   const toIdx   = order.indexOf(targetKey);
   if (fromIdx === -1 || toIdx === -1) return;
 
   order.splice(fromIdx, 1);
   order.splice(toIdx, 0, _dragTaskKey);
-  saveTaskOrder(p, order, isF2b);
+  saveTaskOrder(p, order, orderKey);
   _dragTaskKey = null;
   renderModalView(p);
 }
@@ -2708,6 +2722,50 @@ function renderModalView(p) {
           onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTask(false);}" />
         <button class="task-add-btn" onclick="addCustomTask(false)">Adicionar</button>
       </div>`;
+  } else if (phase === 3) {
+    // F3: only custom tasks
+    actsTitleEl.textContent = 'Checklist de Tarefas';
+    const tasks3 = p.tasks3 || {};
+    const taskOrder3 = getTaskOrder(p, 3);
+    const allTaskKeys3 = taskOrder3.filter(k => k in tasks3);
+    const getLabel3 = k => tasks3[k]?._label || k;
+    const totalTasks3 = allTaskKeys3.length;
+    const doneCount3 = allTaskKeys3.filter(k => {
+      const s = (tasks3[k]||{}).status||'';
+      return s==='Concluído' || s==='N/A';
+    }).length;
+    const activeCount3 = allTaskKeys3.filter(k => {
+      const s = (tasks3[k]||{}).status||'';
+      return s!=='' && s!=='N/A';
+    }).length;
+    const pct3 = totalTasks3 > 0 ? Math.round(doneCount3 / totalTasks3 * 100) : 0;
+    actsEl.innerHTML = `
+      <div class="task-progress-bar-wrap">
+        <div class="task-progress-track"><div class="task-progress-fill" style="width:${pct3}%"></div></div>
+        <div class="task-progress-label">${doneCount3} de ${totalTasks3} finalizadas · ${pct3}% · ${activeCount3} em andamento</div>
+      </div>
+      <div class="task-list" id="taskList3">
+        ${allTaskKeys3.length === 0 ? '<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">Nenhuma tarefa criada. Adicione abaixo.</div>' : ''}
+        ${allTaskKeys3.map((k,i) => {
+          const td = tasks3[k] || {status:'',resp:'',date:''};
+          const label = getLabel3(k);
+          const stCfg = F1_STATUS_CFG[td.status||''] || F1_STATUS_CFG[''];
+          const stOpts = ['', ...F1_STATUS_OPTS].map(s =>
+            '<option value="'+s+'"'+(td.status===s?' selected':'')+'>'+( s||'Status…')+'</option>'
+          ).join('');
+          const respOpts = F1_RESP_OPTS.map(r =>
+            '<option value="'+r+'"'+(td.resp===r?' selected':'')+'>'+r+'</option>'
+          ).join('');
+          const dateVal = td.date || '';
+          const isFinished3 = td.status==='Concluído' || td.status==='N/A';
+          return '<div class="task-row '+stCfg.cls+(isFinished3?' done':'')+'" id="trow-'+k+'" draggable="true" ondragstart="onTaskDragStart(event,''+k+'')" ondragend="onTaskDragEnd(event)" ondragover="onTaskDragOver(event,''+k+'')" ondrop="onTaskDrop(event,''+k+'')"><div class="task-main"><span class="task-drag-handle" title="Arrastar para reordenar">⠿</span><span class="task-num">'+(i+1)+'.</span><span class="task-label">'+label+'</span><button class="task-del-btn" title="Remover tarefa" onclick="event.stopPropagation();deleteCustomTask(''+k+'',3)">✕</button></div><div class="task-meta"><select class="task-st-sel '+stCfg.cls+'" onchange="setTaskStatus3(event,''+k+'')" onclick="event.stopPropagation()">'+stOpts+'</select><select class="task-resp-sel'+(td.resp?' has-resp':'')+'" onchange="setTaskResp3(event,''+k+'')" onclick="event.stopPropagation()"><option value="">Responsável…</option>'+respOpts+'</select><span class="task-date-label">📅</span><input type="date" class="task-date-inp'+(dateVal?' has-date':'')+'" value="'+dateVal+'" onchange="setTaskDate3(event,''+k+'')" onclick="event.stopPropagation()" /></div></div>';
+        }).join('')}
+      </div>
+      <div class="task-add-row">
+        <input type="text" class="task-add-inp" id="taskAddInp3" placeholder="＋ Nova tarefa…"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTask(3);}" />
+        <button class="task-add-btn" onclick="addCustomTask(3)">Adicionar</button>
+      </div>`;
   } else {
     // F2: task checklist (same model as F1)
     actsTitleEl.textContent = 'Checklist de Tarefas';
@@ -2832,6 +2890,49 @@ function setTaskDate2(e, key) {
 }
 
 function _saveAndRender2(refreshModal) {
+  persistProjectState(currentProject);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(currentProject);
+  if (refreshModal) renderModalView(currentProject);
+  render();
+  const toast = document.getElementById('saveToast');
+  toast.textContent = '✓ Tarefa atualizada!';
+  toast.classList.add('show');
+  setTimeout(()=>{ toast.classList.remove('show'); toast.textContent='✓ Alterações salvas!'; }, 1400);
+}
+
+// ── FASE 3 TASK SETTERS ──
+function setTaskStatus3(e, key) {
+  e.stopPropagation();
+  if (!currentProject) return;
+  if (!currentProject.tasks3) currentProject.tasks3 = {};
+  const newStatus = e.target.value;
+  if (!currentProject.tasks3[key]) currentProject.tasks3[key] = {status:'',resp:'',date:''};
+  currentProject.tasks3[key].status = newStatus;
+  if (newStatus && !currentProject.tasks3[key].date) {
+    currentProject.tasks3[key].date = _todayStr();
+  }
+  _saveAndRender3(true);
+}
+
+function setTaskResp3(e, key) {
+  e.stopPropagation();
+  if (!currentProject) return;
+  if (!currentProject.tasks3) currentProject.tasks3 = {};
+  if (!currentProject.tasks3[key]) currentProject.tasks3[key] = {status:'',resp:'',date:''};
+  currentProject.tasks3[key].resp = e.target.value;
+  _saveAndRender3(false);
+}
+
+function setTaskDate3(e, key) {
+  e.stopPropagation();
+  if (!currentProject) return;
+  if (!currentProject.tasks3) currentProject.tasks3 = {};
+  if (!currentProject.tasks3[key]) currentProject.tasks3[key] = {status:'',resp:'',date:''};
+  currentProject.tasks3[key].date = e.target.value;
+  _saveAndRender3(false);
+}
+
+function _saveAndRender3(refreshModal) {
   persistProjectState(currentProject);
   if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(currentProject);
   if (refreshModal) renderModalView(currentProject);
@@ -3591,6 +3692,7 @@ function onDrop(e) {
     allEdits[pid].acts  = { ...draggedProject.acts };
     if (draggedProject.tasks)  allEdits[pid].tasks  = JSON.parse(JSON.stringify(draggedProject.tasks));
     if (draggedProject.tasks2) allEdits[pid].tasks2 = JSON.parse(JSON.stringify(draggedProject.tasks2));
+    if (draggedProject.tasks3) allEdits[pid].tasks3 = JSON.parse(JSON.stringify(draggedProject.tasks3));
     localStorage.setItem('kanban_edits', JSON.stringify(allEdits));
   } catch(err) {
     console.error('Erro ao salvar:', err);
@@ -3649,8 +3751,9 @@ function persistProjectState(p) {
   allEdits[pid] = allEdits[pid] || {};
   Object.assign(allEdits[pid], {
     st: p.st, prazo: p.prazo, atv: p.atv, sus: p.sus || '',
-    tasks: p.tasks ? JSON.parse(JSON.stringify(p.tasks)) : undefined,
+    tasks:  p.tasks  ? JSON.parse(JSON.stringify(p.tasks))  : undefined,
     tasks2: p.tasks2 ? JSON.parse(JSON.stringify(p.tasks2)) : undefined,
+    tasks3: p.tasks3 ? JSON.parse(JSON.stringify(p.tasks3)) : undefined,
     pkg: p.pkg, cons: p.cons, blk: p.blk,
     upd: p.upd, acts: { ...p.acts }
   });
@@ -3680,7 +3783,7 @@ function normalizeSt(st) {
 }
 
 function normalizeAllAtv() {
-  [...RAW.f1, ...RAW.f2].forEach(p => {
+  [...RAW.f1, ...RAW.f2, ...(RAW.f3||[])].forEach(p => {
     p.atv = normalizeAtv(p.atv || '');
     p.st  = normalizeSt(p.st  || '');
   });
