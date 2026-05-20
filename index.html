@@ -2758,7 +2758,32 @@ function renderModalView(p) {
           ).join('');
           const dateVal = td.date || '';
           const isFinished3 = td.status==='Concluído' || td.status==='N/A';
-          return '<div class="task-row '+stCfg.cls+(isFinished3?' done':'')+'" id="trow-'+k+'" draggable="true" ondragstart="onTaskDragStart(event,''+k+'')" ondragend="onTaskDragEnd(event)" ondragover="onTaskDragOver(event,''+k+'')" ondrop="onTaskDrop(event,''+k+'')"><div class="task-main"><span class="task-drag-handle" title="Arrastar para reordenar">⠿</span><span class="task-num">'+(i+1)+'.</span><span class="task-label">'+label+'</span><button class="task-del-btn" title="Remover tarefa" onclick="event.stopPropagation();deleteCustomTask(''+k+'',3)">✕</button></div><div class="task-meta"><select class="task-st-sel '+stCfg.cls+'" onchange="setTaskStatus3(event,''+k+'')" onclick="event.stopPropagation()">'+stOpts+'</select><select class="task-resp-sel'+(td.resp?' has-resp':'')+'" onchange="setTaskResp3(event,''+k+'')" onclick="event.stopPropagation()"><option value="">Responsável…</option>'+respOpts+'</select><span class="task-date-label">📅</span><input type="date" class="task-date-inp'+(dateVal?' has-date':'')+'" value="'+dateVal+'" onchange="setTaskDate3(event,''+k+'')" onclick="event.stopPropagation()" /></div></div>';
+          const ek = k.replace(/'/g, "\\'");
+          return `<div class="task-row ${stCfg.cls}${isFinished3?' done':''}" id="trow-${k}"
+              draggable="true"
+              ondragstart="onTaskDragStart(event,'${ek}')"
+              ondragend="onTaskDragEnd(event)"
+              ondragover="onTaskDragOver(event,'${ek}')"
+              ondrop="onTaskDrop(event,'${ek}')">
+            <div class="task-main">
+              <span class="task-drag-handle" title="Arrastar para reordenar">⠿</span>
+              <span class="task-num">${i+1}.</span>
+              <span class="task-label">${label}</span>
+              <button class="task-del-btn" title="Remover tarefa" onclick="event.stopPropagation();deleteCustomTask('${ek}',3)">✕</button>
+            </div>
+            <div class="task-meta">
+              <select class="task-st-sel ${stCfg.cls}" onchange="setTaskStatus3(event,'${ek}')" onclick="event.stopPropagation()">
+                ${stOpts}
+              </select>
+              <select class="task-resp-sel${td.resp?' has-resp':''}" onchange="setTaskResp3(event,'${ek}')" onclick="event.stopPropagation()">
+                <option value="">Responsável…</option>
+                ${respOpts}
+              </select>
+              <span class="task-date-label">📅</span>
+              <input type="date" class="task-date-inp${dateVal?' has-date':''}" value="${dateVal}"
+                onchange="setTaskDate3(event,'${ek}')" onclick="event.stopPropagation()" />
+            </div>
+          </div>`;
         }).join('')}
       </div>
       <div class="task-add-row">
