@@ -3968,226 +3968,205 @@ function renderDashboard() {
   const panel = document.getElementById('dashPanel');
   if (!panel) return;
 
-  const CONS_COLORS = {Amanda:'#a855f7',Daniel:'#f59e0b',Dalva:'#22c55e',Erica:'#6366f1',Otavio:'#14b8a6',Thaiza:'#f43f5e'};
-  const CONS_INIT = {Amanda:'Am',Daniel:'D',Dalva:'Da',Erica:'E',Otavio:'O',Thaiza:'T'};
+  const CC = {Amanda:'#00c4cc',Daniel:'#0088ff',Dalva:'#a855f7',Erica:'#22c55e',Otavio:'#f59e0b',Thaiza:'#f43f5e'};
+  const CI = {Amanda:'Am',Daniel:'D',Dalva:'Da',Erica:'E',Otavio:'O',Thaiza:'T'};
   const consultores = ['Amanda','Daniel','Dalva','Erica','Otavio','Thaiza'];
 
-  // ── helpers ──────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────
   function calcStats(data) {
     const total    = data.length;
-    const cancel   = data.filter(p => p.atv === 'CANCELADO').length;
-    const active   = total - cancel;
-    const concl    = data.filter(p => p.st === 'CONCLUÍDO' && p.atv !== 'CANCELADO').length;
-    const andament = data.filter(p => p.st !== 'NÃO INICIADO' && p.st !== 'CONCLUÍDO' && p.atv !== 'CANCELADO').length;
-    const ni       = data.filter(p => p.st === 'NÃO INICIADO' && p.atv !== 'CANCELADO').length;
-    const atrasado = data.filter(p => p.prazo === 'ATRASADO' && p.atv !== 'CANCELADO').length;
-    const sustent  = data.filter(p => (p.sus==='Sustentação'||p.sus==='Sim') && p.atv !== 'CANCELADO').length;
-    const totvs    = data.filter(p => (p.sus==='Totvs Matriz'||p.sus==='Não') && p.atv !== 'CANCELADO').length;
-    const pct      = active > 0 ? Math.round(concl/active*100) : 0;
-    return {total,cancel,active,concl,andament,ni,atrasado,sustent,totvs,pct};
+    const cancel   = data.filter(p => p.st === 'CANCELADO').length;
+    const concl    = data.filter(p => p.st === 'CONCLUÍDO').length;
+    const andament = data.filter(p => p.st === 'EM ANDAMENTO').length;
+    const ni       = data.filter(p => p.st === 'NÃO INICIADO').length;
+    const atrasado = data.filter(p => p.prazo === 'ATRASADO' && p.st !== 'CANCELADO').length;
+    const sustent  = data.filter(p => (p.sus==='Sustentação'||p.sus==='Sim') && p.st !== 'CANCELADO').length;
+    const totvs    = data.filter(p => (p.sus==='Totvs Matriz'||p.sus==='Não') && p.st !== 'CANCELADO').length;
+    const conclTotal = concl + cancel;
+    const pct      = total > 0 ? Math.round(conclTotal/total*100) : 0;
+    return {total,cancel,concl,conclTotal,andament,ni,atrasado,sustent,totvs,pct};
   }
 
   function byConsultor(data) {
     return consultores.map(c => ({
       name: c,
-      total: data.filter(p=>p.cons===c).length,
-      concl: data.filter(p=>p.cons===c && p.st==='CONCLUÍDO' && p.atv!=='CANCELADO').length,
-      andament: data.filter(p=>p.cons===c && p.st!=='NÃO INICIADO' && p.st!=='CONCLUÍDO' && p.atv!=='CANCELADO').length,
-      cancel: data.filter(p=>p.cons===c && p.atv==='CANCELADO').length,
-      atrasado: data.filter(p=>p.cons===c && p.prazo==='ATRASADO' && p.atv!=='CANCELADO').length,
+      total:    data.filter(p=>p.cons===c).length,
+      concl:    data.filter(p=>p.cons===c && p.st==='CONCLUÍDO').length,
+      andament: data.filter(p=>p.cons===c && p.st==='EM ANDAMENTO').length,
+      ni:       data.filter(p=>p.cons===c && p.st==='NÃO INICIADO').length,
+      cancel:   data.filter(p=>p.cons===c && p.st==='CANCELADO').length,
+      atrasado: data.filter(p=>p.cons===c && p.prazo==='ATRASADO' && p.st!=='CANCELADO').length,
     })).filter(x=>x.total>0);
   }
 
-  function miniBar(val, max, color) {
-    const pct = max > 0 ? Math.round(val/max*100) : 0;
-    return `<div style="height:6px;background:#1e3d5c;border-radius:3px;overflow:hidden;margin-top:3px">
-      <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .4s"></div></div>`;
-  }
-
-  function donutSVG(pct, color, r=28) {
-    const circ = 2*Math.PI*r, dash = circ*(pct/100), gap = circ - dash;
-    return `<svg viewBox="0 0 80 80" style="width:80px;height:80px">
-      <circle cx="40" cy="40" r="${r}" fill="none" stroke="#1e3d5c" stroke-width="10"/>
-      <circle cx="40" cy="40" r="${r}" fill="none" stroke="${color}" stroke-width="10"
-        stroke-dasharray="${dash.toFixed(1)} ${gap.toFixed(1)}" stroke-dashoffset="${circ*0.25}" stroke-linecap="round"/>
-      <text x="40" y="44" text-anchor="middle" fill="${color}" font-size="14" font-weight="700" font-family="Inter,sans-serif">${pct}%</text>
+  function miniRing(pct, color, size=44) {
+    const r=16, circ=2*Math.PI*r, dash=circ*(pct/100), gap=circ-dash;
+    return `<svg viewBox="0 0 40 40" width="${size}" height="${size}">
+      <circle cx="20" cy="20" r="${r}" fill="none" stroke="#1e3d5c" stroke-width="5"/>
+      <circle cx="20" cy="20" r="${r}" fill="none" stroke="${color}" stroke-width="5"
+        stroke-dasharray="${dash.toFixed(1)} ${gap.toFixed(1)}"
+        stroke-dashoffset="${circ*0.25}" stroke-linecap="round"/>
+      <text x="20" y="24" text-anchor="middle" fill="${color}" font-size="9" font-weight="700" font-family="Inter,sans-serif">${pct}%</text>
     </svg>`;
   }
 
-  const ATV_ICON = {
-    'EM PRODUÇÃO':'🟢','EM PRODUÇÃO - PENDÊNCIAS':'🟡','EM PRODUÇÃO - ERROS':'🔴',
-    'VALIDAÇÃO':'🔵','EM CONFIGURAÇÃO':'⚙️','AGUARDANDO PLANILHA':'📋',
-    'MANUTENÇÃO PERFIS':'🔧','CANCELADO':'🚫',''  :'—'
-  };
-  const ATV_PALETTE = [
-    '#6366f1','#22c55e','#f59e0b','#ef4444','#14b8a6','#a855f7','#3b82f6','#ec4899'
-  ];
-
-  function hbarChart(items, colorFn, maxW=140) {
-    if (!items.length) return '<div style="color:var(--muted);font-size:11px;text-align:center;padding:8px">Sem dados</div>';
-    const total = items.reduce((s,i)=>s+i.v, 0);
-    const maxV  = Math.max(...items.map(i=>i.v), 1);
-    return items.map((item, idx) => {
-      const pct  = total ? Math.round(item.v / total * 100) : 0;
-      const bar  = Math.round(item.v / maxV * 100);
-      const col  = ATV_PALETTE[idx % ATV_PALETTE.length];
-      const icon = ATV_ICON[item.l] || '📌';
-      const label = item.l || '—';
-      return `
-      <div style="margin-bottom:9px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;gap:4px">
-          <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1">
-            <span style="font-size:12px;flex-shrink:0">${icon}</span>
-            <span style="font-size:10px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${label}">${label}</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
-            <span style="font-size:10px;font-weight:800;color:${col}">${item.v}</span>
-            <span style="font-size:9px;color:var(--muted);background:var(--surface2);border-radius:4px;padding:1px 4px">${pct}%</span>
-          </div>
-        </div>
-        <div style="height:7px;background:var(--surface2);border-radius:6px;overflow:hidden">
-          <div style="height:100%;width:${bar}%;background:linear-gradient(90deg,${col}cc,${col});border-radius:6px;transition:width .3s"></div>
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  // ── build panel ──────────────────────────────────────
-  const F1 = RAW.f1;
-  const F2 = RAW.f2;
-  const s1 = calcStats(F1), s2 = calcStats(F2);
-  const c1 = byConsultor(F1), c2 = byConsultor(F2);
-
-  function phasePanel(data, stats, byC, title, accentColor, label) {
-    // activity breakdown for pie-style bars
+  // ── Fase card (compact) ───────────────────────────────────
+  function phaseCard(data, stats, byC, label, accent, icon) {
     const atvMap = {};
-    data.filter(p=>p.atv!=='CANCELADO').forEach(p => { atvMap[p.atv] = (atvMap[p.atv]||0)+1; });
-    const atvTop = Object.entries(atvMap).sort((a,b)=>b[1]-a[1]).slice(0,6)
-      .map(([l,v])=>({l,v}));
+    data.filter(p=>p.st!=='CANCELADO').forEach(p => { atvMap[p.atv||'—'] = (atvMap[p.atv||'—']||0)+1; });
+    const atvTop = Object.entries(atvMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([l,v])=>({l,v}));
+    const maxV = Math.max(...atvTop.map(x=>x.v), 1);
+    const ATV_PAL = ['#6366f1','#22c55e','#f59e0b','#ef4444','#14b8a6'];
 
-    // sus breakdown
-    const susColors = {
-      'Sustentação':'#14b8a6','Sim':'#14b8a6',
-      'Totvs Matriz':'#a855f7','Não':'#a855f7',
-    };
-    const susLabel = (sus) => (sus==='Sim'||sus==='Sustentação') ? 'Sustentação' : 'Totvs Matriz';
+    // Suporte: clean pill style
+    const susTotal = stats.sustent + stats.totvs;
+    const susPctS  = susTotal > 0 ? Math.round(stats.sustent/susTotal*100) : 0;
+    const susPctT  = susTotal > 0 ? Math.round(stats.totvs/susTotal*100) : 0;
 
     return `
-    <div style="display:flex;flex-direction:column;gap:12px;flex:1;min-width:0">
-      <!-- Header -->
-      <div style="background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid ${accentColor}44;border-radius:10px;padding:14px 16px">
-        <div style="font-size:11px;font-weight:700;color:${accentColor};text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${title}</div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
-          ${[
-            {v:stats.total,l:'Total',c:'var(--text)',bg:''},
-            {v:stats.active,l:'Ativos',c:'#60a5fa',bg:''},
-            {v:stats.concl,l:'Concluídos',c:'#22c55e',bg:''},
-            {v:stats.cancel,l:'Cancelados',c:'#ef4444',bg:''},
-          ].map(s=>`<div style="background:var(--surface3);border-radius:8px;padding:8px 10px;text-align:center">
-            <div style="font-size:22px;font-weight:800;color:${s.c};line-height:1">${s.v}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px">${s.l}</div>
-          </div>`).join('')}
-        </div>
-        <!-- progress bar -->
-        <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
-          <div style="font-size:10px;color:var(--muted)">Conclusão</div>
-          <div style="flex:1;height:8px;background:#1e3d5c;border-radius:4px;overflow:hidden">
-            <div style="height:100%;width:${stats.pct}%;background:${accentColor};border-radius:4px;transition:width .5s"></div>
-          </div>
-          <div style="font-size:11px;font-weight:700;color:${accentColor}">${stats.pct}%</div>
-        </div>
-        <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--muted)">
-          <span>⚠ <span style="color:#f59e0b">${stats.atrasado}</span> atrasados</span>
-          <span>🔄 <span style="color:#60a5fa">${stats.andament}</span> em andamento</span>
-          <span>⏸ <span style="color:var(--muted)">${stats.ni}</span> não iniciados</span>
-        </div>
-      </div>
+    <div style="background:var(--surface);border:1px solid ${accent}33;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;gap:0">
 
-      <!-- Sustentação / Totvs -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Suporte</div>
-        <div style="display:flex;gap:10px;align-items:center">
-          <div style="flex:1;text-align:center">
-            ${donutSVG(stats.active>0?Math.round(stats.sustent/stats.active*100):0,'#14b8a6')}
-            <div style="font-size:11px;font-weight:600;color:#14b8a6;margin-top:2px">Sustentação</div>
-            <div style="font-size:18px;font-weight:800;color:var(--text)">${stats.sustent}</div>
-          </div>
-          <div style="width:1px;height:60px;background:var(--border)"></div>
-          <div style="flex:1;text-align:center">
-            ${donutSVG(stats.active>0?Math.round(stats.totvs/stats.active*100):0,'#a855f7')}
-            <div style="font-size:11px;font-weight:600;color:#a855f7;margin-top:2px">Totvs Matriz</div>
-            <div style="font-size:18px;font-weight:800;color:var(--text)">${stats.totvs}</div>
+      <!-- Header strip -->
+      <div style="background:linear-gradient(135deg,${accent}22,${accent}08);border-bottom:1px solid ${accent}33;padding:10px 14px;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:12px;font-weight:800;color:${accent};letter-spacing:.06em">${icon} ${label}</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${miniRing(stats.pct, accent, 40)}
+          <div style="font-size:10px;color:var(--muted);line-height:1.4">
+            <div><span style="color:var(--text);font-weight:700">${stats.total}</span> projetos</div>
+            <div style="color:#f59e0b">${stats.atrasado} atrasados</div>
           </div>
         </div>
       </div>
 
-      <!-- Por consultor -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;flex:1">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Projetos por Consultor</div>
-        ${byC.map(cx => {
-          const pct = cx.total > 0 ? Math.round(cx.concl/cx.total*100) : 0;
-          const col = CONS_COLORS[cx.name]||'#888';
-          return `<div style="margin-bottom:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="width:22px;height:22px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${CONS_INIT[cx.name]||cx.name[0]}</div>
-                <span style="font-size:12px;font-weight:600;color:var(--text)">${cx.name}</span>
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)">
+        ${[
+          {v:stats.ni,       l:'Não Iniciado', c:'#64748b'},
+          {v:stats.andament, l:'Em Andamento',  c:'#60a5fa'},
+          {v:stats.conclTotal,l:'Concluídos',   c:'#22c55e'},
+          {v:stats.cancel,   l:'Cancelados',    c:'#ef4444'},
+        ].map(s=>`<div style="background:var(--surface2);padding:8px 6px;text-align:center">
+          <div style="font-size:18px;font-weight:800;color:${s.c};line-height:1">${s.v}</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap">${s.l}</div>
+        </div>`).join('')}
+      </div>
+
+      <!-- Body: consultor + atividade + suporte -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;background:var(--border)">
+
+        <!-- Consultores -->
+        <div style="background:var(--surface);padding:10px 12px">
+          <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Por Consultor</div>
+          ${byC.map(cx => {
+            const pct2 = cx.total > 0 ? Math.round((cx.concl+cx.cancel)/cx.total*100) : 0;
+            const col = CC[cx.name]||'#888';
+            return `<div style="margin-bottom:7px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+                <div style="display:flex;align-items:center;gap:5px">
+                  <div style="width:18px;height:18px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0">${CI[cx.name]||cx.name[0]}</div>
+                  <span style="font-size:10px;font-weight:600;color:var(--text)">${cx.name}</span>
+                </div>
+                <div style="display:flex;gap:4px;font-size:9px">
+                  <span style="color:#22c55e">${cx.concl}✓</span>
+                  <span style="color:#60a5fa">${cx.andament}↻</span>
+                  <span style="color:#64748b">${cx.ni}⏸</span>
+                  ${cx.atrasado>0?`<span style="color:#f59e0b">${cx.atrasado}⚠</span>`:''}
+                </div>
               </div>
-              <div style="display:flex;gap:6px;font-size:10px">
-                <span style="color:#22c55e">${cx.concl}✓</span>
-                <span style="color:#60a5fa">${cx.andament}↻</span>
-                ${cx.cancel>0?`<span style="color:#ef4444">${cx.cancel}✗</span>`:''}
-                ${cx.atrasado>0?`<span style="color:#f59e0b">${cx.atrasado}⚠</span>`:''}
+              <div style="height:4px;background:#1e3d5c;border-radius:2px;overflow:hidden">
+                <div style="height:100%;width:${pct2}%;background:${col};border-radius:2px;transition:width .4s"></div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+
+        <!-- Atividades + Suporte -->
+        <div style="background:var(--surface2);padding:10px 12px;display:flex;flex-direction:column;gap:10px">
+
+          <!-- Atividades -->
+          <div>
+            <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px">Atividades</div>
+            ${atvTop.map((item,idx) => {
+              const col = ATV_PAL[idx%ATV_PAL.length];
+              const bar = Math.round(item.v/maxV*100);
+              const lbl = item.l || '—';
+              return `<div style="margin-bottom:5px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+                  <span style="font-size:9px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px" title="${lbl}">${lbl}</span>
+                  <span style="font-size:9px;font-weight:700;color:${col};flex-shrink:0;margin-left:4px">${item.v}</span>
+                </div>
+                <div style="height:4px;background:#1e3d5c;border-radius:2px;overflow:hidden">
+                  <div style="height:100%;width:${bar}%;background:${col};border-radius:2px;transition:width .3s"></div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+
+          <!-- Suporte: clean pills -->
+          <div>
+            <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px">Suporte</div>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;align-items:center;gap:7px">
+                <div style="width:8px;height:8px;border-radius:50%;background:#14b8a6;flex-shrink:0"></div>
+                <div style="flex:1;height:6px;background:#1e3d5c;border-radius:3px;overflow:hidden">
+                  <div style="height:100%;width:${susPctS}%;background:#14b8a6;border-radius:3px;transition:width .4s"></div>
+                </div>
+                <span style="font-size:10px;font-weight:700;color:#14b8a6;min-width:20px">${stats.sustent}</span>
+                <span style="font-size:9px;color:var(--muted)">Sustentação</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px">
+                <div style="width:8px;height:8px;border-radius:50%;background:#a855f7;flex-shrink:0"></div>
+                <div style="flex:1;height:6px;background:#1e3d5c;border-radius:3px;overflow:hidden">
+                  <div style="height:100%;width:${susPctT}%;background:#a855f7;border-radius:3px;transition:width .4s"></div>
+                </div>
+                <span style="font-size:10px;font-weight:700;color:#a855f7;min-width:20px">${stats.totvs}</span>
+                <span style="font-size:9px;color:var(--muted)">Totvs Matriz</span>
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <div style="flex:1;height:6px;background:#1e3d5c;border-radius:3px;overflow:hidden">
-                <div style="height:100%;width:${pct}%;background:${col};border-radius:3px"></div>
-              </div>
-              <span style="font-size:10px;color:var(--muted);min-width:28px;text-align:right">${cx.total} proj</span>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
+          </div>
 
-      <!-- Top atividades -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Distribuição por Atividade</div>
-        ${hbarChart(atvTop, ()=>accentColor)}
+        </div>
       </div>
     </div>`;
   }
 
+  // ── Build panel ──────────────────────────────────────────
+  const F1 = RAW.f1;
+  const F2 = RAW.f2;
+  const F3 = RAW.f3 || [];
+  const s1 = calcStats(F1), s2 = calcStats(F2), s3 = calcStats(F3);
+  const c1 = byConsultor(F1), c2 = byConsultor(F2), c3 = byConsultor(F3);
+
   const today = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const totalGeral = F1.length + F2.length + F3.length;
+  const conclGeral = s1.conclTotal + s2.conclTotal + s3.conclTotal;
+  const pctGeral   = totalGeral > 0 ? Math.round(conclGeral/totalGeral*100) : 0;
 
   panel.innerHTML = `
-    <div style="padding:16px 24px;overflow-y:auto;width:100%;box-sizing:border-box">
-      <!-- Title -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div style="padding:12px 20px;overflow-y:auto;width:100%;box-sizing:border-box;min-height:100%">
+
+      <!-- Title bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <div>
-          <div style="font-size:18px;font-weight:800;color:var(--text)">📊 Dashboard Gerencial — Reforma Tributária</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">${today} · SR Fase 1 · SR Fase 2</div>
+          <div style="font-size:16px;font-weight:800;color:var(--text)">📊 Dashboard — Reforma Tributária</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:1px">${today}</div>
         </div>
-        <div style="display:flex;gap:8px">
-          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--accent)">📤 F1: ${F1.length} projetos</div>
-          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;color:#a855f7">📥 F2: ${F2.length} projetos</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <div style="background:var(--surface2);border:1px solid var(--accent)44;border-radius:20px;padding:4px 12px;font-size:11px;color:var(--accent);font-weight:600">📤 F1: ${F1.length}</div>
+          <div style="background:var(--surface2);border:1px solid #a855f744;border-radius:20px;padding:4px 12px;font-size:11px;color:#a855f7;font-weight:600">📥 F2: ${F2.length}</div>
+          <div style="background:var(--surface2);border:1px solid #f59e0b44;border-radius:20px;padding:4px 12px;font-size:11px;color:#f59e0b;font-weight:600">⚙️ F3: ${F3.length}</div>
+          <div style="background:var(--surface2);border:1px solid #22c55e44;border-radius:20px;padding:4px 12px;font-size:11px;color:#22c55e;font-weight:600">✅ ${pctGeral}% concluído</div>
         </div>
       </div>
 
-      <!-- Two-column layout: F1 left, F2 right -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
-        <div>
-          <div style="font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--accent)">📤 Fase 1 — IBS/CBS Saídas</div>
-          ${phasePanel(F1, s1, c1, 'FASE 1 — SAÍDAS IBS/CBS', 'var(--accent)', 'F1')}
-        </div>
-        <div>
-          <div style="font-size:12px;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #a855f7">📥 Fase 2 — IBS/CBS Entradas</div>
-          ${phasePanel(F2, s2, c2, 'FASE 2 — ENTRADAS IBS/CBS', '#a855f7', 'F2')}
-        </div>
+      <!-- 3 columns: one per phase -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:start">
+        ${phaseCard(F1, s1, c1, 'FASE 1 — SAÍDAS IBS/CBS',   'var(--accent)', '📤')}
+        ${phaseCard(F2, s2, c2, 'FASE 2 — ENTRADAS IBS/CBS',  '#a855f7',       '📥')}
+        ${phaseCard(F3, s3, c3, 'FASE 3 — IMPOSTOS LEGADOS',  '#f59e0b',       '⚙️')}
       </div>
     </div>`;
 }
-
 
 
 
