@@ -2162,8 +2162,6 @@ function makeCard(p) {
     ${p.atv ? `<div class="card-atv" data-atv="${p.atv}">${p.atv}</div>` : ''}
     <div class="card-task-dots">${dotHtml}</div>
     ${(p.sus==='Sustentação'||p.sus==='Totvs Matriz') ? `<div class="sus-badge sus-yes">${p.sus==='Totvs Matriz'?'🏢':'🔧'} ${p.sus}</div>` : ''}
-
-   
     <div class="card-footer">
       ${p.prazo ? `<span class="prazo-tag ${p.prazo === 'ATRASADO' ? 'prazo-at' : p.prazo === 'ADIANTADO' ? 'prazo-ad' : 'prazo-ok'}">${p.prazo === 'ATRASADO' ? '⚠ Atrasado' : p.prazo === 'ADIANTADO' ? '⚡ Adiantado' : '✓ No prazo'}</span>` : '<span></span>'}
       ${p.upd ? `<span class="upd-date">${p.upd}</span>` : ''}
