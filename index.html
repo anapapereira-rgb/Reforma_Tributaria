@@ -2163,51 +2163,7 @@ function makeCard(p) {
     <div class="card-task-dots">${dotHtml}</div>
     ${(p.sus==='Sustentação'||p.sus==='Totvs Matriz') ? `<div class="sus-badge sus-yes">${p.sus==='Totvs Matriz'?'🏢':'🔧'} ${p.sus}</div>` : ''}
 
-// Gera a URL do Google Calendar com Google Meet automático
-const titleMeeting = encodeURIComponent(`Reunião Reforma Tributária - ${p.c}`);
-const detailsMeeting = encodeURIComponent(`Alinhamento do projeto de Reforma Tributária com o consultor ${p.cons}.`);
-// URL com o parâmetro especial &conferenceHint=true que força a criação do Google Meet
-const googleMeetSchedUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${titleMeeting}&details=${detailsMeeting}&conferenceHint=true`;
-
-el.innerHTML = `
-  ${isAtrasado ? '<div class="card-alert"></div>' : ''}
-  <div class="card-top">
-    <div class="card-name">${p.c}</div>
-    <span class="pkg-badge pkg-${p.pkg||'P'}">${p.pkg||'P'}</span>
-    <button class="card-del-btn" title="Excluir projeto" onclick="event.stopPropagation();openConfirmDelete('${projectId(p).replace(/'/g,String.fromCharCode(39))}','${p.c.replace(/'/g,'&#39;')}')">✕</button>
-  </div>
-  <div class="card-cons">
-    <div class="avatar av-${p.cons}" style="width:18px;height:18px;font-size:9px;">${avInit(p.cons)}</div>
-    ${p.cons}
-  </div>
-  ${p.atv ? `<div class="card-atv" data-atv="${p.atv}">${p.atv}</div>` : ''}
-  
-  <div style="margin: 6px 0 8px 0;">
-    <a href="${googleMeetSchedUrl}" target="_blank" onclick="event.stopPropagation();" style="
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      width: 100%;
-      padding: 6px;
-      background: rgba(59, 130, 246, 0.15);
-      border: 1px solid rgba(59, 130, 246, 0.4);
-      border-radius: 6px;
-      color: #60a5fa;
-      font-size: 11px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: all 0.15s;
-    " onmouseover="this.style.background='rgba(59, 130, 246, 0.3)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.15)'">
-      📅 Agendar Google Meet ↗
-    </a>
-  </div>
-
-  <div class="card-task-dots">${dotHtml}</div>
-  ...
-`;
-
-    
+   
     <div class="card-footer">
       ${p.prazo ? `<span class="prazo-tag ${p.prazo === 'ATRASADO' ? 'prazo-at' : p.prazo === 'ADIANTADO' ? 'prazo-ad' : 'prazo-ok'}">${p.prazo === 'ATRASADO' ? '⚠ Atrasado' : p.prazo === 'ADIANTADO' ? '⚡ Adiantado' : '✓ No prazo'}</span>` : '<span></span>'}
       ${p.upd ? `<span class="upd-date">${p.upd}</span>` : ''}
