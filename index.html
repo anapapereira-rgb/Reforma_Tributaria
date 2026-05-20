@@ -4030,7 +4030,7 @@ function renderDashboard() {
       <div style="background:linear-gradient(135deg,${accent}22,${accent}08);border-bottom:1px solid ${accent}33;padding:10px 14px;display:flex;align-items:center;justify-content:space-between">
         <div style="font-size:12px;font-weight:800;color:${accent};letter-spacing:.06em">${icon} ${label}</div>
         <div style="display:flex;gap:6px;align-items:center">
-          ${miniRing(stats.pct, accent, 40)}
+          ${miniRing(stats.pct, accent, 52)}
           <div style="font-size:10px;color:var(--muted);line-height:1.4">
             <div><span style="color:var(--text);font-weight:700">${stats.total}</span> projetos</div>
             <div style="color:#f59e0b">${stats.atrasado} atrasados</div>
@@ -4045,87 +4045,84 @@ function renderDashboard() {
           {v:stats.andament, l:'Em Andamento',  c:'#60a5fa'},
           {v:stats.conclTotal,l:'Concluídos',   c:'#22c55e'},
           {v:stats.cancel,   l:'Cancelados',    c:'#ef4444'},
-        ].map(s=>`<div style="background:var(--surface2);padding:8px 6px;text-align:center">
-          <div style="font-size:18px;font-weight:800;color:${s.c};line-height:1">${s.v}</div>
-          <div style="font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap">${s.l}</div>
+        ].map(s=>`<div style="background:var(--surface2);padding:12px 8px;text-align:center">
+          <div style="font-size:22px;font-weight:800;color:${s.c};line-height:1">${s.v}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;white-space:nowrap">${s.l}</div>
         </div>`).join('')}
       </div>
 
-      <!-- Body: consultor + atividade + suporte -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;background:var(--border)">
+      <!-- Body: consultor, atividades e suporte empilhados -->
+      <div style="display:flex;flex-direction:column;gap:0;background:var(--border)">
 
         <!-- Consultores -->
-        <div style="background:var(--surface);padding:10px 12px">
-          <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Por Consultor</div>
+        <div style="background:var(--surface);padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Por Consultor</div>
           ${byC.map(cx => {
             const pct2 = cx.total > 0 ? Math.round((cx.concl+cx.cancel)/cx.total*100) : 0;
             const col = CC[cx.name]||'#888';
-            return `<div style="margin-bottom:7px">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
-                <div style="display:flex;align-items:center;gap:5px">
-                  <div style="width:18px;height:18px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0">${CI[cx.name]||cx.name[0]}</div>
-                  <span style="font-size:10px;font-weight:600;color:var(--text)">${cx.name}</span>
+            return `<div style="margin-bottom:10px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                <div style="display:flex;align-items:center;gap:7px">
+                  <div style="width:22px;height:22px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${CI[cx.name]||cx.name[0]}</div>
+                  <span style="font-size:12px;font-weight:600;color:var(--text)">${cx.name}</span>
                 </div>
-                <div style="display:flex;gap:4px;font-size:9px">
-                  <span style="color:#22c55e">${cx.concl}✓</span>
-                  <span style="color:#60a5fa">${cx.andament}↻</span>
+                <div style="display:flex;gap:6px;font-size:10px;align-items:center">
+                  <span style="color:#22c55e;font-weight:600">${cx.concl}✓</span>
+                  <span style="color:#60a5fa;font-weight:600">${cx.andament}↻</span>
                   <span style="color:#64748b">${cx.ni}⏸</span>
-                  ${cx.atrasado>0?`<span style="color:#f59e0b">${cx.atrasado}⚠</span>`:''}
+                  ${cx.atrasado>0?`<span style="color:#f59e0b;font-weight:600">${cx.atrasado}⚠</span>`:''}
+                  <span style="color:var(--muted);font-size:9px">${cx.total} proj</span>
                 </div>
               </div>
-              <div style="height:4px;background:#1e3d5c;border-radius:2px;overflow:hidden">
-                <div style="height:100%;width:${pct2}%;background:${col};border-radius:2px;transition:width .4s"></div>
+              <div style="height:5px;background:#1e3d5c;border-radius:3px;overflow:hidden">
+                <div style="height:100%;width:${pct2}%;background:${col};border-radius:3px;transition:width .4s"></div>
               </div>
             </div>`;
           }).join('')}
         </div>
 
-        <!-- Atividades + Suporte -->
-        <div style="background:var(--surface2);padding:10px 12px;display:flex;flex-direction:column;gap:10px">
-
-          <!-- Atividades -->
-          <div>
-            <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px">Atividades</div>
-            ${atvTop.map((item,idx) => {
-              const col = ATV_PAL[idx%ATV_PAL.length];
-              const bar = Math.round(item.v/maxV*100);
-              const lbl = item.l || '—';
-              return `<div style="margin-bottom:5px">
-                <div style="display:flex;justify-content:space-between;margin-bottom:2px">
-                  <span style="font-size:9px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px" title="${lbl}">${lbl}</span>
-                  <span style="font-size:9px;font-weight:700;color:${col};flex-shrink:0;margin-left:4px">${item.v}</span>
-                </div>
-                <div style="height:4px;background:#1e3d5c;border-radius:2px;overflow:hidden">
-                  <div style="height:100%;width:${bar}%;background:${col};border-radius:2px;transition:width .3s"></div>
-                </div>
-              </div>`;
-            }).join('')}
-          </div>
-
-          <!-- Suporte: clean pills -->
-          <div>
-            <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px">Suporte</div>
-            <div style="display:flex;flex-direction:column;gap:5px">
-              <div style="display:flex;align-items:center;gap:7px">
-                <div style="width:8px;height:8px;border-radius:50%;background:#14b8a6;flex-shrink:0"></div>
-                <div style="flex:1;height:6px;background:#1e3d5c;border-radius:3px;overflow:hidden">
-                  <div style="height:100%;width:${susPctS}%;background:#14b8a6;border-radius:3px;transition:width .4s"></div>
-                </div>
-                <span style="font-size:10px;font-weight:700;color:#14b8a6;min-width:20px">${stats.sustent}</span>
-                <span style="font-size:9px;color:var(--muted)">Sustentação</span>
+        <!-- Atividades -->
+        <div style="background:var(--surface2);padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Distribuição por Atividade</div>
+          ${atvTop.map((item,idx) => {
+            const col = ATV_PAL[idx%ATV_PAL.length];
+            const bar = Math.round(item.v/maxV*100);
+            const lbl = item.l || '—';
+            return `<div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:3px;align-items:center">
+                <span style="font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:75%" title="${lbl}">${lbl}</span>
+                <span style="font-size:11px;font-weight:700;color:${col};flex-shrink:0;margin-left:6px">${item.v}</span>
               </div>
-              <div style="display:flex;align-items:center;gap:7px">
-                <div style="width:8px;height:8px;border-radius:50%;background:#a855f7;flex-shrink:0"></div>
-                <div style="flex:1;height:6px;background:#1e3d5c;border-radius:3px;overflow:hidden">
-                  <div style="height:100%;width:${susPctT}%;background:#a855f7;border-radius:3px;transition:width .4s"></div>
-                </div>
-                <span style="font-size:10px;font-weight:700;color:#a855f7;min-width:20px">${stats.totvs}</span>
-                <span style="font-size:9px;color:var(--muted)">Totvs Matriz</span>
+              <div style="height:5px;background:#1e3d5c;border-radius:3px;overflow:hidden">
+                <div style="height:100%;width:${bar}%;background:${col};border-radius:3px;transition:width .3s"></div>
               </div>
+            </div>`;
+          }).join('')}
+        </div>
+
+        <!-- Suporte -->
+        <div style="background:var(--surface);padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Suporte</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:10px;height:10px;border-radius:50%;background:#14b8a6;flex-shrink:0"></div>
+              <div style="flex:1;height:7px;background:#1e3d5c;border-radius:4px;overflow:hidden">
+                <div style="height:100%;width:${susPctS}%;background:#14b8a6;border-radius:4px;transition:width .4s"></div>
+              </div>
+              <span style="font-size:12px;font-weight:700;color:#14b8a6;min-width:24px;text-align:right">${stats.sustent}</span>
+              <span style="font-size:11px;color:var(--muted);min-width:80px">Sustentação</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:10px;height:10px;border-radius:50%;background:#a855f7;flex-shrink:0"></div>
+              <div style="flex:1;height:7px;background:#1e3d5c;border-radius:4px;overflow:hidden">
+                <div style="height:100%;width:${susPctT}%;background:#a855f7;border-radius:4px;transition:width .4s"></div>
+              </div>
+              <span style="font-size:12px;font-weight:700;color:#a855f7;min-width:24px;text-align:right">${stats.totvs}</span>
+              <span style="font-size:11px;color:var(--muted);min-width:80px">Totvs Matriz</span>
             </div>
           </div>
-
         </div>
+
       </div>
     </div>`;
   }
