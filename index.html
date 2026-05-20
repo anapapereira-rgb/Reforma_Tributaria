@@ -280,6 +280,34 @@
   .mtag-blk { background: var(--blue-bg);  color: #60a5fa;      border: 1px solid #3b82f633; }
   .mtag-pkg { background: var(--purple-bg); color: #c084fc; border: 1px solid #a855f733; }
 
+  /* ── DEFINIR AGENDA ── */
+  .meet-tipo-btn, .meet-dur-btn {
+    padding: 5px 11px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .meet-tipo-btn:hover, .meet-dur-btn:hover {
+    border-color: #1a73e8;
+    color: #60a5fa;
+    background: #1a73e811;
+  }
+  .meet-tipo-btn.active, .meet-dur-btn.active {
+    background: #1a73e822;
+    border-color: #1a73e8;
+    color: #60a5fa;
+  }
+  #meetData:focus, #meetHora:focus, #meetObs:focus {
+    border-color: #1a73e8 !important;
+  }
+
   /* ── HISTÓRICO DE TAREFAS ── */
   .hist-section { margin-top: 4px; }
   .hist-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 320px; overflow-y: auto; }
@@ -1807,7 +1835,68 @@
           </div>
         </div>
 
-        <!-- 2.2 Check list de tarefas -->
+        <!-- 2.2 Definir Agenda -->
+        <div class="card-subsect">
+          <div class="card-subsect-header" onclick="toggleSubsect(this)">
+            <span class="card-subsect-title">📅 Definir Agenda</span>
+            <span class="card-subsect-chevron">▼</span>
+          </div>
+          <div class="card-subsect-body" id="agendaPanel">
+            <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
+
+              <!-- Tipo de reunião -->
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tipo de Reunião</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap" id="meetTipoOpts">
+                  <button class="meet-tipo-btn active" data-tipo="Onboarding"      onclick="setMeetTipo(this)">🚀 Onboarding</button>
+                  <button class="meet-tipo-btn"        data-tipo="Alinhamento"     onclick="setMeetTipo(this)">🔄 Alinhamento</button>
+                  <button class="meet-tipo-btn"        data-tipo="Validação"       onclick="setMeetTipo(this)">✅ Validação</button>
+                  <button class="meet-tipo-btn"        data-tipo="Encerramento"    onclick="setMeetTipo(this)">🏁 Encerramento</button>
+                  <button class="meet-tipo-btn"        data-tipo="Suporte Técnico" onclick="setMeetTipo(this)">🔧 Suporte Técnico</button>
+                </div>
+              </div>
+
+              <!-- Data e hora -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div>
+                  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Data</div>
+                  <input type="date" id="meetData" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:Inter,sans-serif;font-size:13px;outline:none;" />
+                </div>
+                <div>
+                  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Horário</div>
+                  <input type="time" id="meetHora" value="09:00" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:Inter,sans-serif;font-size:13px;outline:none;" />
+                </div>
+              </div>
+
+              <!-- Duração -->
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Duração</div>
+                <div style="display:flex;gap:6px" id="meetDurOpts">
+                  <button class="meet-dur-btn"        data-min="30"  onclick="setMeetDur(this)">30 min</button>
+                  <button class="meet-dur-btn active" data-min="60"  onclick="setMeetDur(this)">1h</button>
+                  <button class="meet-dur-btn"        data-min="90"  onclick="setMeetDur(this)">1h30</button>
+                  <button class="meet-dur-btn"        data-min="120" onclick="setMeetDur(this)">2h</button>
+                </div>
+              </div>
+
+              <!-- Pauta -->
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pauta (opcional)</div>
+                <textarea id="meetObs" placeholder="Descreva os tópicos da reunião…" rows="2" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:Inter,sans-serif;font-size:12px;outline:none;resize:vertical;min-height:50px;"></textarea>
+              </div>
+
+              <!-- Botão -->
+              <button onclick="abrirGoogleMeet()" style="width:100%;padding:11px;border:none;border-radius:8px;background:linear-gradient(135deg,#1a73e8,#0d5bc4);color:#fff;font-size:13px;font-weight:700;font-family:Inter,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .15s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg>
+                Abrir Google Agenda com Meet
+              </button>
+              <div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5">Será aberta uma nova aba com o Google Agenda já preenchido.<br>O Google Meet é criado automaticamente ao salvar o evento.</div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- 2.3 Check list de tarefas -->
         <div class="card-subsect">
           <div class="card-subsect-header" onclick="toggleSubsect(this)">
             <span class="card-subsect-title">✅ Check list de Tarefas</span>
@@ -4511,6 +4600,102 @@ async function salvarInfoNoSupabase() {
       btn.style.background = 'linear-gradient(135deg,#00c4cc,#0088ff)';
       btn.disabled = false;
     }, 2500);
+  }
+}
+</script>
+<script>
+// ============================================================
+//  DEFINIR AGENDA — Google Meet via Google Calendar
+// ============================================================
+
+let _meetTipo = 'Onboarding';
+let _meetDurMin = 60;
+
+function setMeetTipo(btn) {
+  document.querySelectorAll('.meet-tipo-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _meetTipo = btn.dataset.tipo;
+}
+
+function setMeetDur(btn) {
+  document.querySelectorAll('.meet-dur-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _meetDurMin = parseInt(btn.dataset.min);
+}
+
+function abrirGoogleMeet() {
+  if (!currentProject) return;
+
+  const dataEl = document.getElementById('meetData');
+  const horaEl = document.getElementById('meetHora');
+  const obsEl  = document.getElementById('meetObs');
+
+  if (!dataEl.value) {
+    dataEl.style.borderColor = '#ef4444';
+    dataEl.focus();
+    setTimeout(() => dataEl.style.borderColor = '', 2000);
+    return;
+  }
+
+  const cliente   = currentProject.c || '';
+  const consultor = currentProject.cons || '';
+  const faseLabel = (RAW.f1||[]).includes(currentProject) ? 'Fase 1 — Saídas'
+                  : (RAW.f2||[]).includes(currentProject) ? 'Fase 2 — Entradas'
+                  : 'Fase 3 — Legados';
+
+  // Monta título e descrição
+  const titulo = `[${_meetTipo}] Reforma Tributária — ${cliente}`;
+  const obs    = obsEl.value.trim();
+  const descricao = [
+    `Reunião de ${_meetTipo} — Projeto de Reforma Tributária`,
+    `Cliente: ${cliente}`,
+    `Consultor: ${consultor}`,
+    `Fase: ${faseLabel}`,
+    obs ? `\nPauta:\n${obs}` : ''
+  ].filter(Boolean).join('\n');
+
+  // Calcula datas no formato YYYYMMDDTHHMMSS (Google Calendar)
+  const [ano, mes, dia]   = dataEl.value.split('-');
+  const [hora, minuto]    = (horaEl.value || '09:00').split(':');
+
+  const dtStart = new Date(
+    parseInt(ano), parseInt(mes)-1, parseInt(dia),
+    parseInt(hora), parseInt(minuto), 0
+  );
+  const dtEnd = new Date(dtStart.getTime() + _meetDurMin * 60000);
+
+  function fmtGcal(dt) {
+    const pad = n => String(n).padStart(2,'0');
+    return `${dt.getFullYear()}${pad(dt.getMonth()+1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
+  }
+
+  const url = new URL('https://calendar.google.com/calendar/render');
+  url.searchParams.set('action',  'TEMPLATE');
+  url.searchParams.set('text',    titulo);
+  url.searchParams.set('details', descricao);
+  url.searchParams.set('dates',   `${fmtGcal(dtStart)}/${fmtGcal(dtEnd)}`);
+  url.searchParams.set('add',     'videoconference@google.com'); // força Meet
+  url.searchParams.set('sf',      'true');
+
+  window.open(url.toString(), '_blank');
+
+  // Registra no histórico do projeto
+  const dataFmt = `${dia}/${mes}/${ano}`;
+  const h = getHistory();
+  if (!h[currentProjectId]) h[currentProjectId] = [];
+  h[currentProjectId].push({
+    date: dataEl.value,
+    text: `📅 Reunião agendada: ${_meetTipo} em ${dataFmt} às ${horaEl.value} (${_meetDurMin} min)${obs ? '\nPauta: ' + obs : ''}`
+  });
+  saveHistory(h);
+  renderHistory();
+
+  // Toast
+  const toast = document.getElementById('saveToast');
+  if (toast) {
+    toast.textContent = '📅 Agenda aberta no Google!';
+    toast.classList.add('show');
+    setTimeout(() => { toast.classList.remove('show'); toast.textContent = '✓ Alterações salvas!'; }, 2500);
   }
 }
 </script>
