@@ -1453,6 +1453,7 @@
     <div class="sidebar-title">Fase</div>
     <button class="sb-btn active" id="sb-fase-1" onclick="sbSwitchPhase(1,this)">📤 Fase 1 — Saída</button>
     <button class="sb-btn" id="sb-fase-2" onclick="sbSwitchPhase(2,this)">📥 Fase 2 — Entrada</button>
+    <button class="sb-btn" id="sb-fase-3" onclick="sbSwitchPhase(3,this)">⚙️ Fase 3 — Legados</button>
   </div>
 
   <div class="sb-divider"></div>
@@ -1516,6 +1517,9 @@
   </button>
   <button class="tab-btn" onclick="switchPhase(2)" id="tab2">
     📥 Fase 2 — Entradas IBS/CBS <span class="tab-badge" id="badge2">80</span>
+  </button>
+  <button class="tab-btn" onclick="switchPhase(3)" id="tab3">
+    ⚙️ Fase 3 — Impostos Legados <span class="tab-badge" id="badge3">0</span>
   </button>
 </div>
 
@@ -1878,6 +1882,10 @@ const RAW = {"f1":[{"c":"AMAFIL","cons":"Erica","pkg":"M","st":"CONCLUÍDO","atv
 // STATE
 // ──────────────────────────────────────────────
 let phase = 1, filterCons_ = 'all', filterAtv_ = 'all', searchTerm = '';
+
+// Fase 3 — Impostos Legados: cópia dos projetos da Fase 2 (carregada do Supabase na inicialização)
+// RAW.f3 será populado pelo carregarDadosDoSupabase(); inicializamos vazio aqui
+if (!RAW.f3) RAW.f3 = [];
 let currentProjectId = null;
 
 // History storage: { [projectId]: [{date, text}] }
@@ -2013,11 +2021,43 @@ const COLS_F2 = [
     }},
 ];
 
+const COLS_F3 = [
+  { id:'ni',        label:'⏸ Não iniciado',  cls:'col-todo',
+    match: p => p.st === 'NÃO INICIADO' && p.st !== 'CANCELADO',
+    apply: p => {
+      p.st  = 'NÃO INICIADO';
+      p.upd = _hojeFormatado();
+      if (p.atv === 'CANCELADO') p.atv = '';
+    }},
+  { id:'prog',      label:'🔄 Em andamento', cls:'col-prog',
+    match: p => p.st === 'EM ANDAMENTO' && p.st !== 'CANCELADO',
+    apply: p => {
+      p.st  = 'EM ANDAMENTO';
+      p.atv = 'EM CONFIGURAÇÃO';
+      p.upd = _hojeFormatado();
+    }},
+  { id:'done',      label:'✅ Concluído',    cls:'col-done',
+    match: p => p.st === 'CONCLUÍDO' && p.st !== 'CANCELADO',
+    apply: p => {
+      p.st   = 'CONCLUÍDO';
+      p.atv  = 'EM PRODUÇÃO';
+      p.prazo = p.prazo || 'NO PRAZO';
+      p.upd  = _hojeFormatado();
+    }},
+  { id:'cancelado', label:'🚫 Cancelados',   cls:'col-wait',
+    match: p => p.st === 'CANCELADO',
+    apply: p => {
+      p.atv = 'CANCELADO';
+      p.st  = 'CANCELADO';
+      p.upd = _hojeFormatado();
+    }},
+];
+
 // ──────────────────────────────────────────────
 // HELPERS
 // ──────────────────────────────────────────────
 function filtered() {
-  const src = phase === 1 ? RAW.f1 : RAW.f2;
+  const src = phase === 1 ? RAW.f1 : phase === 2 ? RAW.f2 : RAW.f3;
   return src.filter(p => {
     if (filterCons_ !== 'all' && p.cons !== filterCons_) return false;
     if (filterSt_ !== 'all') {
@@ -2047,7 +2087,7 @@ function dotCls(v) {
 // ──────────────────────────────────────────────
 function render() {
   const data = filtered();
-  const cols = phase === 1 ? COLS_F1 : COLS_F2;
+  const cols = phase === 1 ? COLS_F1 : phase === 2 ? COLS_F2 : COLS_F3;
 
   // stats
   renderStats(data);
@@ -2080,6 +2120,7 @@ function render() {
   // update badges
   document.getElementById('badge1').textContent = RAW.f1.length;
   document.getElementById('badge2').textContent = RAW.f2.length;
+  if (document.getElementById('badge3')) document.getElementById('badge3').textContent = RAW.f3 ? RAW.f3.length : 0;
 }
 
 function makeCard(p) {
@@ -2095,6 +2136,11 @@ function makeCard(p) {
         const td = (p.tasks||{})[t.k] || {};
         const dc = stDotCls(td.status||'');
         return `<span class="card-task-dot${dc?' '+dc:''}${isTaskFinished(td.status||'')?' tdone':''}" title="${t.label}${td.status?' — '+td.status:''}${td.resp?' ('+td.resp+')':''}"></span>`;
+      }).join('')
+    : phase === 3
+    ? Object.entries(p.tasks3||{}).map(([k,td]) => {
+        const dc = stDotCls(td.status||'');
+        return `<span class="card-task-dot${dc?' '+dc:''}${isTaskFinished(td.status||'')?' tdone':''}" title="${td._label||k}${td.status?' — '+td.status:''}"></span>`;
       }).join('')
     : F2_TASKS.map(t => {
         const td = (p.tasks2||{})[t.k] || {};
@@ -2879,7 +2925,8 @@ function confirmDeleteCard() {
   // Remover do RAW (F1 e F2)
   let projDeletado = null;
   let faseDeletada = 1;
-  ['f1', 'f2'].forEach((f, fi) => {
+  ['f1', 'f2', 'f3'].forEach((f, fi) => {
+    if (!RAW[f]) return;
     const idx = RAW[f].findIndex(p => projectId(p) === pid);
     if (idx !== -1) { projDeletado = RAW[f][idx]; faseDeletada = fi+1; RAW[f].splice(idx, 1); }
   });
@@ -3117,7 +3164,7 @@ function applyStoredEdits() {
   let edits = {};
   try { edits = JSON.parse(localStorage.getItem('kanban_edits') || '{}'); } catch(e) {}
 
-  const allProjects = [...RAW.f1, ...RAW.f2];
+  const allProjects = [...RAW.f1, ...RAW.f2, ...(RAW.f3||[])];
   allProjects.forEach(p => {
     const pid = projectId(p); // chave sem pkg
     const legacyPid = (p.c + '|' + (p.cons||'') + '|' + (p.pkg||'')).toLowerCase().replace(/\s+/g,'_');
@@ -3251,9 +3298,11 @@ function renderClientInfo(p) {
     // Coleta UUIDs das duas fases do mesmo cliente
     const projF1 = RAW.f1.find(x => x.c === p.c);
     const projF2 = RAW.f2.find(x => x.c === p.c);
+    const projF3 = (RAW.f3||[]).find(x => x.c === p.c);
     const uuids  = [];
     if (projF1?._uuid) uuids.push(projF1._uuid);
     if (projF2?._uuid && projF2._uuid !== projF1?._uuid) uuids.push(projF2._uuid);
+    if (projF3?._uuid && !uuids.includes(projF3._uuid)) uuids.push(projF3._uuid);
     if (p._uuid && !uuids.includes(p._uuid)) uuids.push(p._uuid);
 
     if (uuids.length === 0) {
@@ -3519,7 +3568,7 @@ function onDrop(e) {
   if (!draggedProject) return;
 
   const colId = body.dataset.colId;
-  const cols  = phase === 1 ? COLS_F1 : COLS_F2;
+  const cols  = phase === 1 ? COLS_F1 : phase === 2 ? COLS_F2 : COLS_F3;
   const col   = cols.find(c => c.id === colId);
   if (!col) return;
 
@@ -3743,19 +3792,22 @@ function _showBoard(p) {
   if (sr) sr.style.display = '';
   const dashPanel = document.getElementById('dashPanel');
   if (dashPanel) dashPanel.style.display = 'none';
-  // sync top tabs — tab1 index 1, tab2 index 2, tab-dash index 0
+  // sync top tabs
   const tabs = document.querySelectorAll('.tab-btn');
-  tabs.forEach(b => b.classList.remove('active'));
-  const target = p === 1 ? document.getElementById('tab1') : document.getElementById('tab2');
+  tabs.forEach(b => { b.classList.remove('active'); b.style.color=''; b.style.borderBottomColor=''; });
+  const tabId = p === 1 ? 'tab1' : p === 2 ? 'tab2' : 'tab3';
+  const target = document.getElementById(tabId);
   if (target) { target.classList.add('active'); target.style.color='var(--accent2)'; target.style.borderBottomColor='var(--accent)'; }
   // reset dash tab style
   const tabDash = document.getElementById('tab-dash');
   if (tabDash) { tabDash.style.color=''; tabDash.style.borderBottomColor=''; }
-  // sync sidebar: fase on
+  // sync sidebar
   const sbFase1 = document.getElementById('sb-fase-1');
   const sbFase2 = document.getElementById('sb-fase-2');
+  const sbFase3 = document.getElementById('sb-fase-3');
   if (sbFase1) sbFase1.classList.toggle('active', p === 1);
   if (sbFase2) sbFase2.classList.toggle('active', p === 2);
+  if (sbFase3) sbFase3.classList.toggle('active', p === 3);
 }
 
 function switchToDash() {
@@ -4117,8 +4169,11 @@ function createProject() {
   // Adicionar ao array RAW correto
   if (fase === 1) {
     RAW.f1.push(newProject);
-  } else {
+  } else if (fase === 2) {
     RAW.f2.push(newProject);
+  } else {
+    if (!RAW.f3) RAW.f3 = [];
+    RAW.f3.push(newProject);
   }
 
   // Persistir no localStorage para sobreviver ao reload
@@ -4185,6 +4240,7 @@ render();
         <select id="nf-fase">
           <option value="1">Fase 1 — Saída IBS/CBS</option>
           <option value="2">Fase 2 — Entradas IBS/CBS</option>
+          <option value="3">Fase 3 — Impostos Legados</option>
         </select>
       </div>
 
