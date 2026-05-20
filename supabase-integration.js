@@ -165,9 +165,6 @@ async function salvarHistoricoNoSupabase(h, projId, proj) {
 async function salvarClienteInfoNoSupabase(proj, data) {
   if (!CURRENT_USER?.access_token || !proj) return;
   const token = CURRENT_USER.access_token;
-  const fase  = RAW.f1.includes(proj) ? 1 : 2;
-  const uuid  = proj._uuid || await getProjectUuid(proj.c, fase);
-  if (!uuid) return;
 
   showSyncIndicator();
 
@@ -186,16 +183,39 @@ async function salvarClienteInfoNoSupabase(proj, data) {
     updated_at:       new Date().toISOString()
   };
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/client_info?project_id=eq.${uuid}`, {
-    method: 'PATCH',
-    headers: sbHeaders(token),
-    body: JSON.stringify(payload)
-  });
+  // Busca os projetos das duas fases para o mesmo cliente
+  const projF1 = RAW.f1.find(p => p.c === proj.c);
+  const projF2 = RAW.f2.find(p => p.c === proj.c);
 
-  if (!res.ok) {
-    console.error('Erro ao salvar client_info:', await res.text());
-  } else {
-    console.log('Informações do cliente salvas:', proj.c);
+  const uuids = [];
+  if (projF1) {
+    const u = projF1._uuid || await getProjectUuid(projF1.c, 1);
+    if (u) uuids.push(u);
+  }
+  if (projF2) {
+    const u = projF2._uuid || await getProjectUuid(projF2.c, 2);
+    if (u) uuids.push(u);
+  }
+
+  // Se não encontrou nenhum, tenta pelo projeto atual
+  if (uuids.length === 0) {
+    const fase = RAW.f1.includes(proj) ? 1 : 2;
+    const u = proj._uuid || await getProjectUuid(proj.c, fase);
+    if (u) uuids.push(u);
+  }
+
+  // Salva em todas as fases encontradas
+  for (const uuid of uuids) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/client_info?project_id=eq.${uuid}`, {
+      method: 'PATCH',
+      headers: sbHeaders(token),
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      console.error('Erro ao salvar client_info:', await res.text());
+    } else {
+      console.log('Informações do cliente salvas (fase uuid:', uuid + '):', proj.c);
+    }
   }
 }
 

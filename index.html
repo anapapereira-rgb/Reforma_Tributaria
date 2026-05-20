@@ -1941,33 +1941,76 @@ const EMPTY_TASKS2 = () => Object.fromEntries(
 // ──────────────────────────────────────────────
 // COLUMNS CONFIG
 // ──────────────────────────────────────────────
+// Helper: data de hoje DD/MM/AAAA
+function _hojeFormatado() {
+  const d = new Date();
+  return String(d.getDate()).padStart(2,'0') + '/' +
+         String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+}
+
 const COLS_F1 = [
   { id:'ni',        label:'⏸ Não iniciado',  cls:'col-todo',
     match: p => p.st === 'NÃO INICIADO' && p.atv !== 'CANCELADO',
-    apply: p => { p.st = 'NÃO INICIADO'; if (p.atv === 'CANCELADO') p.atv = ''; } },
+    apply: p => {
+      p.st  = 'NÃO INICIADO';
+      p.upd = _hojeFormatado();
+      if (p.atv === 'CANCELADO') p.atv = '';
+    }},
   { id:'prog',      label:'🔄 Em andamento', cls:'col-prog',
     match: p => p.st === 'EM ANDAMENTO' && p.atv !== 'CANCELADO',
-    apply: p => { p.st = 'EM ANDAMENTO'; if (p.atv === 'CANCELADO') p.atv = ''; } },
+    apply: p => {
+      p.st  = 'EM ANDAMENTO';
+      p.atv = 'EM CONFIGURAÇÃO';   // Regra 1: Não Iniciado → Em andamento
+      p.upd = _hojeFormatado();
+      if (p.atv === 'CANCELADO') p.atv = 'EM CONFIGURAÇÃO';
+    }},
   { id:'done',      label:'✅ Concluído',    cls:'col-done',
     match: p => p.st === 'CONCLUÍDO' && p.atv !== 'CANCELADO',
-    apply: p => { p.st = 'CONCLUÍDO'; p.prazo = p.prazo || 'NO PRAZO'; if (p.atv === 'CANCELADO') p.atv = ''; } },
+    apply: p => {
+      p.st   = 'CONCLUÍDO';
+      p.atv  = 'EM PRODUÇÃO';      // Regra 2: Em andamento → Concluído
+      p.prazo = p.prazo || 'NO PRAZO';
+      p.upd  = _hojeFormatado();
+    }},
   { id:'cancelado', label:'🚫 Cancelados',   cls:'col-wait',
-    match: p => p.atv === 'CANCELADO',
-    apply: p => { p.atv = 'CANCELADO'; p.st = 'CANCELADO'; } },
+    match: p => p.st === 'CANCELADO',
+    apply: p => {
+      p.atv = 'CANCELADO';
+      p.st  = 'CANCELADO';
+      p.upd = _hojeFormatado();
+    }},
 ];
 const COLS_F2 = [
   { id:'ni',        label:'⏸ Não iniciado',  cls:'col-todo',
     match: p => p.st === 'NÃO INICIADO' && p.atv !== 'CANCELADO',
-    apply: p => { p.st = 'NÃO INICIADO'; if (p.atv === 'CANCELADO') p.atv = ''; } },
+    apply: p => {
+      p.st  = 'NÃO INICIADO';
+      p.upd = _hojeFormatado();
+      if (p.atv === 'CANCELADO') p.atv = '';
+    }},
   { id:'prog',      label:'🔄 Em andamento', cls:'col-prog',
     match: p => p.st === 'EM ANDAMENTO' && p.atv !== 'CANCELADO',
-    apply: p => { p.st = 'EM ANDAMENTO'; if (p.atv === 'CANCELADO') p.atv = ''; } },
+    apply: p => {
+      p.st  = 'EM ANDAMENTO';
+      p.atv = 'EM CONFIGURAÇÃO';   // Regra 1: Não Iniciado → Em andamento
+      p.upd = _hojeFormatado();
+      if (p.atv === 'CANCELADO') p.atv = 'EM CONFIGURAÇÃO';
+    }},
   { id:'done',      label:'✅ Concluído',    cls:'col-done',
     match: p => p.st === 'CONCLUÍDO' && p.atv !== 'CANCELADO',
-    apply: p => { p.st = 'CONCLUÍDO'; p.prazo = p.prazo || 'NO PRAZO'; if (p.atv === 'CANCELADO') p.atv = ''; } },
+    apply: p => {
+      p.st   = 'CONCLUÍDO';
+      p.atv  = 'EM PRODUÇÃO';      // Regra 2: Em andamento → Concluído
+      p.prazo = p.prazo || 'NO PRAZO';
+      p.upd  = _hojeFormatado();
+    }},
   { id:'cancelado', label:'🚫 Cancelados',   cls:'col-wait',
-    match: p => p.atv === 'CANCELADO',
-    apply: p => { p.atv = 'CANCELADO'; p.st = 'CANCELADO'; } },
+    match: p => p.st === 'CANCELADO',
+    apply: p => {
+      p.atv = 'CANCELADO';
+      p.st  = 'CANCELADO';
+      p.upd = _hojeFormatado();
+    }},
 ];
 
 // ──────────────────────────────────────────────
@@ -2086,38 +2129,25 @@ function makeCard(p) {
 function renderStats(data) {
   const el = document.getElementById('statsRow');
   if (phase === 1) {
-    const total   = data.length;
-    const cancel  = data.filter(p => p.st === 'CANCELADO').length;
-    const concl   = data.filter(p => p.st === 'CONCLUÍDO').length;
-    const prog    = data.filter(p => p.st === 'EM ANDAMENTO').length;
-    const ni      = data.filter(p => p.st === 'NÃO INICIADO').length;
-    const at      = data.filter(p => p.prazo === 'ATRASADO').length;
-    // Regra: concluídos + cancelados para o % de conclusão
-    const conclTotal = concl + cancel;
-    const pct     = Math.round(conclTotal / Math.max(total, 1) * 100);
+    const done = data.filter(p => p.st === 'CONCLUÍDO').length;
+    const prog = data.filter(p => p.st === 'EM ANDAMENTO').length;
+    const at = data.filter(p => p.prazo === 'ATRASADO').length;
     el.innerHTML = `
-      <div class="stat-card"><div class="stat-icon" style="background:#6366f122">📋</div><div class="stat-info"><div class="val">${total}</div><div class="lbl">Total projetos</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#64748b22">⏸</div><div class="stat-info"><div class="val" style="color:var(--muted)">${ni}</div><div class="lbl">Não iniciados</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#6366f122">📋</div><div class="stat-info"><div class="val">${data.length}</div><div class="lbl">Total projetos</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">✅</div><div class="stat-info"><div class="val" style="color:var(--green)">${done}</div><div class="lbl">Concluídos</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#3b82f622">🔄</div><div class="stat-info"><div class="val" style="color:#60a5fa">${prog}</div><div class="lbl">Em andamento</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">✅</div><div class="stat-info"><div class="val" style="color:var(--green)">${conclTotal}</div><div class="lbl">Concluídos</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#ef444422">🚫</div><div class="stat-info"><div class="val" style="color:var(--red)">${cancel}</div><div class="lbl">Cancelados</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${pct}%</div><div class="lbl">Conclusão</div></div></div>`;
+      <div class="stat-card"><div class="stat-icon" style="background:#ef444422">⚠️</div><div class="stat-info"><div class="val" style="color:var(--red)">${at}</div><div class="lbl">Atrasados</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${Math.round(done/Math.max(data.length,1)*100)}%</div><div class="lbl">Conclusão</div></div></div>`;
   } else {
-    const total   = data.length;
-    const cancel  = data.filter(p => p.st === 'CANCELADO').length;
-    const concl   = data.filter(p => p.st === 'CONCLUÍDO').length;
-    const prog    = data.filter(p => p.st !== 'NÃO INICIADO' && p.st !== 'CONCLUÍDO' && p.st !== 'CANCELADO').length;
-    const ni      = data.filter(p => p.st === 'NÃO INICIADO').length;
-    // Regra: concluídos + cancelados para o % de conclusão
-    const conclTotal = concl + cancel;
-    const pct     = Math.round(conclTotal / Math.max(total, 1) * 100);
+    const done = data.filter(p => p.st === 'CONCLUÍDO').length;
+    const prog = data.filter(p => p.st !== 'NÃO INICIADO' && p.st !== 'CONCLUÍDO').length;
+    const ni   = data.filter(p => p.st === 'NÃO INICIADO').length;
     el.innerHTML = `
-      <div class="stat-card"><div class="stat-icon" style="background:#6366f122">📋</div><div class="stat-info"><div class="val">${total}</div><div class="lbl">Total projetos</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#64748b22">⏸</div><div class="stat-info"><div class="val" style="color:var(--muted)">${ni}</div><div class="lbl">Não iniciados</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#6366f122">📋</div><div class="stat-info"><div class="val">${data.length}</div><div class="lbl">Total projetos</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">✅</div><div class="stat-info"><div class="val" style="color:var(--green)">${done}</div><div class="lbl">Concluídos</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#3b82f622">🔄</div><div class="stat-info"><div class="val" style="color:#60a5fa">${prog}</div><div class="lbl">Em andamento</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">✅</div><div class="stat-info"><div class="val" style="color:var(--green)">${conclTotal}</div><div class="lbl">Concluídos</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#ef444422">🚫</div><div class="stat-info"><div class="val" style="color:var(--red)">${cancel}</div><div class="lbl">Cancelados</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${pct}%</div><div class="lbl">Conclusão</div></div></div>`;
+      <div class="stat-card"><div class="stat-icon" style="background:#1e293b22">⏸</div><div class="stat-info"><div class="val" style="color:var(--muted)">${ni}</div><div class="lbl">Não iniciado</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${Math.round(done/Math.max(data.length,1)*100)}%</div><div class="lbl">Conclusão</div></div></div>`;
   }
 }
 
@@ -3214,14 +3244,27 @@ function renderClientInfo(p) {
     try { localStorage.setItem(_ciKey(pid), JSON.stringify(_ciRead())); } catch(e) {}
   }
 
-  // Carrega do Supabase — colunas individuais
-  if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER?.access_token && p._uuid) {
+  // Carrega do Supabase — busca nas duas fases do mesmo cliente
+  if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER?.access_token) {
     const token = CURRENT_USER.access_token;
-    fetch(`${SUPABASE_URL}/rest/v1/client_info?project_id=eq.${p._uuid}&select=*`, {
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + token
-      }
+
+    // Coleta UUIDs das duas fases do mesmo cliente
+    const projF1 = RAW.f1.find(x => x.c === p.c);
+    const projF2 = RAW.f2.find(x => x.c === p.c);
+    const uuids  = [];
+    if (projF1?._uuid) uuids.push(projF1._uuid);
+    if (projF2?._uuid && projF2._uuid !== projF1?._uuid) uuids.push(projF2._uuid);
+    if (p._uuid && !uuids.includes(p._uuid)) uuids.push(p._uuid);
+
+    if (uuids.length === 0) {
+      preencherCampos(getCiData(pid));
+      return;
+    }
+
+    // Busca client_info de qualquer uma das fases — usa o primeiro que tiver dados
+    const query = uuids.map(u => `project_id=eq.${u}`).join(',');
+    fetch(`${SUPABASE_URL}/rest/v1/client_info?or=(${query})&select=*&order=updated_at.desc&limit=1`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token }
     })
     .then(r => r.ok ? r.json() : [])
     .then(rows => {
@@ -3234,8 +3277,7 @@ function renderClientInfo(p) {
     .catch(() => preencherCampos(getCiData(pid)));
   } else {
     // Sem Supabase: usa localStorage
-    const d = getCiData(pid);
-    preencherCampos(d);
+    preencherCampos(getCiData(pid));
   }
 }
 
@@ -3495,7 +3537,7 @@ function onDrop(e) {
     allEdits[pid].cons  = draggedProject.cons;
     allEdits[pid].pkg   = draggedProject.pkg;
     allEdits[pid].blk   = draggedProject.blk;
-    allEdits[pid].upd   = draggedProject.upd;
+    allEdits[pid].upd   = draggedProject.upd; // já atualizado pelo apply()
     allEdits[pid].sus   = draggedProject.sus || '';
     allEdits[pid].acts  = { ...draggedProject.acts };
     if (draggedProject.tasks)  allEdits[pid].tasks  = JSON.parse(JSON.stringify(draggedProject.tasks));
@@ -3753,18 +3795,16 @@ function renderDashboard() {
   // ── helpers ──────────────────────────────────────────
   function calcStats(data) {
     const total    = data.length;
-    const cancel   = data.filter(p => p.st === 'CANCELADO').length;
+    const cancel   = data.filter(p => p.atv === 'CANCELADO').length;
     const active   = total - cancel;
-    const concl    = data.filter(p => p.st === 'CONCLUÍDO').length;
-    const andament = data.filter(p => p.st !== 'NÃO INICIADO' && p.st !== 'CONCLUÍDO' && p.st !== 'CANCELADO').length;
-    const ni       = data.filter(p => p.st === 'NÃO INICIADO').length;
-    const atrasado = data.filter(p => p.prazo === 'ATRASADO' && p.st !== 'CANCELADO').length;
-    const sustent  = data.filter(p => (p.sus==='Sustentação'||p.sus==='Sim') && p.st !== 'CANCELADO').length;
-    const totvs    = data.filter(p => (p.sus==='Totvs Matriz'||p.sus==='Não') && p.st !== 'CANCELADO').length;
-    // Regra: concluídos + cancelados no % de conclusão
-    const conclTotal = concl + cancel;
-    const pct      = total > 0 ? Math.round(conclTotal/total*100) : 0;
-    return {total,cancel,active,concl,conclTotal,andament,ni,atrasado,sustent,totvs,pct};
+    const concl    = data.filter(p => p.st === 'CONCLUÍDO' && p.atv !== 'CANCELADO').length;
+    const andament = data.filter(p => p.st !== 'NÃO INICIADO' && p.st !== 'CONCLUÍDO' && p.atv !== 'CANCELADO').length;
+    const ni       = data.filter(p => p.st === 'NÃO INICIADO' && p.atv !== 'CANCELADO').length;
+    const atrasado = data.filter(p => p.prazo === 'ATRASADO' && p.atv !== 'CANCELADO').length;
+    const sustent  = data.filter(p => (p.sus==='Sustentação'||p.sus==='Sim') && p.atv !== 'CANCELADO').length;
+    const totvs    = data.filter(p => (p.sus==='Totvs Matriz'||p.sus==='Não') && p.atv !== 'CANCELADO').length;
+    const pct      = active > 0 ? Math.round(concl/active*100) : 0;
+    return {total,cancel,active,concl,andament,ni,atrasado,sustent,totvs,pct};
   }
 
   function byConsultor(data) {
@@ -3857,15 +3897,14 @@ function renderDashboard() {
       <!-- Header -->
       <div style="background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid ${accentColor}44;border-radius:10px;padding:14px 16px">
         <div style="font-size:11px;font-weight:700;color:${accentColor};text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${title}</div>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
           ${[
-            {v:stats.total,      l:'Total',          c:'var(--text)'},
-            {v:stats.ni,         l:'Não Iniciados',  c:'var(--muted)'},
-            {v:stats.andament,   l:'Em Andamento',   c:'#60a5fa'},
-            {v:stats.conclTotal, l:'Concluídos',     c:'#22c55e'},
-            {v:stats.cancel,     l:'Cancelados',     c:'#ef4444'},
+            {v:stats.total,l:'Total',c:'var(--text)',bg:''},
+            {v:stats.active,l:'Ativos',c:'#60a5fa',bg:''},
+            {v:stats.concl,l:'Concluídos',c:'#22c55e',bg:''},
+            {v:stats.cancel,l:'Cancelados',c:'#ef4444',bg:''},
           ].map(s=>`<div style="background:var(--surface3);border-radius:8px;padding:8px 10px;text-align:center">
-            <div style="font-size:20px;font-weight:800;color:${s.c};line-height:1">${s.v}</div>
+            <div style="font-size:22px;font-weight:800;color:${s.c};line-height:1">${s.v}</div>
             <div style="font-size:10px;color:var(--muted);margin-top:2px">${s.l}</div>
           </div>`).join('')}
         </div>
@@ -3881,7 +3920,6 @@ function renderDashboard() {
           <span>⚠ <span style="color:#f59e0b">${stats.atrasado}</span> atrasados</span>
           <span>🔄 <span style="color:#60a5fa">${stats.andament}</span> em andamento</span>
           <span>⏸ <span style="color:var(--muted)">${stats.ni}</span> não iniciados</span>
-          <span>🚫 <span style="color:#ef4444">${stats.cancel}</span> cancelados</span>
         </div>
       </div>
 
