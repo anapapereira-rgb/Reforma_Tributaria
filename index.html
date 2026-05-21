@@ -1899,7 +1899,65 @@
           </div>
         </div>
 
-        <!-- 2.2 Definir Agenda -->
+        <!-- 2.3 Check list de tarefas -->
+        <div class="card-subsect">
+          <div class="card-subsect-header" onclick="toggleSubsect(this)">
+            <span class="card-subsect-title">✅ Check list de Tarefas</span>
+            <span class="card-subsect-chevron">▼</span>
+          </div>
+          <div class="card-subsect-body">
+            <div id="viewActsObs">
+              <div class="modal-sect-title" id="mActsTitle">Progresso das Atividades</div>
+              <div class="acts-grid" id="mActs"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2.3 Histórico de Tarefas Diárias -->
+        <div class="card-subsect">
+          <div class="card-subsect-header" onclick="toggleSubsect(this)">
+            <span class="card-subsect-title">📋 Histórico de Tarefas Diárias <span class="hist-count-badge" id="mHistCount">0</span></span>
+            <span class="card-subsect-chevron">▼</span>
+          </div>
+          <div class="card-subsect-body hist-section">
+            <div class="hist-list" id="mHistList"></div>
+            <div class="hist-add-form">
+              <div class="hist-add-title">➕ Registrar nova atividade</div>
+              <div class="hist-row">
+                <span style="font-size:11px;color:var(--muted);flex-shrink:0;">Data:</span>
+                <input type="date" class="hist-date-inp" id="mHistDate" />
+              </div>
+              <textarea class="hist-text-inp" id="mHistText" placeholder="Descreva detalhadamente a tarefa realizada hoje…"></textarea>
+              <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+                <button class="hist-add-btn" id="mHistAddBtn" onclick="addHistEntry()">
+                  ✓ Salvar Atividade
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2.4 Documentação -->
+        <div class="card-subsect">
+          <div class="card-subsect-header" onclick="toggleSubsect(this)">
+            <span class="card-subsect-title">📄 Documentação</span>
+            <span class="card-subsect-chevron">▼</span>
+          </div>
+          <div class="card-subsect-body docs-section">
+            <div class="doc-list" id="docList"></div>
+            <div class="doc-drop-zone" id="docDropZone"
+                 ondragover="event.preventDefault();this.classList.add('drag-active')"
+                 ondragleave="this.classList.remove('drag-active')"
+                 ondrop="onDocDrop(event)">
+              <input type="file" accept=".pdf" multiple onchange="onDocFileInput(event)" />
+              <div class="doc-drop-icon">📎</div>
+              <div class="doc-drop-text"><strong>Clique ou arraste</strong> arquivos PDF aqui</div>
+            </div>
+            <div class="doc-size-warning" id="docSizeWarn" style="display:none;"></div>
+          </div>
+        </div>
+
+        <!-- 2.5 Definir Agenda -->
         <div class="card-subsect">
           <div class="card-subsect-header" onclick="toggleSubsect(this)">
             <span class="card-subsect-title">📅 Definir Agenda</span>
@@ -1988,64 +2046,6 @@
               <div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5">Será aberta uma nova aba com o Google Agenda já preenchido.<br>O Google Meet é criado automaticamente ao salvar o evento.</div>
 
             </div>
-          </div>
-        </div>
-
-        <!-- 2.3 Check list de tarefas -->
-        <div class="card-subsect">
-          <div class="card-subsect-header" onclick="toggleSubsect(this)">
-            <span class="card-subsect-title">✅ Check list de Tarefas</span>
-            <span class="card-subsect-chevron">▼</span>
-          </div>
-          <div class="card-subsect-body">
-            <div id="viewActsObs">
-              <div class="modal-sect-title" id="mActsTitle">Progresso das Atividades</div>
-              <div class="acts-grid" id="mActs"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 2.3 Histórico de Tarefas Diárias -->
-        <div class="card-subsect">
-          <div class="card-subsect-header" onclick="toggleSubsect(this)">
-            <span class="card-subsect-title">📋 Histórico de Tarefas Diárias <span class="hist-count-badge" id="mHistCount">0</span></span>
-            <span class="card-subsect-chevron">▼</span>
-          </div>
-          <div class="card-subsect-body hist-section">
-            <div class="hist-list" id="mHistList"></div>
-            <div class="hist-add-form">
-              <div class="hist-add-title">➕ Registrar nova atividade</div>
-              <div class="hist-row">
-                <span style="font-size:11px;color:var(--muted);flex-shrink:0;">Data:</span>
-                <input type="date" class="hist-date-inp" id="mHistDate" />
-              </div>
-              <textarea class="hist-text-inp" id="mHistText" placeholder="Descreva detalhadamente a tarefa realizada hoje…"></textarea>
-              <div style="margin-top:8px;display:flex;justify-content:flex-end;">
-                <button class="hist-add-btn" id="mHistAddBtn" onclick="addHistEntry()">
-                  ✓ Salvar Atividade
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 2.4 Documentação -->
-        <div class="card-subsect">
-          <div class="card-subsect-header" onclick="toggleSubsect(this)">
-            <span class="card-subsect-title">📄 Documentação</span>
-            <span class="card-subsect-chevron">▼</span>
-          </div>
-          <div class="card-subsect-body docs-section">
-            <div class="doc-list" id="docList"></div>
-            <div class="doc-drop-zone" id="docDropZone"
-                 ondragover="event.preventDefault();this.classList.add('drag-active')"
-                 ondragleave="this.classList.remove('drag-active')"
-                 ondrop="onDocDrop(event)">
-              <input type="file" accept=".pdf" multiple onchange="onDocFileInput(event)" />
-              <div class="doc-drop-icon">📎</div>
-              <div class="doc-drop-text"><strong>Clique ou arraste</strong> arquivos PDF aqui</div>
-            </div>
-            <div class="doc-size-warning" id="docSizeWarn" style="display:none;"></div>
           </div>
         </div>
 
@@ -3753,7 +3753,13 @@ function renderHistory() {
   if (!listEl) return;
 
   function mostrarEntries(entries) {
-    const sorted = entries.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    // Ordena do mais recente para o mais antigo
+    const sorted = entries.slice().sort((a, b) => {
+      const da = b.date || '';
+      const db = a.date || '';
+      if (da !== db) return da.localeCompare(db);
+      return 0; // mesma data: mantém ordem de inserção
+    });
     countEl.textContent = sorted.length;
     if (sorted.length === 0) {
       listEl.innerHTML = '<div class="hist-empty">Nenhuma atividade registrada ainda.</div>';
@@ -3820,7 +3826,9 @@ function addHistEntry() {
   h[currentProjectId].push({ date, text });
   saveHistory(h);
   document.getElementById('mHistText').value = '';
-  renderHistory();
+
+  // Aguarda o Supabase salvar e recarrega o histórico com os UUIDs corretos
+  setTimeout(() => renderHistory(), 700);
 
   // Atualiza a data de atualização do card com a data da tarefa registrada
   if (currentProject) {
