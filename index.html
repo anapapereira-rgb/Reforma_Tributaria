@@ -304,9 +304,49 @@
     border-color: #1a73e8;
     color: #60a5fa;
   }
-  #meetData:focus, #meetHora:focus, #meetObs:focus {
+  #meetData:focus, #meetHora:focus, #meetObs:focus, #meetEmailInput:focus {
     border-color: #1a73e8 !important;
   }
+  .meet-part-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .meet-part-btn:hover { border-color: #1a73e8; color: #60a5fa; background: #1a73e811; }
+  .meet-part-btn.active { background: #1a73e822; border-color: #1a73e8; color: #60a5fa; }
+  .meet-part-tag {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px 4px 10px;
+    background: #1a73e822;
+    border: 1px solid #1a73e855;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #60a5fa;
+    font-family: 'Inter', sans-serif;
+  }
+  .meet-part-tag button {
+    background: none;
+    border: none;
+    color: #60a5fa;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    opacity: .7;
+    transition: opacity .15s;
+  }
+  .meet-part-tag button:hover { opacity: 1; }
 
   /* ── HISTÓRICO DE TAREFAS ── */
   .hist-section { margin-top: 4px; }
@@ -1684,24 +1724,48 @@
           </div>
         </div>
 
-        <!-- 1.2 Sustentação -->
+        <!-- 1.2 Informações Comerciais -->
         <div class="card-subsect">
           <div class="card-subsect-header" onclick="toggleSubsect(this)">
-            <span class="card-subsect-title">🔧 Sustentação</span>
+            <span class="card-subsect-title">💼 Informações Comerciais</span>
             <span class="card-subsect-chevron">▼</span>
           </div>
           <div class="card-subsect-body">
-            <div class="sus-toggle-wrap" id="mSusWrap">
-              <span class="sus-toggle-icon">🔧</span>
-              <div class="sus-toggle-info">
-                <span class="sus-toggle-label">Opção de Suporte</span>
-                <span class="sus-toggle-sub" id="mSusSub">Selecione o tipo de suporte</span>
+            <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
+
+              <!-- Código Fluig -->
+              <div class="ci-field">
+                <div class="ci-label">🔢 Código do Cliente no Fluig</div>
+                <input type="text" class="ci-inp" id="mCodigoFluig"
+                  placeholder="Ex: 123456"
+                  oninput="_comercialAutoSave()" />
               </div>
-              <select class="sus-select" id="mSusSelect" onchange="setSuporte(this.value)" onclick="event.stopPropagation()">
-                <option value="">— Não definido —</option>
-                <option value="Sustentação">🔧 Sustentação</option>
-                <option value="Totvs Matriz">🏢 Totvs Matriz</option>
-              </select>
+
+              <!-- ESN -->
+              <div class="ci-field">
+                <div class="ci-label">🏷 ESN (Nome)</div>
+                <input type="text" class="ci-inp" id="mEsn"
+                  placeholder="Ex: EMPRESA S/A"
+                  oninput="_comercialAutoSave()" />
+              </div>
+
+              <!-- Opção de Suporte -->
+              <div class="ci-field">
+                <div class="ci-label">🔧 Opção de Suporte</div>
+                <div class="sus-toggle-wrap" id="mSusWrap">
+                  <span class="sus-toggle-icon">🔧</span>
+                  <div class="sus-toggle-info">
+                    <span class="sus-toggle-label">Suporte</span>
+                    <span class="sus-toggle-sub" id="mSusSub">Selecione o tipo de suporte</span>
+                  </div>
+                  <select class="sus-select" id="mSusSelect" onchange="setSuporte(this.value)" onclick="event.stopPropagation()">
+                    <option value="">— Não definido —</option>
+                    <option value="Sustentação">🔧 Sustentação</option>
+                    <option value="Totvs Matriz">🏢 Totvs Matriz</option>
+                  </select>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
@@ -1877,6 +1941,37 @@
                   <button class="meet-dur-btn"        data-min="90"  onclick="setMeetDur(this)">1h30</button>
                   <button class="meet-dur-btn"        data-min="120" onclick="setMeetDur(this)">2h</button>
                 </div>
+              </div>
+
+              <!-- Participantes -->
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Participantes</div>
+
+                <!-- Atalhos rápidos da equipe -->
+                <div style="margin-bottom:8px">
+                  <div style="font-size:10px;color:var(--muted);margin-bottom:5px">Equipe TOTVS — clique para adicionar:</div>
+                  <div style="display:flex;gap:4px;flex-wrap:wrap" id="meetEquipeOpts">
+                    <button class="meet-part-btn" data-email="ana.papereira@totvs.com.br"        onclick="toggleParticipante(this)">👤 Ana Paula</button>
+                    <button class="meet-part-btn" data-email="amanda.pfelix@totvs.com.br"        onclick="toggleParticipante(this)">👤 Amanda</button>
+                    <button class="meet-part-btn" data-email="daniel.heberle@totvs.com.br"       onclick="toggleParticipante(this)">👤 Daniel</button>
+                    <button class="meet-part-btn" data-email="francidalva.desousa@totvs.com.br"  onclick="toggleParticipante(this)">👤 Dalva</button>
+                    <button class="meet-part-btn" data-email="acsa.eromeiro@totvs.com.br"        onclick="toggleParticipante(this)">👤 Erica</button>
+                    <button class="meet-part-btn" data-email="joao.alves@totvs.com.br"           onclick="toggleParticipante(this)">👤 João</button>
+                    <button class="meet-part-btn" data-email="otavio.ro.biten@totvs.com.br"      onclick="toggleParticipante(this)">👤 Otavio</button>
+                    <button class="meet-part-btn" data-email="thaiza.brugnoli@totvs.com.br"      onclick="toggleParticipante(this)">👤 Thaiza</button>
+                  </div>
+                </div>
+
+                <!-- Campo de e-mail livre -->
+                <div style="display:flex;gap:6px;margin-bottom:6px">
+                  <input type="email" id="meetEmailInput" placeholder="outro@email.com"
+                    style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-family:Inter,sans-serif;font-size:12px;outline:none;"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarParticipante();}" />
+                  <button onclick="adicionarParticipante()" style="padding:7px 12px;border:none;border-radius:8px;background:var(--surface3);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='var(--accent2)22'" onmouseout="this.style.background='var(--surface3)'">+ Adicionar</button>
+                </div>
+
+                <!-- Lista de participantes selecionados -->
+                <div id="meetPartList" style="display:flex;flex-wrap:wrap;gap:5px;min-height:24px"></div>
               </div>
 
               <!-- Pauta -->
@@ -2526,6 +2621,18 @@ function onDocDrop(e) {
 }
 
 function openModal(p) {
+  // Reseta participantes da agenda ao abrir novo card
+  if (typeof _meetParticipantes !== 'undefined') {
+    _meetParticipantes = new Set();
+    // Adiciona automaticamente o consultor do projeto
+    const CONS_EMAILS = {
+      Amanda:'amanda.pfelix@totvs.com.br', Daniel:'daniel.heberle@totvs.com.br',
+      Dalva:'francidalva.desousa@totvs.com.br', Erica:'acsa.eromeiro@totvs.com.br',
+      Joao:'joao.alves@totvs.com.br', Otavio:'otavio.ro.biten@totvs.com.br',
+      Thaiza:'thaiza.brugnoli@totvs.com.br'
+    };
+    if (p.cons && CONS_EMAILS[p.cons]) _meetParticipantes.add(CONS_EMAILS[p.cons]);
+  }
   currentProjectId = projectId(p);
   currentProject = p;
   renderHistory();
@@ -2729,6 +2836,12 @@ function renderModalView(p) {
     })() : ''}
     ${p.pkg ? `<span class="mtag mtag-pkg">Pacote ${p.pkg}</span>` : ''}
     ${p.blk ? `<span class="mtag mtag-blk">👥 ${p.blk}</span>` : ''}`;
+
+  // Informações Comerciais
+  const fluigEl = document.getElementById('mCodigoFluig');
+  const esnEl   = document.getElementById('mEsn');
+  if (fluigEl) fluigEl.value = p._codigoFluig || '';
+  if (esnEl)   esnEl.value   = p._esn || '';
 
   // Opção de Suporte
   const susWrap   = document.getElementById('mSusWrap');
@@ -3106,12 +3219,33 @@ function setSuporte(val) {
   const wrap = document.getElementById('mSusWrap');
   const sub  = document.getElementById('mSusSub');
   const sel  = document.getElementById('mSusSelect');
-  sel.className = 'sus-select' + (val==='Sustentação'?' sus-val-sust': val==='Totvs Matriz'?' sus-val-totvs':'');
-  wrap.classList.toggle('sus-active', val==='Sustentação' || val==='Totvs Matriz');
-  sub.textContent = val ? val : 'Nenhum suporte definido';
+  if (sel) sel.className = 'sus-select' + (val==='Sustentação'?' sus-val-sust': val==='Totvs Matriz'?' sus-val-totvs':'');
+  if (wrap) wrap.classList.toggle('sus-active', val==='Sustentação' || val==='Totvs Matriz');
+  if (sub) sub.textContent = val ? val : 'Nenhum suporte definido';
   persistProjectState(currentProject);
   if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(currentProject);
+  _salvarComerciaisNoSupabase();
   render();
+}
+
+// ── Informações Comerciais ────────────────────────────────
+function _comercialAutoSave() {
+  if (!currentProject) return;
+  currentProject._codigoFluig = document.getElementById('mCodigoFluig')?.value || '';
+  currentProject._esn         = document.getElementById('mEsn')?.value || '';
+  clearTimeout(_comercialAutoSave._t);
+  _comercialAutoSave._t = setTimeout(_salvarComerciaisNoSupabase, 800);
+}
+
+async function _salvarComerciaisNoSupabase() {
+  if (!currentProject || typeof CURRENT_USER === 'undefined' || !CURRENT_USER?.access_token) return;
+  if (typeof salvarClienteInfoNoSupabase === 'function') {
+    const ciData = (typeof _ciRead === 'function') ? _ciRead() : {};
+    ciData.codigoFluig = currentProject._codigoFluig || '';
+    ciData.esn         = currentProject._esn || '';
+    await salvarClienteInfoNoSupabase(currentProject, ciData);
+  }
+  if (typeof showSyncIndicator === 'function') showSyncIndicator();
 }
 
 
@@ -3464,6 +3598,14 @@ function renderClientInfo(p) {
     // Contatos
     document.getElementById('ci-contato-fiscal').value = d.contatoFiscal || d.contato_nome     || '';
     document.getElementById('ci-contato-ti').value     = d.contatoTI     || d.contato_telefone || '';
+
+    // Código Fluig e ESN — também popula campos comerciais
+    const fluigEl2 = document.getElementById('mCodigoFluig');
+    const esnEl2   = document.getElementById('mEsn');
+    const fluigVal = d.codigoFluig || d.codigo_fluig || '';
+    const esnVal   = d.esn || '';
+    if (fluigEl2) { fluigEl2.value = fluigVal; if (p) p._codigoFluig = fluigVal; }
+    if (esnEl2)   { esnEl2.value   = esnVal;   if (p) p._esn = esnVal; }
 
     // Acesso Base Homologação
     document.getElementById('ci-hmg-link').value = d.hmgLink  || d.hmg_link  || '';
@@ -4628,8 +4770,9 @@ async function salvarInfoNoSupabase() {
 //  DEFINIR AGENDA — Google Meet via Google Calendar
 // ============================================================
 
-let _meetTipo = 'Onboarding';
+let _meetTipo   = 'Onboarding';
 let _meetDurMin = 60;
+let _meetParticipantes = new Set(); // e-mails dos participantes
 
 function setMeetTipo(btn) {
   document.querySelectorAll('.meet-tipo-btn').forEach(b => b.classList.remove('active'));
@@ -4641,6 +4784,63 @@ function setMeetDur(btn) {
   document.querySelectorAll('.meet-dur-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   _meetDurMin = parseInt(btn.dataset.min);
+}
+
+// Alterna participante da equipe (botões rápidos)
+function toggleParticipante(btn) {
+  const email = btn.dataset.email;
+  if (_meetParticipantes.has(email)) {
+    _meetParticipantes.delete(email);
+    btn.classList.remove('active');
+  } else {
+    _meetParticipantes.add(email);
+    btn.classList.add('active');
+  }
+  _renderPartList();
+}
+
+// Adiciona e-mail digitado manualmente
+function adicionarParticipante() {
+  const inp = document.getElementById('meetEmailInput');
+  const email = (inp.value || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    inp.style.borderColor = '#ef4444';
+    setTimeout(() => inp.style.borderColor = '', 1500);
+    return;
+  }
+  _meetParticipantes.add(email);
+  inp.value = '';
+  // Marca botão da equipe se corresponder
+  document.querySelectorAll('.meet-part-btn').forEach(b => {
+    if (b.dataset.email === email) b.classList.add('active');
+  });
+  _renderPartList();
+}
+
+// Remove participante pelo e-mail
+function removerParticipante(email) {
+  _meetParticipantes.delete(email);
+  document.querySelectorAll('.meet-part-btn').forEach(b => {
+    if (b.dataset.email === email) b.classList.remove('active');
+  });
+  _renderPartList();
+}
+
+// Renderiza os tags de participantes selecionados
+function _renderPartList() {
+  const el = document.getElementById('meetPartList');
+  if (!el) return;
+  if (_meetParticipantes.size === 0) {
+    el.innerHTML = '<span style="font-size:10px;color:var(--muted)">Nenhum participante adicionado ainda.</span>';
+    return;
+  }
+  el.innerHTML = [..._meetParticipantes].map(email => {
+    const nome = email.split('@')[0].split('.').map(n => n.charAt(0).toUpperCase()+n.slice(1)).join(' ');
+    return `<div class="meet-part-tag">
+      ✉ ${nome}
+      <button onclick="removerParticipante('${email}')" title="Remover">✕</button>
+    </div>`;
+  }).join('');
 }
 
 function abrirGoogleMeet() {
@@ -4663,26 +4863,24 @@ function abrirGoogleMeet() {
                   : (RAW.f2||[]).includes(currentProject) ? 'Fase 2 — Entradas'
                   : 'Fase 3 — Legados';
 
-  // Monta título e descrição
   const titulo = `[${_meetTipo}] Reforma Tributária — ${cliente}`;
   const obs    = obsEl.value.trim();
+  const partList = [..._meetParticipantes];
+
   const descricao = [
     `Reunião de ${_meetTipo} — Projeto de Reforma Tributária`,
     `Cliente: ${cliente}`,
     `Consultor: ${consultor}`,
     `Fase: ${faseLabel}`,
+    partList.length ? `Participantes: ${partList.join(', ')}` : '',
     obs ? `\nPauta:\n${obs}` : ''
   ].filter(Boolean).join('\n');
 
-  // Calcula datas no formato YYYYMMDDTHHMMSS (Google Calendar)
-  const [ano, mes, dia]   = dataEl.value.split('-');
-  const [hora, minuto]    = (horaEl.value || '09:00').split(':');
+  const [ano, mes, dia] = dataEl.value.split('-');
+  const [hora, minuto]  = (horaEl.value || '09:00').split(':');
 
-  const dtStart = new Date(
-    parseInt(ano), parseInt(mes)-1, parseInt(dia),
-    parseInt(hora), parseInt(minuto), 0
-  );
-  const dtEnd = new Date(dtStart.getTime() + _meetDurMin * 60000);
+  const dtStart = new Date(parseInt(ano), parseInt(mes)-1, parseInt(dia), parseInt(hora), parseInt(minuto), 0);
+  const dtEnd   = new Date(dtStart.getTime() + _meetDurMin * 60000);
 
   function fmtGcal(dt) {
     const pad = n => String(n).padStart(2,'0');
@@ -4694,18 +4892,23 @@ function abrirGoogleMeet() {
   url.searchParams.set('text',    titulo);
   url.searchParams.set('details', descricao);
   url.searchParams.set('dates',   `${fmtGcal(dtStart)}/${fmtGcal(dtEnd)}`);
-  url.searchParams.set('add',     'videoconference@google.com'); // força Meet
   url.searchParams.set('sf',      'true');
+
+  // Adiciona participantes como convidados
+  if (partList.length > 0) {
+    url.searchParams.set('add', partList.join(','));
+  }
 
   window.open(url.toString(), '_blank');
 
-  // Registra no histórico do projeto
+  // Registra no histórico
   const dataFmt = `${dia}/${mes}/${ano}`;
+  const partStr = partList.length ? `\nParticipantes: ${partList.map(e => e.split('@')[0]).join(', ')}` : '';
   const h = getHistory();
   if (!h[currentProjectId]) h[currentProjectId] = [];
   h[currentProjectId].push({
     date: dataEl.value,
-    text: `📅 Reunião agendada: ${_meetTipo} em ${dataFmt} às ${horaEl.value} (${_meetDurMin} min)${obs ? '\nPauta: ' + obs : ''}`
+    text: `📅 Reunião agendada: ${_meetTipo} em ${dataFmt} às ${horaEl.value} (${_meetDurMin} min)${partStr}${obs ? '\nPauta: ' + obs : ''}`
   });
   saveHistory(h);
   renderHistory();

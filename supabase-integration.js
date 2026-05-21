@@ -180,6 +180,8 @@ async function salvarClienteInfoNoSupabase(proj, data) {
     prd_link:         data.prdLink       || '',
     prd_user:         data.prdUser       || '',
     prd_pass:         data.prdPass       || '',
+    codigo_fluig:     data.codigoFluig   || '',
+    esn:              data.esn           || '',
     updated_at:       new Date().toISOString()
   };
 
