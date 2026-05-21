@@ -3627,7 +3627,7 @@ function renderHistory() {
       </div>`).join('');
   }
 
-  // Busca do Supabase se disponível
+  // Sempre busca do Supabase para garantir UUIDs corretos nos botões de excluir
   if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER?.access_token && currentProject?._uuid) {
     fetch(`${SUPABASE_URL}/rest/v1/history?project_id=eq.${currentProject._uuid}&select=id,data_registro,descricao&order=data_registro.desc`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
@@ -3635,17 +3635,15 @@ function renderHistory() {
     .then(r => r.ok ? r.json() : [])
     .then(rows => {
       if (rows && rows.length > 0) {
-        // Converte formato do banco para formato da app
+        // Usa UUIDs do banco — garante que deleteHistEntry sempre tem o id correto
         const entries = rows.map(r => ({ id: r.id, date: r.data_registro, text: r.descricao }));
-        // Atualiza localStorage como cache
         const h = getHistory();
         h[currentProjectId] = entries;
         try { localStorage.setItem('kanban_history', JSON.stringify(h)); } catch(e) {}
         mostrarEntries(entries);
       } else {
-        // Fallback: localStorage
-        const h = getHistory();
-        mostrarEntries(h[currentProjectId] || []);
+        listEl.innerHTML = '<div class="hist-empty">Nenhuma atividade registrada ainda.</div>';
+        countEl.textContent = '0';
       }
     })
     .catch(() => {
@@ -3696,13 +3694,35 @@ function addHistEntry() {
 function deleteHistEntry(idxOrUuid) {
   if (!confirm('Excluir esta atividade?')) return;
 
-  // Se for um UUID do Supabase, deleta direto no banco
   const isUuid = typeof idxOrUuid === 'string' && idxOrUuid.includes('-');
+
   if (isUuid && typeof CURRENT_USER !== 'undefined' && CURRENT_USER?.access_token) {
+    // Remove do localStorage também
+    const h = getHistory();
+    if (h[currentProjectId]) {
+      h[currentProjectId] = h[currentProjectId].filter(e => e.id !== idxOrUuid);
+      try { localStorage.setItem('kanban_history', JSON.stringify(h)); } catch(e) {}
+    }
+
+    // Remove do Supabase e recarrega a lista
     fetch(`${SUPABASE_URL}/rest/v1/history?id=eq.${idxOrUuid}`, {
       method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
-    }).then(() => renderHistory());
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + CURRENT_USER.access_token,
+        'Prefer': 'return=minimal'
+      }
+    })
+    .then(r => {
+      if (!r.ok) {
+        console.error('Erro ao excluir histórico:', r.status);
+      }
+      renderHistory(); // sempre recarrega do banco após deletar
+    })
+    .catch(e => {
+      console.error('Erro na exclusão:', e);
+      renderHistory();
+    });
     return;
   }
 
