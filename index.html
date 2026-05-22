@@ -2501,6 +2501,44 @@ function _fmtSize(bytes) {
   return (bytes/(1024*1024)).toFixed(2) + ' MB';
 }
 
+async function _getSignedUrl(storagePath, token) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/sign/kanban-documents/${storagePath}`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expiresIn: 3600 }),
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.signedURL ? `${SUPABASE_URL}/storage/v1${data.signedURL}` : null;
+  } catch (e) { return null; }
+}
+
+async function _notificarEquipeDocumento({ projectName, fileName, fileSize, uploaderName, uploaderEmail, documentUrl, fase }) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/functions/v1/resend-email`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + (CURRENT_USER?.access_token || SUPABASE_KEY),
+        },
+        body: JSON.stringify({ projectName, fileName, fileSize, uploaderName, uploaderEmail, documentUrl, fase }),
+      }
+    );
+    return res.ok;
+  } catch (e) { return false; }
+}
+
 function _processDocFiles(files) {
   if (!currentProjectId) return;
   const warn = document.getElementById('docSizeWarn');
@@ -2527,7 +2565,10 @@ function _processDocFiles(files) {
     const dataFmt = String(today.getDate()).padStart(2,'0') + '/' +
                     String(today.getMonth()+1).padStart(2,'0') + '/' +
                     today.getFullYear();
-    let uploaded = 0;
+
+    const faseLabel = RAW.f1?.includes(currentProject) ? 'Fase 1 — Saídas'
+                    : RAW.f2?.includes(currentProject) ? 'Fase 2 — Entradas'
+                    : 'Fase 3 — Legados';
 
     toLoad.forEach(async file => {
       try {
@@ -2575,11 +2616,34 @@ function _processDocFiles(files) {
           })
         });
 
-        uploaded++;
-        if (uploaded === toLoad.length) {
-          renderDocs(currentProjectId);
-          showSyncIndicator();
+        renderDocs(currentProjectId);
+        showSyncIndicator();
+
+        // 3. Gera link assinado e notifica o time por e-mail
+        const signedUrl = await _getSignedUrl(path, token);
+        const emailOk = await _notificarEquipeDocumento({
+          projectName:   currentProject.c || '',
+          fileName:      file.name,
+          fileSize:      _fmtSize(file.size),
+          uploaderName:  CURRENT_USER.nome  || '',
+          uploaderEmail: CURRENT_USER.email || '',
+          documentUrl:   signedUrl || '',
+          fase:          faseLabel,
+        });
+
+        // 4. Toast de feedback
+        const toast = document.getElementById('saveToast');
+        if (toast) {
+          toast.textContent = emailOk ? '📧 Documento enviado e equipe notificada!' : '📎 Documento salvo (notificação falhou)';
+          toast.style.background = emailOk ? 'var(--green)' : 'var(--amber)';
+          toast.classList.add('show');
+          setTimeout(() => {
+            toast.classList.remove('show');
+            toast.textContent = '✓ Alterações salvas!';
+            toast.style.background = '';
+          }, 3500);
         }
+
       } catch(e) {
         console.error('Erro ao processar arquivo:', e);
         alert('Erro ao processar: ' + file.name);
