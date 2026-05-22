@@ -1161,8 +1161,8 @@
 
   /* ── BOTÃO ENVIAR E-MAIL ── */
   .doc-email-btn {
-    display:inline-flex;align-items:center;gap:5px;
-    padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;
+    display:inline-flex;align-items:center;gap:5px;padding:4px 12px;
+    border-radius:20px;font-size:11px;font-weight:700;
     border:1px solid var(--accent);color:var(--accent);background:transparent;
     cursor:pointer;transition:all .2s;white-space:nowrap;font-family:var(--font);
   }
@@ -1170,14 +1170,13 @@
 
   /* ── MODAL E-MAIL ── */
   .eml-overlay {
-    position:fixed;inset:0;background:rgba(0,0,0,.75);
-    z-index:2000;display:flex;align-items:center;justify-content:center;
+    position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;
+    display:flex;align-items:center;justify-content:center;
     backdrop-filter:blur(4px);padding:16px;
   }
   .eml-modal {
-    background:var(--surface);border:1px solid var(--border);
-    border-radius:14px;width:100%;max-width:580px;
-    box-shadow:0 8px 48px rgba(0,0,0,.6);overflow:hidden;
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    width:100%;max-width:600px;box-shadow:0 8px 48px rgba(0,0,0,.6);overflow:hidden;
   }
   .eml-hd {
     background:linear-gradient(135deg,#081420,#0a3050);
@@ -1191,18 +1190,18 @@
   .eml-bd { padding:20px 22px;display:flex;flex-direction:column;gap:14px; }
   .eml-f { display:flex;flex-direction:column;gap:5px; }
   .eml-f label { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent); }
-  .eml-f input, .eml-f textarea {
+  .eml-f input,.eml-f textarea {
     background:var(--surface2);border:1px solid var(--border);border-radius:8px;
     padding:9px 12px;color:var(--text);font-family:var(--font);font-size:13px;
     resize:vertical;transition:border-color .2s;width:100%;box-sizing:border-box;
   }
   .eml-f input:focus,.eml-f textarea:focus { outline:none;border-color:var(--accent); }
-  .eml-f textarea { min-height:120px; }
+  .eml-f textarea { min-height:110px; }
   .eml-f input[readonly] { opacity:.65;cursor:default; }
   .eml-tags {
     background:var(--surface2);border:1px solid var(--border);border-radius:8px;
     padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px;cursor:text;
-    transition:border-color .2s;box-sizing:border-box;
+    transition:border-color .2s;box-sizing:border-box;min-height:40px;align-items:center;
   }
   .eml-tags:focus-within { border-color:var(--accent); }
   .eml-tag {
@@ -1216,10 +1215,22 @@
     background:none;border:none;outline:none;color:var(--text);
     font-family:var(--font);font-size:13px;min-width:180px;flex:1;
   }
+  /* Anexos encontrados */
+  .eml-attachments {
+    background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+    padding:10px 14px;display:flex;flex-direction:column;gap:6px;
+  }
+  .eml-att-item {
+    display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);
+  }
+  .eml-att-item .att-icon { font-size:14px; }
+  .eml-att-item .att-name { color:var(--text);font-weight:600; }
+  .eml-att-none { font-size:12px;color:var(--muted);font-style:italic; }
   .eml-ft {
     padding:14px 22px;border-top:1px solid var(--border);
-    display:flex;gap:10px;justify-content:flex-end;
+    display:flex;gap:10px;justify-content:flex-end;align-items:center;
   }
+  .eml-att-info { font-size:11px;color:var(--muted);margin-right:auto; }
   .eml-cancel {
     padding:8px 18px;border-radius:8px;border:1px solid var(--border);
     background:none;color:var(--muted);font-size:13px;font-weight:600;
@@ -2698,7 +2709,6 @@ function _processDocFiles(files) {
         renderDocs(currentProjectId);
         showSyncIndicator();
 
-        // Toast simples de confirmação de upload
         const toast = document.getElementById('saveToast');
         if (toast) {
           toast.textContent = '📎 Documento salvo com sucesso!';
@@ -4854,7 +4864,7 @@ render();
 <script src="supabase-integration.js"></script>
 
 <!-- ════════════════════════════════════
-     MODAL — ENVIAR E-MAIL
+     MODAL — ENVIAR E-MAIL COM ANEXOS
 ════════════════════════════════════ -->
 <div class="eml-overlay" id="emlOverlay" style="display:none;" onclick="if(event.target===this)fecharEml()">
   <div class="eml-modal">
@@ -4887,8 +4897,15 @@ render();
         <label>Mensagem</label>
         <textarea id="emlBody"></textarea>
       </div>
+      <div class="eml-f">
+        <label>📎 Anexos do dia (carregando…)</label>
+        <div class="eml-attachments" id="emlAttachList">
+          <span class="eml-att-none">Buscando documentos de hoje…</span>
+        </div>
+      </div>
     </div>
     <div class="eml-ft">
+      <span class="eml-att-info" id="emlAttInfo"></span>
       <button class="eml-cancel" onclick="fecharEml()">Cancelar</button>
       <button class="eml-send" id="emlSendBtn" onclick="enviarEml()">📤 Enviar</button>
     </div>
@@ -4896,9 +4913,11 @@ render();
 </div>
 
 <script>
-let _emlTo = [];
+let _emlTo   = [];
+let _emlDocs = []; // docs do dia { nome_arquivo, storage_path, tamanho }
 
-function abrirModalEmail() {
+// ── Abre o modal ─────────────────────────────────────────
+async function abrirModalEmail() {
   if (!currentProject) return;
 
   // Remetente
@@ -4906,124 +4925,220 @@ function abrirModalEmail() {
   const email = CURRENT_USER?.email || '';
   document.getElementById('emlFrom').value = nome ? nome + ' <' + email + '>' : email;
 
-  // Limpa destinatários
+  // Destinatários
   _emlTo = [];
   _emlDrawTags();
 
-  // Assunto com || como separador
+  // Assunto: [Cliente] || Reforma Tributária || DD/MM/AAAA
   const hoje    = new Date();
-  const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' +
-                  String(hoje.getMonth()+1).padStart(2,'0') + '/' +
-                  hoje.getFullYear();
+  const dataFmt = _fmtDataBR(hoje);
   document.getElementById('emlSubject').value =
     (currentProject.c || '') + ' || Reforma Tributária || ' + dataFmt;
 
-  // Corpo padrão
+  // Corpo
   document.getElementById('emlBody').value =
     'Olá,\n\nSegue em anexo ata da nossa agenda de hoje, com principais assuntos discutidos e próximos passos.\n\nAt.\n' + nome;
 
+  // Botão
   const btn = document.getElementById('emlSendBtn');
   btn.disabled = false;
   btn.textContent = '📤 Enviar';
 
+  // Abre modal
   document.getElementById('emlOverlay').style.display = 'flex';
   setTimeout(() => document.getElementById('emlTagInput').focus(), 100);
+
+  // Busca docs do dia
+  _emlDocs = [];
+  document.getElementById('emlAttachList').innerHTML =
+    '<span class="eml-att-none">Buscando documentos de hoje…</span>';
+  document.getElementById('emlAttInfo').textContent = '';
+
+  await _emlBuscarDocsHoje(hoje, dataFmt);
 }
 
 function fecharEml() {
   document.getElementById('emlOverlay').style.display = 'none';
 }
 
+// ── Formata data DD/MM/AAAA ─────────────────────────────
+function _fmtDataBR(d) {
+  return String(d.getDate()).padStart(2,'0') + '/' +
+         String(d.getMonth()+1).padStart(2,'0') + '/' +
+         d.getFullYear();
+}
+
+// ── Busca documentos de hoje no Supabase ─────────────────
+async function _emlBuscarDocsHoje(hoje, dataFmt) {
+  const list = document.getElementById('emlAttachList');
+  const info = document.getElementById('emlAttInfo');
+
+  if (!CURRENT_USER?.access_token || !currentProject?._uuid) {
+    list.innerHTML = '<span class="eml-att-none">Login necessário para buscar anexos.</span>';
+    return;
+  }
+
+  try {
+    // Busca todos os docs do projeto e filtra pelo campo data_upload = hoje
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/documents?project_id=eq.' + currentProject._uuid +
+      '&select=id,nome_arquivo,storage_path,tamanho,data_upload&order=created_at.desc',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token } }
+    );
+
+    if (!res.ok) throw new Error('Erro ao buscar documentos');
+    const rows = await res.json();
+
+    // Filtra pela data de hoje (campo data_upload = "DD/MM/AAAA" ou ISO date)
+    const hoje_iso   = hoje.toISOString().slice(0,10); // "2026-05-22"
+    _emlDocs = rows.filter(r => {
+      const d = r.data_upload || '';
+      return d === dataFmt || d.startsWith(hoje_iso);
+    });
+
+    if (!_emlDocs.length) {
+      list.innerHTML = '<span class="eml-att-none">Nenhum documento enviado hoje para este projeto.</span>';
+      info.textContent = '';
+      return;
+    }
+
+    list.innerHTML = _emlDocs.map(d =>
+      '<div class="eml-att-item">' +
+        '<span class="att-icon">📄</span>' +
+        '<span class="att-name">' + escapeHtml(d.nome_arquivo || '') + '</span>' +
+        '<span style="margin-left:auto;font-size:11px;">' + escapeHtml(d.tamanho || '') + '</span>' +
+      '</div>'
+    ).join('');
+
+    info.textContent = _emlDocs.length + ' anexo' + (_emlDocs.length > 1 ? 's' : '') + ' do dia';
+
+  } catch (err) {
+    list.innerHTML = '<span class="eml-att-none">Erro ao buscar anexos: ' + err.message + '</span>';
+  }
+}
+
+// ── Tags de destinatários ────────────────────────────────
 function _emlDrawTags() {
   document.getElementById('emlTagsList').innerHTML = _emlTo.map(function(e, i) {
     return '<span class="eml-tag">' + escapeHtml(e) +
       '<button onclick="emlRemove(' + i + ')">✕</button></span>';
   }).join('');
 }
-
-function emlRemove(i) {
-  _emlTo.splice(i, 1);
-  _emlDrawTags();
-}
-
+function emlRemove(i) { _emlTo.splice(i,1); _emlDrawTags(); }
 function emlAdd(val) {
-  val = (val || '').trim().toLowerCase();
-  if (val && val.indexOf('@') > 0 && _emlTo.indexOf(val) === -1) {
-    _emlTo.push(val);
-    _emlDrawTags();
-  }
+  val = (val||'').trim().toLowerCase();
+  if (val && val.indexOf('@') > 0 && _emlTo.indexOf(val) === -1) { _emlTo.push(val); _emlDrawTags(); }
   document.getElementById('emlTagInput').value = '';
 }
-
 function emlKeydown(e) {
-  if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
-    e.preventDefault();
-    emlAdd(e.target.value);
-  }
-  if (e.key === 'Backspace' && !e.target.value && _emlTo.length) {
-    _emlTo.pop();
-    _emlDrawTags();
-  }
+  if (e.key==='Enter'||e.key==='Tab'||e.key===',') { e.preventDefault(); emlAdd(e.target.value); }
+  if (e.key==='Backspace'&&!e.target.value&&_emlTo.length) { _emlTo.pop(); _emlDrawTags(); }
+}
+function emlBlur() { emlAdd(document.getElementById('emlTagInput').value); }
+
+// ── Converte blob para base64 ─────────────────────────────
+function _blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
-function emlBlur() {
-  emlAdd(document.getElementById('emlTagInput').value);
-}
-
+// ── Envia e-mail com anexos ───────────────────────────────
 async function enviarEml() {
   emlAdd(document.getElementById('emlTagInput').value);
   if (!_emlTo.length) { alert('Adicione pelo menos um destinatário.'); return; }
 
-  const subject = (document.getElementById('emlSubject').value || '').trim();
-  const bodyTxt = (document.getElementById('emlBody').value || '').trim();
+  const subject = (document.getElementById('emlSubject').value||'').trim();
+  const bodyTxt = (document.getElementById('emlBody').value||'').trim();
   if (!subject) { alert('Preencha o assunto.'); return; }
   if (!bodyTxt) { alert('Preencha a mensagem.'); return; }
 
   const btn = document.getElementById('emlSendBtn');
   btn.disabled = true;
+
+  // ── Baixa cada PDF do Storage e converte para base64 ──
+  let attachments = [];
+  if (_emlDocs.length && CURRENT_USER?.access_token) {
+    btn.textContent = '⏳ Preparando anexos…';
+    for (const doc of _emlDocs) {
+      try {
+        const dlRes = await fetch(
+          SUPABASE_URL + '/storage/v1/object/kanban-documents/' + doc.storage_path,
+          { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token } }
+        );
+        if (dlRes.ok) {
+          const blob   = await dlRes.blob();
+          const b64    = await _blobToBase64(blob);
+          attachments.push({ filename: doc.nome_arquivo, content: b64 });
+        }
+      } catch (err) {
+        console.warn('Falha ao baixar anexo:', doc.nome_arquivo, err);
+      }
+    }
+  }
+
   btn.textContent = '⏳ Enviando…';
 
-  // Converte texto em HTML seguro (mantém quebras de linha)
+  // ── Monta HTML do e-mail ──────────────────────────────
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  const bodyHtml = esc(bodyTxt).replace(/\n/g,'<br>');
-  const cliente  = esc(currentProject?.c || '');
+  const bodyHtml  = esc(bodyTxt).replace(/\n/g,'<br>');
+  const cliente   = esc(currentProject?.c || '');
   const remetente = esc(document.getElementById('emlFrom').value);
-  const hoje = new Date();
-  const dataHora = hoje.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})
-                 + ' ' + String(hoje.getHours()).padStart(2,'0') + ':' + String(hoje.getMinutes()).padStart(2,'0');
+  const hoje      = new Date();
+  const dataHora  = _fmtDataBR(hoje) + ' ' +
+                    String(hoje.getHours()).padStart(2,'0') + ':' +
+                    String(hoje.getMinutes()).padStart(2,'0');
 
-  // Template HTML robusto (tabelas inline, sem CSS externo)
-  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body bgcolor="#f0f4f8" style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;">'
-    + '<table width="100%" bgcolor="#f0f4f8" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">'
-    + '<table width="560" cellpadding="0" cellspacing="0" bgcolor="#0d1f30" style="border-radius:12px;overflow:hidden;max-width:560px;">'
-    // cabeçalho
-    + '<tr><td bgcolor="#081420" style="padding:24px 28px;border-bottom:3px solid #00c4cc;">'
-    + '<p style="margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#00c4cc;">REFORMA TRIBUTÁRIA · TOTVS</p>'
-    + '<p style="margin:0;font-size:18px;font-weight:800;color:#e8f4fd;">📋 ' + cliente + ' — Ata de Reunião</p>'
-    + '</td></tr>'
-    // card de detalhes
-    + '<tr><td style="padding:24px 28px;">'
-    + '<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#112840" style="border-radius:8px;margin-bottom:20px;">'
-    + '<tr><td bgcolor="#163352" style="padding:8px 16px;border-radius:8px 8px 0 0;">'
-    + '<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#00c4cc;">Detalhes</span>'
-    + '</td></tr>'
-    + '<tr><td style="padding:14px 16px;">'
-    + '<table cellpadding="4" cellspacing="0" style="font-size:13px;color:#e8f4fd;">'
-    + '<tr><td style="color:#7aadcc;width:100px;">Cliente</td><td style="font-weight:700;">' + cliente + '</td></tr>'
-    + '<tr><td style="color:#7aadcc;">Remetente</td><td>' + remetente + '</td></tr>'
-    + '<tr><td style="color:#7aadcc;">Data</td><td>' + dataHora + '</td></tr>'
-    + '</table></td></tr></table>'
-    // corpo da mensagem
-    + '<div style="font-size:14px;color:#c8dff0;line-height:1.8;">' + bodyHtml + '</div>'
-    + '<p style="margin:20px 0 0;font-size:11px;color:#7aadcc;">Gerado automaticamente pelo Kanban — Reforma Tributária TOTVS.</p>'
-    + '</td></tr>'
-    // rodapé
-    + '<tr><td bgcolor="#081420" style="padding:12px 28px;border-top:1px solid #1e3d5c;text-align:center;">'
-    + '<p style="margin:0;font-size:11px;color:#4a7a9b;">TOTVS S.A. · Gerenciamento de Projetos Reforma Tributária</p>'
-    + '</td></tr>'
-    + '</table></td></tr></table></body></html>';
+  // Lista de anexos no corpo (para referência visual)
+  const attList = attachments.length
+    ? '<table cellpadding="4" cellspacing="0" style="margin-top:16px;font-size:12px;color:#7aadcc;">' +
+      attachments.map(a => '<tr><td>📄</td><td style="color:#e8f4fd;">' + esc(a.filename) + '</td></tr>').join('') +
+      '</table>'
+    : '';
+
+  const html =
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>' +
+    '<body bgcolor="#f0f4f8" style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;">' +
+    '<table width="100%" bgcolor="#f0f4f8" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">' +
+    '<table width="560" cellpadding="0" cellspacing="0" bgcolor="#0d1f30" style="border-radius:12px;overflow:hidden;max-width:560px;">' +
+
+    // Cabeçalho
+    '<tr><td bgcolor="#081420" style="padding:24px 28px;border-bottom:3px solid #00c4cc;">' +
+    '<p style="margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#00c4cc;">REFORMA TRIBUTÁRIA · TOTVS</p>' +
+    '<p style="margin:0;font-size:18px;font-weight:800;color:#e8f4fd;">📋 ' + cliente + ' — Ata de Reunião</p>' +
+    '</td></tr>' +
+
+    // Card de detalhes
+    '<tr><td style="padding:24px 28px;">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#112840" style="border-radius:8px;margin-bottom:20px;">' +
+    '<tr><td bgcolor="#163352" style="padding:8px 16px;border-radius:8px 8px 0 0;">' +
+    '<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#00c4cc;">Detalhes</span>' +
+    '</td></tr><tr><td style="padding:14px 16px;">' +
+    '<table cellpadding="4" cellspacing="0" style="font-size:13px;color:#e8f4fd;">' +
+    '<tr><td style="color:#7aadcc;width:100px;">Cliente</td><td style="font-weight:700;">' + cliente + '</td></tr>' +
+    '<tr><td style="color:#7aadcc;">Remetente</td><td>' + remetente + '</td></tr>' +
+    '<tr><td style="color:#7aadcc;">Data</td><td>' + dataHora + '</td></tr>' +
+    (attachments.length ? '<tr><td style="color:#7aadcc;vertical-align:top;">Anexos</td><td>' + attList + '</td></tr>' : '') +
+    '</table></td></tr></table>' +
+
+    // Corpo
+    '<div style="font-size:14px;color:#c8dff0;line-height:1.8;">' + bodyHtml + '</div>' +
+    '<p style="margin:20px 0 0;font-size:11px;color:#7aadcc;">Gerado automaticamente pelo Kanban — Reforma Tributária TOTVS.</p>' +
+    '</td></tr>' +
+
+    // Rodapé
+    '<tr><td bgcolor="#081420" style="padding:12px 28px;border-top:1px solid #1e3d5c;text-align:center;">' +
+    '<p style="margin:0;font-size:11px;color:#4a7a9b;">TOTVS S.A. · Gerenciamento de Projetos Reforma Tributária</p>' +
+    '</td></tr>' +
+    '</table></td></tr></table></body></html>';
 
   try {
+    const payload = { to: _emlTo, subject: subject, html: html, from: 'onboarding@resend.dev' };
+    if (attachments.length) payload.attachments = attachments;
+
     const res = await fetch(SUPABASE_URL + '/functions/v1/resend-email', {
       method: 'POST',
       headers: {
@@ -5031,7 +5146,7 @@ async function enviarEml() {
         'apikey':        SUPABASE_KEY,
         'Authorization': 'Bearer ' + (CURRENT_USER?.access_token || SUPABASE_KEY),
       },
-      body: JSON.stringify({ to: _emlTo, subject: subject, html: html, from: 'onboarding@resend.dev' }),
+      body: JSON.stringify(payload),
     });
 
     const data = await res.json();
@@ -5040,7 +5155,10 @@ async function enviarEml() {
     fecharEml();
     const toast = document.getElementById('saveToast');
     if (toast) {
-      toast.textContent = '📧 E-mail enviado com sucesso!';
+      const qtd = attachments.length;
+      toast.textContent = qtd
+        ? '📧 E-mail enviado com ' + qtd + ' anexo' + (qtd > 1 ? 's' : '') + '!'
+        : '📧 E-mail enviado com sucesso!';
       toast.style.background = 'var(--green)';
       toast.classList.add('show');
       setTimeout(function() {
