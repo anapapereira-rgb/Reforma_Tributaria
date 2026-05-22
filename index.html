@@ -1159,93 +1159,81 @@
   .doc-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent)22; }
   .doc-btn.del:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
 
-  /* ── EMAIL BUTTON ── */
+  /* ── BOTÃO ENVIAR E-MAIL ── */
   .doc-email-btn {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
-    border: 1px solid var(--accent); color: var(--accent); background: transparent;
-    cursor: pointer; transition: all .2s; white-space: nowrap;
-    font-family: var(--font);
+    display:inline-flex;align-items:center;gap:5px;
+    padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;
+    border:1px solid var(--accent);color:var(--accent);background:transparent;
+    cursor:pointer;transition:all .2s;white-space:nowrap;font-family:var(--font);
   }
-  .doc-email-btn:hover { background: var(--accent); color: #081420; }
+  .doc-email-btn:hover { background:var(--accent);color:#081420; }
 
-  /* ── EMAIL MODAL ── */
-  .email-modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.7);
-    z-index: 2000; display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(4px); padding: 16px;
+  /* ── MODAL E-MAIL ── */
+  .eml-overlay {
+    position:fixed;inset:0;background:rgba(0,0,0,.75);
+    z-index:2000;display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(4px);padding:16px;
   }
-  .email-modal {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; width: 100%; max-width: 560px;
-    box-shadow: 0 8px 48px rgba(0,0,0,.6); overflow: hidden;
+  .eml-modal {
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:14px;width:100%;max-width:580px;
+    box-shadow:0 8px 48px rgba(0,0,0,.6);overflow:hidden;
   }
-  .email-modal-header {
-    background: linear-gradient(135deg, #081420, #0a3050);
-    padding: 18px 22px; border-bottom: 2px solid var(--accent);
-    display: flex; align-items: center; justify-content: space-between;
+  .eml-hd {
+    background:linear-gradient(135deg,#081420,#0a3050);
+    padding:18px 22px;border-bottom:2px solid var(--accent);
+    display:flex;align-items:center;justify-content:space-between;
   }
-  .email-modal-title { font-size: 15px; font-weight: 800; color: var(--text); }
-  .email-modal-sub { font-size: 10px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .1em; color: var(--accent); margin-bottom: 2px; }
-  .email-modal-close {
-    background: none; border: none; color: var(--muted); font-size: 20px;
-    cursor: pointer; padding: 0 4px; line-height: 1;
+  .eml-hd-sub  { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:2px; }
+  .eml-hd-title{ font-size:15px;font-weight:800;color:var(--text); }
+  .eml-x { background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1; }
+  .eml-x:hover { color:var(--text); }
+  .eml-bd { padding:20px 22px;display:flex;flex-direction:column;gap:14px; }
+  .eml-f { display:flex;flex-direction:column;gap:5px; }
+  .eml-f label { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent); }
+  .eml-f input, .eml-f textarea {
+    background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+    padding:9px 12px;color:var(--text);font-family:var(--font);font-size:13px;
+    resize:vertical;transition:border-color .2s;width:100%;box-sizing:border-box;
   }
-  .email-modal-close:hover { color: var(--text); }
-  .email-modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
-  .email-field { display: flex; flex-direction: column; gap: 5px; }
-  .email-field label { font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .06em; color: var(--accent); }
-  .email-field input, .email-field textarea {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 9px 12px; color: var(--text);
-    font-family: var(--font); font-size: 13px; resize: vertical;
-    transition: border-color .2s; width: 100%; box-sizing: border-box;
+  .eml-f input:focus,.eml-f textarea:focus { outline:none;border-color:var(--accent); }
+  .eml-f textarea { min-height:120px; }
+  .eml-f input[readonly] { opacity:.65;cursor:default; }
+  .eml-tags {
+    background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+    padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px;cursor:text;
+    transition:border-color .2s;box-sizing:border-box;
   }
-  .email-field input:focus, .email-field textarea:focus {
-    outline: none; border-color: var(--accent);
+  .eml-tags:focus-within { border-color:var(--accent); }
+  .eml-tag {
+    display:inline-flex;align-items:center;gap:4px;
+    background:var(--surface3);border:1px solid var(--border2);
+    border-radius:20px;padding:3px 10px;font-size:11px;color:var(--muted);
   }
-  .email-field textarea { min-height: 110px; }
-  .email-modal-footer {
-    padding: 14px 22px; border-top: 1px solid var(--border);
-    display: flex; gap: 10px; justify-content: flex-end;
+  .eml-tag button { background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0;line-height:1; }
+  .eml-tag button:hover { color:var(--red); }
+  .eml-tag-input {
+    background:none;border:none;outline:none;color:var(--text);
+    font-family:var(--font);font-size:13px;min-width:180px;flex:1;
   }
-  .email-btn-cancel {
-    padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border);
-    background: none; color: var(--muted); font-size: 13px; font-weight: 600;
-    cursor: pointer; font-family: var(--font);
+  .eml-ft {
+    padding:14px 22px;border-top:1px solid var(--border);
+    display:flex;gap:10px;justify-content:flex-end;
   }
-  .email-btn-cancel:hover { border-color: var(--text); color: var(--text); }
-  .email-btn-send {
-    padding: 8px 22px; border-radius: 8px; border: none;
-    background: linear-gradient(135deg, var(--accent), #0088ff);
-    color: #fff; font-size: 13px; font-weight: 700;
-    cursor: pointer; font-family: var(--font); transition: opacity .2s;
+  .eml-cancel {
+    padding:8px 18px;border-radius:8px;border:1px solid var(--border);
+    background:none;color:var(--muted);font-size:13px;font-weight:600;
+    cursor:pointer;font-family:var(--font);
   }
-  .email-btn-send:hover { opacity: .85; }
-  .email-btn-send:disabled { opacity: .5; cursor: not-allowed; }
-  .email-tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
-  .email-tag {
-    display: inline-flex; align-items: center; gap: 4px;
-    background: var(--surface3); border: 1px solid var(--border2);
-    border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--muted);
+  .eml-cancel:hover { border-color:var(--text);color:var(--text); }
+  .eml-send {
+    padding:8px 22px;border-radius:8px;border:none;
+    background:linear-gradient(135deg,var(--accent),#0088ff);
+    color:#fff;font-size:13px;font-weight:700;
+    cursor:pointer;font-family:var(--font);transition:opacity .2s;
   }
-  .email-tag .tag-remove {
-    background: none; border: none; color: var(--muted); cursor: pointer;
-    font-size: 12px; padding: 0; line-height: 1;
-  }
-  .email-tag .tag-remove:hover { color: var(--red); }
-  .email-tag-input {
-    background: none; border: none; outline: none; color: var(--text);
-    font-family: var(--font); font-size: 13px; min-width: 160px; flex: 1;
-  }
-  .email-tag-field {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 6px 10px; display: flex; flex-wrap: wrap; gap: 6px;
-    cursor: text; transition: border-color .2s;
-  }
-  .email-tag-field:focus-within { border-color: var(--accent); }
+  .eml-send:hover { opacity:.85; }
+  .eml-send:disabled { opacity:.5;cursor:not-allowed; }
   .doc-empty { font-size: 11px; color: var(--muted); text-align: center; padding: 6px 0; }
 
   .doc-size-warning { font-size: 10px; color: var(--amber); margin-top: 4px; }
@@ -2030,7 +2018,7 @@
           <div class="card-subsect-header" onclick="toggleSubsect(this)">
             <span class="card-subsect-title">📄 Documentação</span>
             <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-              <button class="doc-email-btn" title="Enviar e-mail com documento" onclick="event.stopPropagation();abrirModalEmail()">✉ Enviar E-mail</button>
+              <button class="doc-email-btn" onclick="event.stopPropagation();abrirModalEmail()">✉ Enviar E-mail</button>
               <span class="card-subsect-chevron">▼</span>
             </div>
           </div>
@@ -2710,29 +2698,17 @@ function _processDocFiles(files) {
         renderDocs(currentProjectId);
         showSyncIndicator();
 
-        // 3. Gera link assinado e notifica o time por e-mail
-        const signedUrl = await _getSignedUrl(path, token);
-        const emailOk = await _notificarEquipeDocumento({
-          projectName:   currentProject.c || '',
-          fileName:      file.name,
-          fileSize:      _fmtSize(file.size),
-          uploaderName:  CURRENT_USER.nome  || '',
-          uploaderEmail: CURRENT_USER.email || '',
-          documentUrl:   signedUrl || '',
-          fase:          faseLabel,
-        });
-
-        // 4. Toast de feedback
+        // Toast simples de confirmação de upload
         const toast = document.getElementById('saveToast');
         if (toast) {
-          toast.textContent = emailOk ? '📧 Documento enviado e equipe notificada!' : '📎 Documento salvo (notificação falhou)';
-          toast.style.background = emailOk ? 'var(--green)' : 'var(--amber)';
+          toast.textContent = '📎 Documento salvo com sucesso!';
+          toast.style.background = 'var(--green)';
           toast.classList.add('show');
           setTimeout(() => {
             toast.classList.remove('show');
             toast.textContent = '✓ Alterações salvas!';
             toast.style.background = '';
-          }, 3500);
+          }, 3000);
         }
 
       } catch(e) {
@@ -4877,193 +4853,201 @@ render();
 
 <script src="supabase-integration.js"></script>
 
-<!-- ══════════════════════════════════════════════
+<!-- ════════════════════════════════════
      MODAL — ENVIAR E-MAIL
-══════════════════════════════════════════════ -->
-<div class="email-modal-overlay" id="emailModalOverlay" style="display:none;" onclick="if(event.target===this)fecharModalEmail()">
-  <div class="email-modal">
-    <div class="email-modal-header">
+════════════════════════════════════ -->
+<div class="eml-overlay" id="emlOverlay" style="display:none;" onclick="if(event.target===this)fecharEml()">
+  <div class="eml-modal">
+    <div class="eml-hd">
       <div>
-        <div class="email-modal-sub">Reforma Tributária · TOTVS</div>
-        <div class="email-modal-title">✉ Enviar E-mail</div>
+        <div class="eml-hd-sub">Reforma Tributária · TOTVS</div>
+        <div class="eml-hd-title">✉ Enviar E-mail</div>
       </div>
-      <button class="email-modal-close" onclick="fecharModalEmail()">✕</button>
+      <button class="eml-x" onclick="fecharEml()">✕</button>
     </div>
-    <div class="email-modal-body">
-      <!-- Remetente -->
-      <div class="email-field">
+    <div class="eml-bd">
+      <div class="eml-f">
         <label>De (Remetente)</label>
-        <input type="text" id="emailFrom" readonly style="opacity:.7;cursor:default;" />
+        <input type="text" id="emlFrom" readonly />
       </div>
-      <!-- Destinatários -->
-      <div class="email-field">
+      <div class="eml-f">
         <label>Para (Destinatários)</label>
-        <div class="email-tag-field" id="emailToField" onclick="document.getElementById('emailToInput').focus()">
-          <span id="emailTags" class="email-tags-wrap"></span>
-          <input class="email-tag-input" id="emailToInput" type="email"
-            placeholder="Digite e-mail e pressione Enter"
-            onkeydown="emailTagKeydown(event)" />
+        <div class="eml-tags" id="emlTagsBox" onclick="document.getElementById('emlTagInput').focus()">
+          <span id="emlTagsList"></span>
+          <input class="eml-tag-input" id="emlTagInput" type="email"
+            placeholder="Digite o e-mail e pressione Enter"
+            onkeydown="emlKeydown(event)" onblur="emlBlur()" />
         </div>
       </div>
-      <!-- Assunto -->
-      <div class="email-field">
+      <div class="eml-f">
         <label>Assunto</label>
-        <input type="text" id="emailSubject" />
+        <input type="text" id="emlSubject" />
       </div>
-      <!-- Corpo -->
-      <div class="email-field">
+      <div class="eml-f">
         <label>Mensagem</label>
-        <textarea id="emailBody"></textarea>
+        <textarea id="emlBody"></textarea>
       </div>
     </div>
-    <div class="email-modal-footer">
-      <button class="email-btn-cancel" onclick="fecharModalEmail()">Cancelar</button>
-      <button class="email-btn-send" id="emailSendBtn" onclick="enviarEmailModal()">📤 Enviar</button>
+    <div class="eml-ft">
+      <button class="eml-cancel" onclick="fecharEml()">Cancelar</button>
+      <button class="eml-send" id="emlSendBtn" onclick="enviarEml()">📤 Enviar</button>
     </div>
   </div>
 </div>
 
 <script>
-// ── Estado dos destinatários ────────────────────
-let _emailRecipients = [];
+let _emlTo = [];
 
-// ── Abre o modal preenchido com os dados do projeto ──
 function abrirModalEmail() {
   if (!currentProject) return;
 
-  // 1. Remetente = usuário logado
-  const userEmail = CURRENT_USER?.email || '';
-  const userName  = CURRENT_USER?.nome  || '';
-  document.getElementById('emailFrom').value =
-    userName ? `${userName} <${userEmail}>` : userEmail;
+  // Remetente
+  const nome  = CURRENT_USER?.nome  || '';
+  const email = CURRENT_USER?.email || '';
+  document.getElementById('emlFrom').value = nome ? nome + ' <' + email + '>' : email;
 
-  // 2. Destinatários — começa vazio para o usuário preencher
-  _emailRecipients = [];
-  renderEmailTags();
+  // Limpa destinatários
+  _emlTo = [];
+  _emlDrawTags();
 
-  // 3. Assunto: [Nome do cliente] Reforma Tributária - Data atual
-  const hoje = new Date();
-  const dataStr = String(hoje.getDate()).padStart(2,'0') + '/' +
+  // Assunto com || como separador
+  const hoje    = new Date();
+  const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' +
                   String(hoje.getMonth()+1).padStart(2,'0') + '/' +
                   hoje.getFullYear();
-  const cliente = currentProject.c || '';
-  document.getElementById('emailSubject').value =
-    `${cliente} Reforma Tributária - ${dataStr}`;
+  document.getElementById('emlSubject').value =
+    (currentProject.c || '') + ' || Reforma Tributária || ' + dataFmt;
 
-  // 4. Corpo padrão
-  document.getElementById('emailBody').value =
-`Olá,
+  // Corpo padrão
+  document.getElementById('emlBody').value =
+    'Olá,\n\nSegue em anexo ata da nossa agenda de hoje, com principais assuntos discutidos e próximos passos.\n\nAt.\n' + nome;
 
-Segue em anexo ata da nossa agenda de hoje, com principais assuntos discutidos e próximos passos.
+  const btn = document.getElementById('emlSendBtn');
+  btn.disabled = false;
+  btn.textContent = '📤 Enviar';
 
-At.
-${userName}`;
-
-  document.getElementById('emailSendBtn').disabled = false;
-  document.getElementById('emailSendBtn').textContent = '📤 Enviar';
-  document.getElementById('emailModalOverlay').style.display = 'flex';
-  setTimeout(() => document.getElementById('emailToInput').focus(), 100);
+  document.getElementById('emlOverlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('emlTagInput').focus(), 100);
 }
 
-function fecharModalEmail() {
-  document.getElementById('emailModalOverlay').style.display = 'none';
+function fecharEml() {
+  document.getElementById('emlOverlay').style.display = 'none';
 }
 
-// ── Gerenciamento de tags (destinatários) ────────
-function renderEmailTags() {
-  const wrap = document.getElementById('emailTags');
-  wrap.innerHTML = _emailRecipients.map((em, i) =>
-    `<span class="email-tag">${escapeHtml(em)}
-      <button class="tag-remove" onclick="removeEmailTag(${i})">✕</button>
-    </span>`
-  ).join('');
+function _emlDrawTags() {
+  document.getElementById('emlTagsList').innerHTML = _emlTo.map(function(e, i) {
+    return '<span class="eml-tag">' + escapeHtml(e) +
+      '<button onclick="emlRemove(' + i + ')">✕</button></span>';
+  }).join('');
 }
 
-function removeEmailTag(i) {
-  _emailRecipients.splice(i, 1);
-  renderEmailTags();
+function emlRemove(i) {
+  _emlTo.splice(i, 1);
+  _emlDrawTags();
 }
 
-function emailTagKeydown(e) {
-  const inp = document.getElementById('emailToInput');
-  const val = inp.value.trim();
-  if ((e.key === 'Enter' || e.key === ',' || e.key === 'Tab') && val) {
+function emlAdd(val) {
+  val = (val || '').trim().toLowerCase();
+  if (val && val.indexOf('@') > 0 && _emlTo.indexOf(val) === -1) {
+    _emlTo.push(val);
+    _emlDrawTags();
+  }
+  document.getElementById('emlTagInput').value = '';
+}
+
+function emlKeydown(e) {
+  if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
     e.preventDefault();
-    if (val.includes('@') && !_emailRecipients.includes(val)) {
-      _emailRecipients.push(val);
-      renderEmailTags();
-    }
-    inp.value = '';
+    emlAdd(e.target.value);
   }
-  // Backspace remove o último tag se input estiver vazio
-  if (e.key === 'Backspace' && !val && _emailRecipients.length) {
-    _emailRecipients.pop();
-    renderEmailTags();
+  if (e.key === 'Backspace' && !e.target.value && _emlTo.length) {
+    _emlTo.pop();
+    _emlDrawTags();
   }
 }
 
-// ── Envia o e-mail via Edge Function resend-email ──
-async function enviarEmailModal() {
-  // Captura qualquer e-mail digitado mas não confirmado com Enter
-  const inp = document.getElementById('emailToInput');
-  const pendente = inp.value.trim();
-  if (pendente && pendente.includes('@') && !_emailRecipients.includes(pendente)) {
-    _emailRecipients.push(pendente);
-    renderEmailTags();
-    inp.value = '';
-  }
+function emlBlur() {
+  emlAdd(document.getElementById('emlTagInput').value);
+}
 
-  if (!_emailRecipients.length) {
-    alert('Adicione pelo menos um destinatário.');
-    return;
-  }
+async function enviarEml() {
+  emlAdd(document.getElementById('emlTagInput').value);
+  if (!_emlTo.length) { alert('Adicione pelo menos um destinatário.'); return; }
 
-  const subject = document.getElementById('emailSubject').value.trim();
-  const body    = document.getElementById('emailBody').value.trim();
-
+  const subject = (document.getElementById('emlSubject').value || '').trim();
+  const bodyTxt = (document.getElementById('emlBody').value || '').trim();
   if (!subject) { alert('Preencha o assunto.'); return; }
-  if (!body)    { alert('Preencha o corpo do e-mail.'); return; }
+  if (!bodyTxt) { alert('Preencha a mensagem.'); return; }
 
-  const btn = document.getElementById('emailSendBtn');
+  const btn = document.getElementById('emlSendBtn');
   btn.disabled = true;
   btn.textContent = '⏳ Enviando…';
 
-  // Monta HTML simples para o corpo
-  const htmlBody = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#222;white-space:pre-wrap;">${body.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
+  // Converte texto em HTML seguro (mantém quebras de linha)
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  const bodyHtml = esc(bodyTxt).replace(/\n/g,'<br>');
+  const cliente  = esc(currentProject?.c || '');
+  const remetente = esc(document.getElementById('emlFrom').value);
+  const hoje = new Date();
+  const dataHora = hoje.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})
+                 + ' ' + String(hoje.getHours()).padStart(2,'0') + ':' + String(hoje.getMinutes()).padStart(2,'0');
+
+  // Template HTML robusto (tabelas inline, sem CSS externo)
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body bgcolor="#f0f4f8" style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;">'
+    + '<table width="100%" bgcolor="#f0f4f8" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">'
+    + '<table width="560" cellpadding="0" cellspacing="0" bgcolor="#0d1f30" style="border-radius:12px;overflow:hidden;max-width:560px;">'
+    // cabeçalho
+    + '<tr><td bgcolor="#081420" style="padding:24px 28px;border-bottom:3px solid #00c4cc;">'
+    + '<p style="margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#00c4cc;">REFORMA TRIBUTÁRIA · TOTVS</p>'
+    + '<p style="margin:0;font-size:18px;font-weight:800;color:#e8f4fd;">📋 ' + cliente + ' — Ata de Reunião</p>'
+    + '</td></tr>'
+    // card de detalhes
+    + '<tr><td style="padding:24px 28px;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#112840" style="border-radius:8px;margin-bottom:20px;">'
+    + '<tr><td bgcolor="#163352" style="padding:8px 16px;border-radius:8px 8px 0 0;">'
+    + '<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#00c4cc;">Detalhes</span>'
+    + '</td></tr>'
+    + '<tr><td style="padding:14px 16px;">'
+    + '<table cellpadding="4" cellspacing="0" style="font-size:13px;color:#e8f4fd;">'
+    + '<tr><td style="color:#7aadcc;width:100px;">Cliente</td><td style="font-weight:700;">' + cliente + '</td></tr>'
+    + '<tr><td style="color:#7aadcc;">Remetente</td><td>' + remetente + '</td></tr>'
+    + '<tr><td style="color:#7aadcc;">Data</td><td>' + dataHora + '</td></tr>'
+    + '</table></td></tr></table>'
+    // corpo da mensagem
+    + '<div style="font-size:14px;color:#c8dff0;line-height:1.8;">' + bodyHtml + '</div>'
+    + '<p style="margin:20px 0 0;font-size:11px;color:#7aadcc;">Gerado automaticamente pelo Kanban — Reforma Tributária TOTVS.</p>'
+    + '</td></tr>'
+    // rodapé
+    + '<tr><td bgcolor="#081420" style="padding:12px 28px;border-top:1px solid #1e3d5c;text-align:center;">'
+    + '<p style="margin:0;font-size:11px;color:#4a7a9b;">TOTVS S.A. · Gerenciamento de Projetos Reforma Tributária</p>'
+    + '</td></tr>'
+    + '</table></td></tr></table></body></html>';
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/resend-email`, {
+    const res = await fetch(SUPABASE_URL + '/functions/v1/resend-email', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_KEY,
+        'Content-Type':  'application/json',
+        'apikey':        SUPABASE_KEY,
         'Authorization': 'Bearer ' + (CURRENT_USER?.access_token || SUPABASE_KEY),
       },
-      body: JSON.stringify({
-        to:      _emailRecipients,
-        subject: subject,
-        html:    htmlBody,
-        from:    'onboarding@resend.dev',
-      }),
+      body: JSON.stringify({ to: _emlTo, subject: subject, html: html, from: 'onboarding@resend.dev' }),
     });
 
     const data = await res.json();
+    if (!res.ok || data.ok === false) throw new Error(data.error || 'Falha ao enviar');
 
-    if (res.ok && data.ok !== false) {
-      fecharModalEmail();
-      const toast = document.getElementById('saveToast');
-      if (toast) {
-        toast.textContent = '📧 E-mail enviado com sucesso!';
-        toast.style.background = 'var(--green)';
-        toast.classList.add('show');
-        setTimeout(() => {
-          toast.classList.remove('show');
-          toast.textContent = '✓ Alterações salvas!';
-          toast.style.background = '';
-        }, 3500);
-      }
-    } else {
-      throw new Error(data.error || 'Falha ao enviar');
+    fecharEml();
+    const toast = document.getElementById('saveToast');
+    if (toast) {
+      toast.textContent = '📧 E-mail enviado com sucesso!';
+      toast.style.background = 'var(--green)';
+      toast.classList.add('show');
+      setTimeout(function() {
+        toast.classList.remove('show');
+        toast.textContent = '✓ Alterações salvas!';
+        toast.style.background = '';
+      }, 3500);
     }
   } catch (err) {
     btn.disabled = false;
