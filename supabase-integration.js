@@ -4,7 +4,9 @@
 // ============================================================
 
 const SUPABASE_URL = 'https://vxeoabwqkzfdwsatuvqf.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_H47gHBW02AOIdECpaPiY0A_N1Bmd6H6';
+//const SUPABASE_KEY = 'sb_publishable_H47gHBW02AOIdECpaPiY0A_N1Bmd6H6';
+
+const SUPABASE_KEY ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4ZW9hYndxa3pmZHdzYXR1dnFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDA4MDIsImV4cCI6MjA5NDY3NjgwMn0.47vBJTcNACxa3-PxMqLBdaGqxOB2lXLP8qGV6BdQRGI';
 
 const USUARIOS = [
   { nome: 'Ana Paula', email: 'ana.papereira@totvs.com.br',        perfil: 'gerente',   consultor: '' },
