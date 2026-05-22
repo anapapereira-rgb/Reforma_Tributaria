@@ -1160,30 +1160,15 @@
   .doc-btn.del:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
 
   /* ── BOTÕES DOCUMENTAÇÃO ── */
-  .doc-action-btn {
-    display:inline-flex;align-items:center;gap:5px;padding:4px 11px;
-    border-radius:20px;font-size:11px;font-weight:700;
-    border:1px solid var(--accent);color:var(--accent);background:transparent;
-    cursor:pointer;transition:all .2s;white-space:nowrap;font-family:var(--font);
-  }
+  .doc-action-btn { display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--accent);color:var(--accent);background:transparent;cursor:pointer;transition:all .2s;white-space:nowrap;font-family:var(--font); }
   .doc-action-btn:hover { background:var(--accent);color:#081420; }
-  .doc-ata-btn  { border-color:var(--purple);color:var(--purple); }
+  .doc-ata-btn { border-color:var(--purple);color:var(--purple); }
   .doc-ata-btn:hover { background:var(--purple);color:#fff; }
 
-  /* ── MODAIS BASE ── */
-  .modal-overlay {
-    position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:2000;
-    display:flex;align-items:center;justify-content:center;
-    backdrop-filter:blur(5px);padding:16px;
-  }
-  .modal-box {
-    background:var(--surface);border:1px solid var(--border);border-radius:14px;
-    width:100%;box-shadow:0 8px 48px rgba(0,0,0,.6);overflow:hidden;display:flex;flex-direction:column;max-height:92vh;
-  }
-  .modal-hd {
-    background:linear-gradient(135deg,#081420,#0a3050);padding:16px 20px;border-bottom:2px solid var(--accent);flex-shrink:0;
-    display:flex;align-items:center;justify-content:space-between;
-  }
+  /* ── MODAIS ── */
+  .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:2000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);padding:16px; }
+  .modal-box { background:var(--surface);border:1px solid var(--border);border-radius:14px;width:100%;box-shadow:0 8px 48px rgba(0,0,0,.6);overflow:hidden;display:flex;flex-direction:column;max-height:92vh; }
+  .modal-hd { background:linear-gradient(135deg,#081420,#0a3050);padding:16px 20px;border-bottom:2px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:space-between; }
   .modal-hd.purple { border-bottom-color:var(--purple); }
   .modal-hd-sub { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:2px; }
   .modal-hd.purple .modal-hd-sub { color:var(--purple); }
@@ -1195,44 +1180,30 @@
   .mf { display:flex;flex-direction:column;gap:5px; }
   .mf label { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent); }
   .mf.purple label { color:var(--purple); }
-  .mf input,.mf textarea {
-    background:var(--surface2);border:1px solid var(--border);border-radius:8px;
-    padding:8px 12px;color:var(--text);font-family:var(--font);font-size:13px;
-    resize:vertical;transition:border-color .2s;width:100%;box-sizing:border-box;
-  }
+  .mf input,.mf textarea { background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font);font-size:13px;resize:vertical;transition:border-color .2s;width:100%;box-sizing:border-box; }
   .mf input:focus,.mf textarea:focus { outline:none;border-color:var(--accent); }
-  .mf.purple input:focus,.mf.purple textarea:focus { border-color:var(--purple); }
+  .mf.purple textarea:focus { border-color:var(--purple); }
   .mf input[readonly] { opacity:.65;cursor:default; }
-  .mf textarea.tall { min-height:130px; }
-  .eml-tags {
-    background:var(--surface2);border:1px solid var(--border);border-radius:8px;
-    padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px;cursor:text;
-    transition:border-color .2s;min-height:40px;align-items:center;
-  }
+  .eml-tags { background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px;cursor:text;transition:border-color .2s;min-height:40px;align-items:center; }
   .eml-tags:focus-within { border-color:var(--accent); }
-  .eml-tag {
-    display:inline-flex;align-items:center;gap:4px;background:var(--surface3);
-    border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--muted);
-  }
+  .eml-tag { display:inline-flex;align-items:center;gap:4px;background:var(--surface3);border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--muted); }
   .eml-tag button { background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0;line-height:1; }
   .eml-tag button:hover { color:var(--red); }
   .eml-tag-input { background:none;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:13px;min-width:160px;flex:1; }
   .btn-cancel { padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font); }
   .btn-cancel:hover { border-color:var(--text);color:var(--text); }
   .btn-primary { padding:8px 20px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),#0088ff);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);transition:opacity .2s; }
-  .btn-primary:hover { opacity:.85; }
-  .btn-primary:disabled { opacity:.5;cursor:not-allowed; }
+  .btn-primary:hover { opacity:.85; } .btn-primary:disabled { opacity:.5;cursor:not-allowed; }
   .btn-purple { padding:8px 20px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--purple),#7c3aed);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);transition:opacity .2s; }
-  .btn-purple:hover { opacity:.85; }
-  .btn-purple:disabled { opacity:.5;cursor:not-allowed; }
-  .ata-steps { display:flex;gap:8px;margin-bottom:4px; }
-  .ata-step { flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-size:11px;color:var(--muted);text-align:center;transition:all .3s; }
-  .ata-step.active { border-color:var(--purple);color:var(--purple);background:var(--purple-bg);font-weight:700; }
-  .ata-step.done   { border-color:var(--green);color:var(--green);background:var(--green-bg); }
-  .ata-result { background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;color:var(--text);line-height:1.7;max-height:260px;overflow-y:auto;white-space:pre-wrap; }
-  .ata-loading { display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;padding:20px 0; }
-  .ata-spinner { width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0; }
+  .btn-purple:hover { opacity:.85; } .btn-purple:disabled { opacity:.5;cursor:not-allowed; }
+  /* ATA */
+  .ata-spinner { width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0; }
   @keyframes spin { to { transform:rotate(360deg); } }
+  .ata-status { display:flex;align-items:center;gap:10px;padding:16px;background:var(--surface2);border-radius:8px;font-size:13px;color:var(--muted); }
+  .ata-doc-item { display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px; }
+  .ata-doc-item .ata-doc-name { color:var(--text);font-weight:600;flex:1; }
+  .ata-doc-item .ata-doc-size { color:var(--muted);font-size:11px; }
+  .ata-empty { font-size:13px;color:var(--muted);font-style:italic;padding:12px 0; }
   .doc-empty { font-size: 11px; color: var(--muted); text-align: center; padding: 6px 0; }
 
   .doc-size-warning { font-size: 10px; color: var(--amber); margin-top: 4px; }
@@ -2653,13 +2624,7 @@ function _processDocFiles(files) {
       try {
         const token = CURRENT_USER.access_token;
         const uuid  = currentProject._uuid;
-        const _san = (n) => n
-          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-          .replace(/[\[\]\(\)\{\}]/g, '')
-          .replace(/[^a-zA-Z0-9._\-]/g, '_')
-          .replace(/_+/g, '_')
-          .replace(/^_+|_+(?=\.\w+$)/g, '')
-          .slice(0, 120);
+        const _san = n => n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\[\]\(\)\{\}]/g,'').replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_').slice(0,100);
         const safeName = _san(file.name);
         const path = `${uuid}/${Date.now()}_${safeName}`;
 
@@ -4856,49 +4821,24 @@ render();
 
 <script src="supabase-integration.js"></script>
 
-<!-- MODAL PREENCHER ATA -->
+<!-- ══ MODAL PREENCHER ATA ══ -->
 <div class="modal-overlay" id="ataOverlay" style="display:none;" onclick="if(event.target===this)fecharAta()">
-  <div class="modal-box" style="max-width:660px;">
+  <div class="modal-box" style="max-width:620px;">
     <div class="modal-hd purple">
       <div><div class="modal-hd-sub">Reforma Tributária · TOTVS</div><div class="modal-hd-title">📝 Preencher Ata de Reunião</div></div>
       <button class="modal-x" onclick="fecharAta()">✕</button>
     </div>
-    <div class="modal-bd">
-      <div id="ataStep1">
-        <div class="ata-steps">
-          <div class="ata-step active" id="ataS1">1 · Transcrição</div>
-          <div class="ata-step" id="ataS2">2 · Gerando Ata</div>
-          <div class="ata-step" id="ataS3">3 · Download</div>
-        </div>
-        <div class="mf purple" style="margin-top:8px;">
-          <label>Cole aqui a transcrição da reunião</label>
-          <textarea class="tall" id="ataTranscricao" style="min-height:200px;" placeholder="Cole o texto da transcrição. A IA vai identificar: participantes, tópicos, decisões, pendências, riscos e próximos passos."></textarea>
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px;">💡 Pode ser transcrição do Teams, Meet ou qualquer formato de texto.</div>
-      </div>
-      <div id="ataStep2" style="display:none;">
-        <div class="ata-loading"><div class="ata-spinner"></div><span id="ataLoadMsg">Analisando transcrição…</span></div>
-      </div>
-      <div id="ataStep3" style="display:none;">
-        <div class="ata-steps">
-          <div class="ata-step done">✓ Transcrição</div>
-          <div class="ata-step done">✓ Ata Gerada</div>
-          <div class="ata-step active">3 · Download</div>
-        </div>
-        <div style="font-size:12px;color:var(--muted);margin:8px 0 4px;">Prévia da ata preenchida:</div>
-        <div class="ata-result" id="ataPreview"></div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px;">✅ Ata gerada! Clique em <strong style="color:var(--purple);">Baixar .docx</strong> para salvar.</div>
-      </div>
+    <div class="modal-bd" id="ataBody">
+      <!-- conteúdo dinâmico -->
     </div>
     <div class="modal-ft">
       <button class="btn-cancel" onclick="fecharAta()">Fechar</button>
-      <button class="btn-purple" id="ataBtnGerar" onclick="gerarAta()">✨ Gerar Ata com IA</button>
-      <button class="btn-purple" id="ataBtnDownload" style="display:none;" onclick="baixarAta()">⬇ Baixar .docx</button>
+      <button class="btn-purple" id="ataPrimaryBtn" onclick="ataAcaoPrimaria()">✨ Gerar Ata com IA</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL ENVIAR E-MAIL -->
+<!-- ══ MODAL ENVIAR E-MAIL ══ -->
 <div class="modal-overlay" id="emlOverlay" style="display:none;" onclick="if(event.target===this)fecharEml()">
   <div class="modal-box" style="max-width:600px;">
     <div class="modal-hd">
@@ -4915,7 +4855,7 @@ render();
         </div>
       </div>
       <div class="mf"><label>Assunto</label><input type="text" id="emlSubject" /></div>
-      <div class="mf"><label>Mensagem</label><textarea class="tall" id="emlBody"></textarea></div>
+      <div class="mf"><label>Mensagem</label><textarea id="emlBody" style="min-height:120px;"></textarea></div>
     </div>
     <div class="modal-ft">
       <button class="btn-cancel" onclick="fecharEml()">Cancelar</button>
@@ -4925,114 +4865,254 @@ render();
 </div>
 
 <script>
-// ═══════════════ ATA ═══════════════
-let _ataData = null;
+// ═══════════════════════════════════════════════════════════
+//  PREENCHER ATA — lê PDFs do card, chama Claude AI, gera .docx
+// ═══════════════════════════════════════════════════════════
 
-function abrirModalAta() {
-  if (!currentProject) return;
-  _ataData = null;
-  document.getElementById('ataTranscricao').value = '';
-  document.getElementById('ataStep1').style.display = '';
-  document.getElementById('ataStep2').style.display = 'none';
-  document.getElementById('ataStep3').style.display = 'none';
-  document.getElementById('ataBtnGerar').style.display = '';
-  document.getElementById('ataBtnGerar').disabled = false;
-  document.getElementById('ataBtnGerar').textContent = '✨ Gerar Ata com IA';
-  document.getElementById('ataBtnDownload').style.display = 'none';
-  document.getElementById('ataOverlay').style.display = 'flex';
-  setTimeout(() => document.getElementById('ataTranscricao').focus(), 100);
-}
+let _ataStage = 'idle'; // idle | generating | done
+let _ataDados = null;
+let _ataDocxBlob = null;
+
 function fecharAta() { document.getElementById('ataOverlay').style.display = 'none'; }
 
-async function gerarAta() {
-  const transcricao = (document.getElementById('ataTranscricao').value || '').trim();
-  if (!transcricao) { alert('Cole a transcrição da reunião antes de gerar a ata.'); return; }
-  const btn = document.getElementById('ataBtnGerar');
-  btn.disabled = true;
-  document.getElementById('ataStep1').style.display = 'none';
-  document.getElementById('ataStep2').style.display = '';
-  document.getElementById('ataBtnGerar').style.display = 'none';
-  const msgs = ['Analisando transcrição…','Identificando participantes…','Extraindo decisões…','Mapeando pendências…','Montando próximos passos…'];
-  let mi = 0;
-  const interval = setInterval(() => { document.getElementById('ataLoadMsg').textContent = msgs[++mi % msgs.length]; }, 1800);
-  const hoje = new Date();
-  const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' + String(hoje.getMonth()+1).padStart(2,'0') + '/' + hoje.getFullYear();
-  const cliente = currentProject?.c || '';
-  const consultor = currentProject?.cons || '';
-  const prompt = `Você é um assistente especialista em projetos de Reforma Tributária TOTVS.
-Leia a transcrição abaixo e extraia informações para preencher uma ata de reunião.
-Responda APENAS com JSON válido, sem markdown, sem explicações.
-
-Formato:
-{
-  "participantes": "nomes separados por vírgula",
-  "status": "resumo do status em 1-2 frases",
-  "decisoes": "decisões tomadas, uma por linha com -",
-  "pendencias": "no formato: - atividade | responsável | prazo | status",
-  "riscos": "riscos identificados com - ou 'Nenhum identificado'",
-  "proximos_passos": "ações para próxima semana com -"
+function _ataSetBody(html) { document.getElementById('ataBody').innerHTML = html; }
+function _ataSetBtn(label, disabled) {
+  const b = document.getElementById('ataPrimaryBtn');
+  b.textContent = label; b.disabled = !!disabled;
+}
+function ataAcaoPrimaria() {
+  if (_ataStage === 'idle') gerarAta();
+  else if (_ataStage === 'done') salvarAtaNoCard();
 }
 
-Cliente: ${cliente} | Consultor: ${consultor} | Data: ${dataFmt}
+async function abrirModalAta() {
+  if (!currentProject) return;
+  _ataStage = 'idle';
+  _ataDados = null;
+  _ataDocxBlob = null;
 
-TRANSCRIÇÃO:
-${transcricao.slice(0, 8000)}`;
+  document.getElementById('ataOverlay').style.display = 'flex';
+
+  // Busca documentos do card atual no Supabase
+  _ataSetBody('<div class="ata-status"><div class="ata-spinner"></div><span>Buscando documentos do card…</span></div>');
+  _ataSetBtn('✨ Gerar Ata com IA', true);
+
+  let docs = [];
+  if (CURRENT_USER?.access_token && currentProject?._uuid) {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/documents?project_id=eq.${currentProject._uuid}&select=*&order=created_at.desc`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token } }
+      );
+      docs = res.ok ? await res.json() : [];
+    } catch(e) { docs = []; }
+  }
+
+  if (!docs.length) {
+    _ataSetBody(`
+      <div class="ata-empty">Nenhum documento encontrado neste card.</div>
+      <div style="font-size:12px;color:var(--muted);">Anexe a transcrição da reunião (PDF) na aba Documentação primeiro, depois clique em Preencher Ata.</div>
+    `);
+    _ataSetBtn('✨ Gerar Ata com IA', true);
+    return;
+  }
+
+  // Mostra lista de docs disponíveis com checkboxes
+  _ataSetBody(`
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Selecione o(s) documento(s) que contém a transcrição da reunião:</div>
+    <div id="ataDocList">
+      ${docs.map((d,i) => `
+        <label class="ata-doc-item" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" data-idx="${i}" style="accent-color:var(--purple);width:16px;height:16px;" ${i===0?'checked':''} />
+          <span class="ata-doc-name">📄 ${escapeHtml(d.nome_arquivo || '')}</span>
+          <span class="ata-doc-size">${escapeHtml(d.tamanho || '')}</span>
+        </label>
+      `).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px;">A IA vai ler os documentos selecionados e preencher automaticamente a ata no modelo padrão TOTVS.</div>
+  `);
+  _ataSetBtn('✨ Gerar Ata com IA', false);
+
+  // Guarda referência dos docs para usar depois
+  window._ataDocs = docs;
+}
+
+async function gerarAta() {
+  const checks = document.querySelectorAll('#ataDocList input[type=checkbox]:checked');
+  if (!checks.length) { alert('Selecione ao menos um documento.'); return; }
+
+  _ataStage = 'generating';
+  _ataSetBtn('⏳ Gerando…', true);
+
+  const msgs = [
+    'Baixando documentos…',
+    'Lendo transcrição…',
+    'Identificando participantes…',
+    'Extraindo decisões tomadas…',
+    'Mapeando pendências e prazos…',
+    'Identificando riscos…',
+    'Montando próximos passos…',
+    'Preenchendo modelo da ata…',
+  ];
+  let mi = 0;
+  _ataSetBody(`<div class="ata-status"><div class="ata-spinner"></div><span id="ataMsg">${msgs[0]}</span></div>`);
+  const interval = setInterval(() => {
+    const el = document.getElementById('ataMsg');
+    if (el) el.textContent = msgs[++mi % msgs.length];
+  }, 1600);
+
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    // Baixa e extrai texto de cada PDF selecionado
+    let textoCompleto = '';
+    for (const chk of checks) {
+      const doc = window._ataDocs[parseInt(chk.dataset.idx)];
+      if (!doc?.storage_path) continue;
+      try {
+        const dlRes = await fetch(
+          `${SUPABASE_URL}/storage/v1/object/kanban-documents/${doc.storage_path}`,
+          { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token } }
+        );
+        if (!dlRes.ok) continue;
+        // Extrai texto via API Anthropic (envia o PDF como base64)
+        const blob = await dlRes.blob();
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result.split(',')[1]);
+          r.onerror = rej;
+          r.readAsDataURL(blob);
+        });
+
+        // Chama Claude para extrair texto do PDF
+        const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 4000,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+                { type: 'text', text: 'Extraia TODO o texto deste documento exatamente como está, sem resumir. Retorne apenas o texto extraído.' }
+              ]
+            }]
+          })
+        });
+        const extractData = await extractRes.json();
+        const texto = (extractData.content || []).map(b => b.text || '').join('');
+        textoCompleto += `\n\n=== DOCUMENTO: ${doc.nome_arquivo} ===\n${texto}`;
+      } catch(e) {
+        console.warn('Erro ao ler doc:', e);
+      }
+    }
+
+    if (!textoCompleto.trim()) throw new Error('Não foi possível extrair texto dos documentos.');
+
+    const hoje = new Date();
+    const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' + String(hoje.getMonth()+1).padStart(2,'0') + '/' + hoje.getFullYear();
+    const cliente  = currentProject?.c    || '';
+    const consultor = currentProject?.cons || '';
+
+    // Chama Claude para preencher a ata
+    const ataRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
-    });
-    clearInterval(interval);
-    const rd = await res.json();
-    const texto = (rd.content || []).map(b => b.text || '').join('');
-    let dados;
-    try { dados = JSON.parse(texto.replace(/```json|```/g,'').trim()); }
-    catch(e) { throw new Error('A IA não retornou formato válido. Tente novamente.'); }
-    _ataData = { cliente, consultor, data: dataFmt,
-      participantes: dados.participantes || '', status: dados.status || '',
-      decisoes: dados.decisoes || '', pendencias: dados.pendencias || '',
-      riscos: dados.riscos || 'Nenhum identificado', proximos_passos: dados.proximos_passos || '' };
-    const preview = `ATA DE ALINHAMENTO – REFORMA TRIBUTÁRIA
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: `Você é um assistente especialista em projetos de Reforma Tributária TOTVS.
+Com base na transcrição/documento abaixo, preencha os campos da ata de reunião.
+Responda APENAS com JSON válido, sem markdown, sem explicações extras.
 
-Cliente: ${_ataData.cliente}
-Consultor: ${_ataData.consultor}
-GP: Ana Paula Colombo  |  Data: ${_ataData.data}
+Modelo da ata a preencher:
+- Cliente: ${cliente}
+- Consultor: ${consultor}
+- GP: Ana Paula Colombo
+- Data: ${dataFmt}
+- Seção 1: Tópicos discutidos (participantes + status do projeto)
+- Seção 2: Decisões tomadas
+- Seção 3: Pendências e responsáveis (tabela com: pendência, responsável, prazo, status)
+- Seção 4: Riscos identificados
+- Seção 5: Próximos passos / ações da semana
+
+Formato JSON esperado:
+{
+  "participantes": "lista de nomes separados por vírgula",
+  "status_projeto": "descrição do status atual em 1-2 frases",
+  "decisoes": ["decisão 1", "decisão 2"],
+  "pendencias": [{"atividade":"...","responsavel":"...","prazo":"...","status":"..."}],
+  "riscos": ["risco 1", "risco 2"],
+  "proximos_passos": ["ação 1", "ação 2"]
+}
+
+Se não houver informação para algum campo, use string vazia ou array vazio.
+
+CONTEÚDO DO DOCUMENTO:
+${textoCompleto.slice(0, 10000)}`
+        }]
+      })
+    });
+
+    clearInterval(interval);
+    const ataData = await ataRes.json();
+    const ataText = (ataData.content || []).map(b => b.text || '').join('');
+
+    let dados;
+    try { dados = JSON.parse(ataText.replace(/```json|```/g,'').trim()); }
+    catch(e) { throw new Error('Erro ao processar resposta da IA. Tente novamente.'); }
+
+    _ataDados = { cliente, consultor, data: dataFmt, ...dados };
+
+    // Monta preview
+    const pendPreview = (_ataDados.pendencias || []).map(p =>
+      `  • ${p.atividade || ''} | ${p.responsavel || ''} | ${p.prazo || ''} | ${p.status || ''}`
+    ).join('\n');
+
+    _ataSetBody(`
+      <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:8px;">✅ Ata gerada com sucesso!</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;color:var(--text);line-height:1.8;max-height:320px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;">ATA DE ALINHAMENTO – REFORMA TRIBUTÁRIA
+
+Cliente: ${_ataDados.cliente}
+Consultor: ${_ataDados.consultor}
+GP: Ana Paula Colombo  |  Data: ${_ataDados.data}
 
 1. TÓPICOS DISCUTIDOS
-Participantes: ${_ataData.participantes}
-Status: ${_ataData.status}
+Participantes: ${_ataDados.participantes || ''}
+Status: ${_ataDados.status_projeto || ''}
 
 2. DECISÕES TOMADAS
-${_ataData.decisoes}
+${(_ataDados.decisoes || []).map(d => '• ' + d).join('\n') || '—'}
 
 3. PENDÊNCIAS E RESPONSÁVEIS
-${_ataData.pendencias}
+${pendPreview || '—'}
 
 4. RISCOS IDENTIFICADOS
-${_ataData.riscos}
+${(_ataDados.riscos || []).map(r => '• ' + r).join('\n') || 'Nenhum identificado'}
 
 5. PRÓXIMOS PASSOS
-${_ataData.proximos_passos}`;
-    document.getElementById('ataPreview').textContent = preview;
-    document.getElementById('ataStep2').style.display = 'none';
-    document.getElementById('ataStep3').style.display = '';
-    document.getElementById('ataBtnDownload').style.display = '';
+${(_ataDados.proximos_passos || []).map(p => '• ' + p).join('\n') || '—'}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">Clique em <strong style="color:var(--purple);">Salvar no Card</strong> para gerar o .docx e anexar automaticamente na aba Documentação.</div>
+    `);
+    _ataStage = 'done';
+    _ataSetBtn('💾 Salvar no Card', false);
+
   } catch(err) {
     clearInterval(interval);
-    document.getElementById('ataStep2').style.display = 'none';
-    document.getElementById('ataStep1').style.display = '';
-    document.getElementById('ataBtnGerar').style.display = '';
-    btn.disabled = false; btn.textContent = '✨ Gerar Ata com IA';
-    alert('Erro ao gerar ata: ' + err.message);
+    _ataStage = 'idle';
+    _ataSetBody(`<div style="color:var(--red);font-size:13px;padding:12px;">❌ ${escapeHtml(err.message)}</div>`);
+    _ataSetBtn('✨ Gerar Ata com IA', false);
   }
 }
 
-async function baixarAta() {
-  if (!_ataData) return;
-  const btn = document.getElementById('ataBtnDownload');
+async function salvarAtaNoCard() {
+  if (!_ataDados) return;
+  const btn = document.getElementById('ataPrimaryBtn');
   btn.disabled = true; btn.textContent = '⏳ Gerando .docx…';
+
   try {
+    // Carrega docx.js
     if (!window.docx) {
       await new Promise((res, rej) => {
         const s = document.createElement('script');
@@ -5040,157 +5120,175 @@ async function baixarAta() {
         s.onload = res; s.onerror = rej; document.head.appendChild(s);
       });
     }
-    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, AlignmentType, WidthType, BorderStyle, ShadingType } = window.docx;
-    const ACCENT = '1F6B8E', LIGHT = 'D5E8F0';
-    const b = { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' };
-    const borders = { top:b,bottom:b,left:b,right:b };
-    const bA = { style: BorderStyle.SINGLE, size: 1, color: ACCENT };
-    const bordersA = { top:bA,bottom:bA,left:bA,right:bA };
-    const cm = { top:80,bottom:80,left:120,right:120 };
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+            AlignmentType, WidthType, BorderStyle, ShadingType } = window.docx;
 
-    function hd(text) {
-      return new Paragraph({ children:[new TextRun({text,bold:true,size:26,color:ACCENT,font:'Arial'})], spacing:{before:220,after:80} });
-    }
-    function bodyLines(text) {
-      return (text||'').split('\n').filter(l=>l.trim()).map(line =>
-        new Paragraph({ children:[new TextRun({text:line.trim(),size:22,font:'Arial'})], spacing:{after:60} })
-      );
-    }
+    const ACCENT_HEX = '1F6B8E', LIGHT_HEX = 'D5E8F0';
+    const bAcc = { style: BorderStyle.SINGLE, size: 1, color: ACCENT_HEX };
+    const bGry = { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' };
+    const bordAcc = { top:bAcc, bottom:bAcc, left:bAcc, right:bAcc };
+    const bordGry = { top:bGry, bottom:bGry, left:bGry, right:bGry };
+    const cm = { top:80, bottom:80, left:120, right:120 };
 
-    const headerTable = new Table({
-      width:{size:9360,type:WidthType.DXA}, columnWidths:[9360],
+    const run = (text, opts={}) => new TextRun({ text: String(text||''), font:'Arial', size:22, ...opts });
+    const para = (children, spacing={after:80}) => new Paragraph({ children, spacing });
+    const hd = (text) => new Paragraph({ children:[run(text, {bold:true, size:26, color:ACCENT_HEX})], spacing:{before:220, after:100} });
+    const bullet = (text) => new Paragraph({ children:[run('• ' + text)], spacing:{after:60}, indent:{left:360} });
+
+    // Header table
+    const headerTbl = new Table({
+      width:{size:9360, type:WidthType.DXA}, columnWidths:[9360],
       rows:[
-        new TableRow({children:[new TableCell({borders:bordersA,margins:cm,width:{size:9360,type:WidthType.DXA},
-          shading:{fill:ACCENT,type:ShadingType.CLEAR},
-          children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:'ATA DE ALINHAMENTO DE PROJETO – REFORMA TRIBUTÁRIA',bold:true,size:24,color:'FFFFFF',font:'Arial'})]})]})]
-        }),
-        new TableRow({children:[new TableCell({borders:bordersA,margins:cm,width:{size:9360,type:WidthType.DXA},
+        new TableRow({children:[new TableCell({
+          borders:bordAcc, margins:cm, width:{size:9360, type:WidthType.DXA},
+          shading:{fill:ACCENT_HEX, type:ShadingType.CLEAR},
+          children:[new Paragraph({alignment:AlignmentType.CENTER, children:[run('ATA DE ALINHAMENTO DE PROJETO – REFORMA TRIBUTÁRIA', {bold:true, size:24, color:'FFFFFF'})]})]
+        })]}),
+        new TableRow({children:[new TableCell({
+          borders:bordAcc, margins:cm, width:{size:9360, type:WidthType.DXA},
           children:[
-            new Paragraph({children:[new TextRun({text:'Projeto/Cliente: ',bold:true,size:22,font:'Arial'}),new TextRun({text:_ataData.cliente,size:22,font:'Arial'})]}),
-            new Paragraph({children:[new TextRun({text:'Consultor: ',bold:true,size:22,font:'Arial'}),new TextRun({text:_ataData.consultor,size:22,font:'Arial'})]}),
-            new Paragraph({children:[new TextRun({text:'GP: Ana Paula Colombo  |  Data: '+_ataData.data,size:22,font:'Arial'})]}),
-          ]})]
-        })
+            para([run('Projeto/Cliente:  ', {bold:true}), run(_ataDados.cliente)]),
+            para([run('Consultor:  ', {bold:true}), run(_ataDados.consultor), run('          GP:  Ana Paula Colombo', {bold:true})]),
+            para([run('Data: ' + _ataDados.data)]),
+          ]
+        })]}),
       ]
     });
 
-    const pendLinhas = (_ataData.pendencias||'').split('\n').filter(l=>l.trim());
-    const hCell = (t) => new TableCell({width:{size:2340,type:WidthType.DXA},borders,margins:cm,shading:{fill:LIGHT,type:ShadingType.CLEAR},children:[new Paragraph({children:[new TextRun({text:t,bold:true,size:20,font:'Arial'})]})]});
-    const dCell = (t) => new TableCell({width:{size:2340,type:WidthType.DXA},borders,margins:cm,children:[new Paragraph({children:[new TextRun({text:t||'',size:20,font:'Arial'})]})]});
-    const pendRows = [new TableRow({children:[hCell('Pendência/Atividade'),hCell('Responsável'),hCell('Prazo'),hCell('Status')]})];
-    (pendLinhas.length ? pendLinhas : ['—']).forEach(l => {
-      const p = l.replace(/^-\s*/,'').split('|').map(s=>s.trim());
-      pendRows.push(new TableRow({children:[dCell(p[0]),dCell(p[1]),dCell(p[2]),dCell(p[3])]}));
+    // Pendências table
+    const hCell = t => new TableCell({ width:{size:2340,type:WidthType.DXA}, borders:bordGry, margins:cm, shading:{fill:LIGHT_HEX,type:ShadingType.CLEAR}, children:[para([run(t,{bold:true,size:20})])] });
+    const dCell = t => new TableCell({ width:{size:2340,type:WidthType.DXA}, borders:bordGry, margins:cm, children:[para([run(t||'',{size:20})])] });
+    const pendRows = [new TableRow({children:[hCell('Pendência / Atividade'), hCell('Responsável'), hCell('Prazo'), hCell('Status')]})];
+    const pends = _ataDados.pendencias || [];
+    (pends.length ? pends : [{}]).forEach(p => {
+      pendRows.push(new TableRow({children:[dCell(p.atividade), dCell(p.responsavel), dCell(p.prazo), dCell(p.status)]}));
     });
-    const pendTable = new Table({width:{size:9360,type:WidthType.DXA},columnWidths:[2340,2340,2340,2340],rows:pendRows});
+    const pendTbl = new Table({ width:{size:9360,type:WidthType.DXA}, columnWidths:[2340,2340,2340,2340], rows:pendRows });
 
-    const doc = new Document({
-      sections:[{
-        properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}},
-        children:[
-          headerTable,
-          new Paragraph({spacing:{after:200}}),
-          hd('1. Tópicos Discutidos'),
-          new Paragraph({children:[new TextRun({text:'Participantes: ',bold:true,size:22,font:'Arial'}),new TextRun({text:_ataData.participantes,size:22,font:'Arial'})],spacing:{after:60}}),
-          new Paragraph({children:[new TextRun({text:'Status: ',bold:true,size:22,font:'Arial'}),new TextRun({text:_ataData.status,size:22,font:'Arial'})],spacing:{after:160}}),
-          hd('2. Decisões Tomadas'),
-          ...bodyLines(_ataData.decisoes),
-          new Paragraph({spacing:{after:160}}),
-          hd('3. Pendências e Responsáveis'),
-          pendTable,
-          new Paragraph({spacing:{after:160}}),
-          hd('4. Riscos Identificados'),
-          ...bodyLines(_ataData.riscos),
-          new Paragraph({spacing:{after:160}}),
-          hd('5. Próximos Passos / Ações da Semana'),
-          ...bodyLines(_ataData.proximos_passos),
-        ]
-      }]
-    });
+    const doc = new Document({ sections:[{ properties:{ page:{ size:{width:12240,height:15840}, margin:{top:1080,right:1080,bottom:1080,left:1080} } }, children:[
+      headerTbl,
+      new Paragraph({spacing:{after:200}}),
+      hd('1. Tópicos discutidos'),
+      para([run('Participantes:  ', {bold:true}), run(_ataDados.participantes||'')]),
+      para([run('Status do projeto:  ', {bold:true}), run(_ataDados.status_projeto||'')]),
+      new Paragraph({spacing:{after:160}}),
+      hd('2. Decisões tomadas'),
+      ...(_ataDados.decisoes||['—']).map(d => bullet(d)),
+      new Paragraph({spacing:{after:160}}),
+      hd('3. Pendências e responsáveis'),
+      pendTbl,
+      new Paragraph({spacing:{after:160}}),
+      hd('4. Riscos identificados'),
+      ...(_ataDados.riscos?.length ? _ataDados.riscos.map(r => bullet(r)) : [para([run('Nenhum identificado')])]),
+      new Paragraph({spacing:{after:160}}),
+      hd('5. Próximos passos / ações da semana'),
+      ...(_ataDados.proximos_passos||['—']).map(p => bullet(p)),
+    ]}]});
 
     const blob = await Packer.toBlob(doc);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'Ata_' + _ataData.cliente + '_' + _ataData.data.replace(/\//g,'-') + '.docx';
-    a.click(); URL.revokeObjectURL(url);
-    btn.disabled = false; btn.textContent = '⬇ Baixar .docx';
+
+    // Salva no Supabase Storage e registra na tabela documents
+    btn.textContent = '⏳ Salvando no card…';
+    const token = CURRENT_USER.access_token;
+    const uuid  = currentProject._uuid;
+    const hoje  = new Date();
+    const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' + String(hoje.getMonth()+1).padStart(2,'0') + '/' + hoje.getFullYear();
+    const nomeArq = 'Ata_' + (_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_') + '_' + dataFmt.replace(/\//g,'-') + '.docx';
+    const storagePath = uuid + '/' + Date.now() + '_' + nomeArq;
+
+    const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/kanban-documents/${storagePath}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'x-upsert': 'true'
+      },
+      body: blob
+    });
+
+    if (!upRes.ok) throw new Error('Erro ao salvar no Storage: ' + (await upRes.text()));
+
+    // Registra na tabela documents
+    await fetch(`${SUPABASE_URL}/rest/v1/documents`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+token, 'Prefer':'return=representation' },
+      body: JSON.stringify({
+        project_id:   uuid,
+        nome_arquivo: nomeArq,
+        tamanho:      _fmtSize(blob.size),
+        tamanho_bytes: blob.size,
+        data_upload:  dataFmt,
+        storage_path: storagePath,
+        mime_type:    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        uploaded_by:  CURRENT_USER.nome || ''
+      })
+    });
+
+    renderDocs(currentProjectId);
     fecharAta();
+
     const toast = document.getElementById('saveToast');
-    if (toast) { toast.textContent='📝 Ata gerada e baixada!';toast.style.background='var(--purple)';toast.classList.add('show');setTimeout(()=>{toast.classList.remove('show');toast.textContent='✓ Alterações salvas!';toast.style.background='';},3500); }
+    if (toast) {
+      toast.textContent = '📝 Ata salva na Documentação!';
+      toast.style.background = 'var(--purple)';
+      toast.classList.add('show');
+      setTimeout(() => { toast.classList.remove('show'); toast.textContent = '✓ Alterações salvas!'; toast.style.background = ''; }, 3500);
+    }
+
   } catch(err) {
-    btn.disabled = false; btn.textContent = '⬇ Baixar .docx';
-    alert('Erro ao gerar .docx: ' + err.message);
+    btn.disabled = false; btn.textContent = '💾 Salvar no Card';
+    alert('Erro: ' + err.message);
   }
 }
 
-// ═══════════════ E-MAIL ═══════════════
+// ═══════════════════════════════════════════════════════════
+//  E-MAIL
+// ═══════════════════════════════════════════════════════════
 let _emlTo = [];
 
 function abrirModalEmail() {
   if (!currentProject) return;
-  const nome = CURRENT_USER?.nome || '', email = CURRENT_USER?.email || '';
-  document.getElementById('emlFrom').value = nome ? nome + ' <' + email + '>' : email;
+  const nome = CURRENT_USER?.nome||'', email = CURRENT_USER?.email||'';
+  document.getElementById('emlFrom').value = nome ? nome+' <'+email+'>' : email;
   _emlTo = []; _emlDrawTags();
-  const hoje = new Date();
-  const df = String(hoje.getDate()).padStart(2,'0')+'/'+String(hoje.getMonth()+1).padStart(2,'0')+'/'+hoje.getFullYear();
-  document.getElementById('emlSubject').value = (currentProject.c||'') + ' || Reforma Tributária || ' + df;
-  document.getElementById('emlBody').value = 'Olá,
-
-Segue em anexo ata da nossa agenda de hoje, com principais assuntos discutidos e próximos passos.
-
-At.
-' + nome;
-  const btn = document.getElementById('emlSendBtn');
-  btn.disabled = false; btn.textContent = '📤 Enviar';
+  const h = new Date();
+  const df = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
+  document.getElementById('emlSubject').value = (currentProject.c||'')+' || Reforma Tributária || '+df;
+  document.getElementById('emlBody').value = 'Olá,\n\nSegue em anexo ata da nossa agenda de hoje, com principais assuntos discutidos e próximos passos.\n\nAt.\n'+nome;
+  document.getElementById('emlSendBtn').disabled = false;
+  document.getElementById('emlSendBtn').textContent = '📤 Enviar';
   document.getElementById('emlOverlay').style.display = 'flex';
   setTimeout(() => document.getElementById('emlTagInput').focus(), 100);
 }
 function fecharEml() { document.getElementById('emlOverlay').style.display = 'none'; }
-function _emlDrawTags() {
-  document.getElementById('emlTagsList').innerHTML = _emlTo.map((e,i) =>
-    '<span class="eml-tag">'+escapeHtml(e)+'<button onclick="emlRemove('+i+')">✕</button></span>'
-  ).join('');
-}
-function emlRemove(i) { _emlTo.splice(i,1); _emlDrawTags(); }
-function emlAdd(val) {
-  val=(val||'').trim().toLowerCase();
-  if(val&&val.indexOf('@')>0&&_emlTo.indexOf(val)===-1){_emlTo.push(val);_emlDrawTags();}
-  document.getElementById('emlTagInput').value='';
-}
-function emlKeydown(e) {
-  if(e.key==='Enter'||e.key==='Tab'||e.key===','){e.preventDefault();emlAdd(e.target.value);}
-  if(e.key==='Backspace'&&!e.target.value&&_emlTo.length){_emlTo.pop();_emlDrawTags();}
-}
+function _emlDrawTags() { document.getElementById('emlTagsList').innerHTML = _emlTo.map((e,i)=>'<span class="eml-tag">'+escapeHtml(e)+'<button onclick="emlRemove('+i+')">✕</button></span>').join(''); }
+function emlRemove(i){_emlTo.splice(i,1);_emlDrawTags();}
+function emlAdd(v){v=(v||'').trim().toLowerCase();if(v&&v.includes('@')&&!_emlTo.includes(v)){_emlTo.push(v);_emlDrawTags();}document.getElementById('emlTagInput').value='';}
+function emlKeydown(e){if(['Enter','Tab',','].includes(e.key)){e.preventDefault();emlAdd(e.target.value);}if(e.key==='Backspace'&&!e.target.value&&_emlTo.length){_emlTo.pop();_emlDrawTags();}}
 function emlBlur(){emlAdd(document.getElementById('emlTagInput').value);}
 
 async function enviarEml() {
   emlAdd(document.getElementById('emlTagInput').value);
   if(!_emlTo.length){alert('Adicione pelo menos um destinatário.');return;}
-  const subject=(document.getElementById('emlSubject').value||'').trim();
-  const bodyTxt=(document.getElementById('emlBody').value||'').trim();
-  if(!subject){alert('Preencha o assunto.');return;}
-  if(!bodyTxt){alert('Preencha a mensagem.');return;}
+  const subj=(document.getElementById('emlSubject').value||'').trim();
+  const body=(document.getElementById('emlBody').value||'').trim();
+  if(!subj||!body){alert('Preencha assunto e mensagem.');return;}
   const btn=document.getElementById('emlSendBtn');
-  btn.disabled=true; btn.textContent='⏳ Enviando…';
-  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-  const bodyHtml=esc(bodyTxt).replace(/
-/g,'<br>');
-  const cliente=esc(currentProject?.c||'');
-  const remetente=esc(document.getElementById('emlFrom').value);
-  const hoje=new Date();
-  const dh=String(hoje.getDate()).padStart(2,'0')+'/'+String(hoje.getMonth()+1).padStart(2,'0')+'/'+hoje.getFullYear()+' '+String(hoje.getHours()).padStart(2,'0')+':'+String(hoje.getMinutes()).padStart(2,'0');
-  const html='<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body bgcolor="#f0f4f8" style="margin:0;padding:0;font-family:Arial,sans-serif;"><table width="100%" bgcolor="#f0f4f8" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;"><table width="560" cellpadding="0" cellspacing="0" bgcolor="#0d1f30" style="border-radius:12px;overflow:hidden;max-width:560px;"><tr><td bgcolor="#081420" style="padding:24px 28px;border-bottom:3px solid #00c4cc;"><p style="margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#00c4cc;">REFORMA TRIBUTÁRIA · TOTVS</p><p style="margin:0;font-size:18px;font-weight:800;color:#e8f4fd;">📋 '+cliente+' — Ata de Reunião</p></td></tr><tr><td style="padding:24px 28px;"><table width="100%" cellpadding="0" cellspacing="0" bgcolor="#112840" style="border-radius:8px;margin-bottom:20px;"><tr><td bgcolor="#163352" style="padding:8px 16px;border-radius:8px 8px 0 0;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#00c4cc;">Detalhes</span></td></tr><tr><td style="padding:14px 16px;"><table cellpadding="4" cellspacing="0" style="font-size:13px;color:#e8f4fd;"><tr><td style="color:#7aadcc;width:100px;">Cliente</td><td style="font-weight:700;">'+cliente+'</td></tr><tr><td style="color:#7aadcc;">Remetente</td><td>'+remetente+'</td></tr><tr><td style="color:#7aadcc;">Data</td><td>'+dh+'</td></tr></table></td></tr></table><div style="font-size:14px;color:#c8dff0;line-height:1.8;">'+bodyHtml+'</div><p style="margin:20px 0 0;font-size:11px;color:#7aadcc;">Gerado automaticamente pelo Kanban — Reforma Tributária TOTVS.</p></td></tr><tr><td bgcolor="#081420" style="padding:12px 28px;border-top:1px solid #1e3d5c;text-align:center;"><p style="margin:0;font-size:11px;color:#4a7a9b;">TOTVS S.A. · Gerenciamento de Projetos Reforma Tributária</p></td></tr></table></td></tr></table></body></html>';
+  btn.disabled=true;btn.textContent='⏳ Enviando…';
+  const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const cl=esc(currentProject?.c||''),rm=esc(document.getElementById('emlFrom').value);
+  const h=new Date();
+  const dh=String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear()+' '+String(h.getHours()).padStart(2,'0')+':'+String(h.getMinutes()).padStart(2,'0');
+  const html='<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body bgcolor="#f0f4f8" style="margin:0;padding:0;font-family:Arial,sans-serif;"><table width="100%" bgcolor="#f0f4f8" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;"><table width="560" cellpadding="0" cellspacing="0" bgcolor="#0d1f30" style="border-radius:12px;overflow:hidden;"><tr><td bgcolor="#081420" style="padding:24px 28px;border-bottom:3px solid #00c4cc;"><p style="margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#00c4cc;">REFORMA TRIBUTÁRIA · TOTVS</p><p style="margin:0;font-size:18px;font-weight:800;color:#e8f4fd;">📋 '+cl+' — Ata de Reunião</p></td></tr><tr><td style="padding:24px 28px;"><table width="100%" cellpadding="0" cellspacing="0" bgcolor="#112840" style="border-radius:8px;margin-bottom:20px;"><tr><td bgcolor="#163352" style="padding:8px 16px;border-radius:8px 8px 0 0;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#00c4cc;">Detalhes</span></td></tr><tr><td style="padding:14px 16px;"><table cellpadding="4" cellspacing="0" style="font-size:13px;color:#e8f4fd;"><tr><td style="color:#7aadcc;width:100px;">Cliente</td><td style="font-weight:700;">'+cl+'</td></tr><tr><td style="color:#7aadcc;">Remetente</td><td>'+rm+'</td></tr><tr><td style="color:#7aadcc;">Data</td><td>'+dh+'</td></tr></table></td></tr></table><div style="font-size:14px;color:#c8dff0;line-height:1.8;">'+esc(body).replace(/\n/g,'<br>')+'</div></td></tr><tr><td bgcolor="#081420" style="padding:12px 28px;border-top:1px solid #1e3d5c;text-align:center;"><p style="margin:0;font-size:11px;color:#4a7a9b;">TOTVS S.A. · Gerenciamento de Projetos Reforma Tributária</p></td></tr></table></td></tr></table></body></html>';
   try {
-    const res=await fetch(SUPABASE_URL+'/functions/v1/resend-email',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+(CURRENT_USER?.access_token||SUPABASE_KEY)},body:JSON.stringify({to:_emlTo,subject,html,from:'onboarding@resend.dev'})});
-    const data=await res.json();
-    if(!res.ok||data.ok===false) throw new Error(data.error||'Falha ao enviar');
+    const r=await fetch(SUPABASE_URL+'/functions/v1/resend-email',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+(CURRENT_USER?.access_token||SUPABASE_KEY)},body:JSON.stringify({to:_emlTo,subject:subj,html,from:'onboarding@resend.dev'})});
+    const d=await r.json();
+    if(!r.ok||d.ok===false) throw new Error(d.error||'Falha');
     fecharEml();
-    const toast=document.getElementById('saveToast');
-    if(toast){toast.textContent='📧 E-mail enviado com sucesso!';toast.style.background='var(--green)';toast.classList.add('show');setTimeout(()=>{toast.classList.remove('show');toast.textContent='✓ Alterações salvas!';toast.style.background='';},3500);}
-  } catch(err){
-    btn.disabled=false; btn.textContent='📤 Enviar';
-    alert('Erro ao enviar e-mail: '+err.message);
-  }
+    const t=document.getElementById('saveToast');
+    if(t){t.textContent='📧 E-mail enviado!';t.style.background='var(--green)';t.classList.add('show');setTimeout(()=>{t.classList.remove('show');t.textContent='✓ Alterações salvas!';t.style.background='';},3500);}
+  } catch(err){ btn.disabled=false;btn.textContent='📤 Enviar';alert('Erro: '+err.message); }
 }
 </script>
 
