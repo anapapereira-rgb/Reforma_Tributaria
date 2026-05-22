@@ -1158,6 +1158,94 @@
   }
   .doc-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent)22; }
   .doc-btn.del:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+
+  /* ── EMAIL BUTTON ── */
+  .doc-email-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    border: 1px solid var(--accent); color: var(--accent); background: transparent;
+    cursor: pointer; transition: all .2s; white-space: nowrap;
+    font-family: var(--font);
+  }
+  .doc-email-btn:hover { background: var(--accent); color: #081420; }
+
+  /* ── EMAIL MODAL ── */
+  .email-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    z-index: 2000; display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px); padding: 16px;
+  }
+  .email-modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; width: 100%; max-width: 560px;
+    box-shadow: 0 8px 48px rgba(0,0,0,.6); overflow: hidden;
+  }
+  .email-modal-header {
+    background: linear-gradient(135deg, #081420, #0a3050);
+    padding: 18px 22px; border-bottom: 2px solid var(--accent);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .email-modal-title { font-size: 15px; font-weight: 800; color: var(--text); }
+  .email-modal-sub { font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .1em; color: var(--accent); margin-bottom: 2px; }
+  .email-modal-close {
+    background: none; border: none; color: var(--muted); font-size: 20px;
+    cursor: pointer; padding: 0 4px; line-height: 1;
+  }
+  .email-modal-close:hover { color: var(--text); }
+  .email-modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .email-field { display: flex; flex-direction: column; gap: 5px; }
+  .email-field label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--accent); }
+  .email-field input, .email-field textarea {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px; color: var(--text);
+    font-family: var(--font); font-size: 13px; resize: vertical;
+    transition: border-color .2s; width: 100%; box-sizing: border-box;
+  }
+  .email-field input:focus, .email-field textarea:focus {
+    outline: none; border-color: var(--accent);
+  }
+  .email-field textarea { min-height: 110px; }
+  .email-modal-footer {
+    padding: 14px 22px; border-top: 1px solid var(--border);
+    display: flex; gap: 10px; justify-content: flex-end;
+  }
+  .email-btn-cancel {
+    padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border);
+    background: none; color: var(--muted); font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: var(--font);
+  }
+  .email-btn-cancel:hover { border-color: var(--text); color: var(--text); }
+  .email-btn-send {
+    padding: 8px 22px; border-radius: 8px; border: none;
+    background: linear-gradient(135deg, var(--accent), #0088ff);
+    color: #fff; font-size: 13px; font-weight: 700;
+    cursor: pointer; font-family: var(--font); transition: opacity .2s;
+  }
+  .email-btn-send:hover { opacity: .85; }
+  .email-btn-send:disabled { opacity: .5; cursor: not-allowed; }
+  .email-tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+  .email-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--surface3); border: 1px solid var(--border2);
+    border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--muted);
+  }
+  .email-tag .tag-remove {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 12px; padding: 0; line-height: 1;
+  }
+  .email-tag .tag-remove:hover { color: var(--red); }
+  .email-tag-input {
+    background: none; border: none; outline: none; color: var(--text);
+    font-family: var(--font); font-size: 13px; min-width: 160px; flex: 1;
+  }
+  .email-tag-field {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; display: flex; flex-wrap: wrap; gap: 6px;
+    cursor: text; transition: border-color .2s;
+  }
+  .email-tag-field:focus-within { border-color: var(--accent); }
   .doc-empty { font-size: 11px; color: var(--muted); text-align: center; padding: 6px 0; }
 
   .doc-size-warning { font-size: 10px; color: var(--amber); margin-top: 4px; }
@@ -1941,7 +2029,10 @@
         <div class="card-subsect">
           <div class="card-subsect-header" onclick="toggleSubsect(this)">
             <span class="card-subsect-title">📄 Documentação</span>
-            <span class="card-subsect-chevron">▼</span>
+            <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+              <button class="doc-email-btn" title="Enviar e-mail com documento" onclick="event.stopPropagation();abrirModalEmail()">✉ Enviar E-mail</button>
+              <span class="card-subsect-chevron">▼</span>
+            </div>
           </div>
           <div class="card-subsect-body docs-section">
             <div class="doc-list" id="docList"></div>
@@ -4785,6 +4876,202 @@ render();
 </div>
 
 <script src="supabase-integration.js"></script>
+
+<!-- ══════════════════════════════════════════════
+     MODAL — ENVIAR E-MAIL
+══════════════════════════════════════════════ -->
+<div class="email-modal-overlay" id="emailModalOverlay" style="display:none;" onclick="if(event.target===this)fecharModalEmail()">
+  <div class="email-modal">
+    <div class="email-modal-header">
+      <div>
+        <div class="email-modal-sub">Reforma Tributária · TOTVS</div>
+        <div class="email-modal-title">✉ Enviar E-mail</div>
+      </div>
+      <button class="email-modal-close" onclick="fecharModalEmail()">✕</button>
+    </div>
+    <div class="email-modal-body">
+      <!-- Remetente -->
+      <div class="email-field">
+        <label>De (Remetente)</label>
+        <input type="text" id="emailFrom" readonly style="opacity:.7;cursor:default;" />
+      </div>
+      <!-- Destinatários -->
+      <div class="email-field">
+        <label>Para (Destinatários)</label>
+        <div class="email-tag-field" id="emailToField" onclick="document.getElementById('emailToInput').focus()">
+          <span id="emailTags" class="email-tags-wrap"></span>
+          <input class="email-tag-input" id="emailToInput" type="email"
+            placeholder="Digite e-mail e pressione Enter"
+            onkeydown="emailTagKeydown(event)" />
+        </div>
+      </div>
+      <!-- Assunto -->
+      <div class="email-field">
+        <label>Assunto</label>
+        <input type="text" id="emailSubject" />
+      </div>
+      <!-- Corpo -->
+      <div class="email-field">
+        <label>Mensagem</label>
+        <textarea id="emailBody"></textarea>
+      </div>
+    </div>
+    <div class="email-modal-footer">
+      <button class="email-btn-cancel" onclick="fecharModalEmail()">Cancelar</button>
+      <button class="email-btn-send" id="emailSendBtn" onclick="enviarEmailModal()">📤 Enviar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Estado dos destinatários ────────────────────
+let _emailRecipients = [];
+
+// ── Abre o modal preenchido com os dados do projeto ──
+function abrirModalEmail() {
+  if (!currentProject) return;
+
+  // 1. Remetente = usuário logado
+  const userEmail = CURRENT_USER?.email || '';
+  const userName  = CURRENT_USER?.nome  || '';
+  document.getElementById('emailFrom').value =
+    userName ? `${userName} <${userEmail}>` : userEmail;
+
+  // 2. Destinatários — começa vazio para o usuário preencher
+  _emailRecipients = [];
+  renderEmailTags();
+
+  // 3. Assunto: [Nome do cliente] Reforma Tributária - Data atual
+  const hoje = new Date();
+  const dataStr = String(hoje.getDate()).padStart(2,'0') + '/' +
+                  String(hoje.getMonth()+1).padStart(2,'0') + '/' +
+                  hoje.getFullYear();
+  const cliente = currentProject.c || '';
+  document.getElementById('emailSubject').value =
+    `${cliente} Reforma Tributária - ${dataStr}`;
+
+  // 4. Corpo padrão
+  document.getElementById('emailBody').value =
+`Olá,
+
+Segue em anexo ata da nossa agenda de hoje, com principais assuntos discutidos e próximos passos.
+
+At.
+${userName}`;
+
+  document.getElementById('emailSendBtn').disabled = false;
+  document.getElementById('emailSendBtn').textContent = '📤 Enviar';
+  document.getElementById('emailModalOverlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('emailToInput').focus(), 100);
+}
+
+function fecharModalEmail() {
+  document.getElementById('emailModalOverlay').style.display = 'none';
+}
+
+// ── Gerenciamento de tags (destinatários) ────────
+function renderEmailTags() {
+  const wrap = document.getElementById('emailTags');
+  wrap.innerHTML = _emailRecipients.map((em, i) =>
+    `<span class="email-tag">${escapeHtml(em)}
+      <button class="tag-remove" onclick="removeEmailTag(${i})">✕</button>
+    </span>`
+  ).join('');
+}
+
+function removeEmailTag(i) {
+  _emailRecipients.splice(i, 1);
+  renderEmailTags();
+}
+
+function emailTagKeydown(e) {
+  const inp = document.getElementById('emailToInput');
+  const val = inp.value.trim();
+  if ((e.key === 'Enter' || e.key === ',' || e.key === 'Tab') && val) {
+    e.preventDefault();
+    if (val.includes('@') && !_emailRecipients.includes(val)) {
+      _emailRecipients.push(val);
+      renderEmailTags();
+    }
+    inp.value = '';
+  }
+  // Backspace remove o último tag se input estiver vazio
+  if (e.key === 'Backspace' && !val && _emailRecipients.length) {
+    _emailRecipients.pop();
+    renderEmailTags();
+  }
+}
+
+// ── Envia o e-mail via Edge Function resend-email ──
+async function enviarEmailModal() {
+  // Captura qualquer e-mail digitado mas não confirmado com Enter
+  const inp = document.getElementById('emailToInput');
+  const pendente = inp.value.trim();
+  if (pendente && pendente.includes('@') && !_emailRecipients.includes(pendente)) {
+    _emailRecipients.push(pendente);
+    renderEmailTags();
+    inp.value = '';
+  }
+
+  if (!_emailRecipients.length) {
+    alert('Adicione pelo menos um destinatário.');
+    return;
+  }
+
+  const subject = document.getElementById('emailSubject').value.trim();
+  const body    = document.getElementById('emailBody').value.trim();
+
+  if (!subject) { alert('Preencha o assunto.'); return; }
+  if (!body)    { alert('Preencha o corpo do e-mail.'); return; }
+
+  const btn = document.getElementById('emailSendBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Enviando…';
+
+  // Monta HTML simples para o corpo
+  const htmlBody = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#222;white-space:pre-wrap;">${body.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/resend-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + (CURRENT_USER?.access_token || SUPABASE_KEY),
+      },
+      body: JSON.stringify({
+        to:      _emailRecipients,
+        subject: subject,
+        html:    htmlBody,
+        from:    'onboarding@resend.dev',
+      }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.ok !== false) {
+      fecharModalEmail();
+      const toast = document.getElementById('saveToast');
+      if (toast) {
+        toast.textContent = '📧 E-mail enviado com sucesso!';
+        toast.style.background = 'var(--green)';
+        toast.classList.add('show');
+        setTimeout(() => {
+          toast.classList.remove('show');
+          toast.textContent = '✓ Alterações salvas!';
+          toast.style.background = '';
+        }, 3500);
+      }
+    } else {
+      throw new Error(data.error || 'Falha ao enviar');
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '📤 Enviar';
+    alert('Erro ao enviar e-mail: ' + err.message);
+  }
+}
+</script>
 
 </body>
 </html>
