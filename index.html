@@ -1159,92 +1159,115 @@
   .doc-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent)22; }
   .doc-btn.del:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
 
-  /* ── BOTÃO ENVIAR E-MAIL ── */
-  .doc-email-btn {
-    display:inline-flex;align-items:center;gap:5px;padding:4px 12px;
+  /* ── BOTÕES DOCUMENTAÇÃO ── */
+  .doc-action-btn {
+    display:inline-flex;align-items:center;gap:5px;padding:4px 11px;
     border-radius:20px;font-size:11px;font-weight:700;
     border:1px solid var(--accent);color:var(--accent);background:transparent;
     cursor:pointer;transition:all .2s;white-space:nowrap;font-family:var(--font);
   }
-  .doc-email-btn:hover { background:var(--accent);color:#081420; }
+  .doc-action-btn:hover { background:var(--accent);color:#081420; }
+  .doc-ata-btn  { border-color:var(--purple);color:var(--purple); }
+  .doc-ata-btn:hover { background:var(--purple);color:#fff; }
 
-  /* ── MODAL E-MAIL ── */
-  .eml-overlay {
-    position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;
+  /* ── MODAL BASE ── */
+  .modal-overlay {
+    position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:2000;
     display:flex;align-items:center;justify-content:center;
-    backdrop-filter:blur(4px);padding:16px;
+    backdrop-filter:blur(5px);padding:16px;
   }
-  .eml-modal {
+  .modal-box {
     background:var(--surface);border:1px solid var(--border);border-radius:14px;
-    width:100%;max-width:600px;box-shadow:0 8px 48px rgba(0,0,0,.6);overflow:hidden;
+    width:100%;box-shadow:0 8px 48px rgba(0,0,0,.6);overflow:hidden;display:flex;flex-direction:column;
+    max-height:92vh;
   }
-  .eml-hd {
+  .modal-hd {
     background:linear-gradient(135deg,#081420,#0a3050);
-    padding:18px 22px;border-bottom:2px solid var(--accent);
+    padding:16px 20px;border-bottom:2px solid var(--accent);flex-shrink:0;
     display:flex;align-items:center;justify-content:space-between;
   }
-  .eml-hd-sub  { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:2px; }
-  .eml-hd-title{ font-size:15px;font-weight:800;color:var(--text); }
-  .eml-x { background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1; }
-  .eml-x:hover { color:var(--text); }
-  .eml-bd { padding:20px 22px;display:flex;flex-direction:column;gap:14px; }
-  .eml-f { display:flex;flex-direction:column;gap:5px; }
-  .eml-f label { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent); }
-  .eml-f input,.eml-f textarea {
+  .modal-hd.purple { border-bottom-color:var(--purple); }
+  .modal-hd-sub  { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:2px; }
+  .modal-hd.purple .modal-hd-sub { color:var(--purple); }
+  .modal-hd-title{ font-size:15px;font-weight:800;color:var(--text); }
+  .modal-x { background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1; }
+  .modal-x:hover { color:var(--text); }
+  .modal-bd { padding:18px 20px;display:flex;flex-direction:column;gap:13px;overflow-y:auto; }
+  .modal-ft { padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-shrink:0; }
+  .modal-ft-info { font-size:11px;color:var(--muted);margin-right:auto; }
+
+  /* ── CAMPOS COMPARTILHADOS ── */
+  .mf { display:flex;flex-direction:column;gap:5px; }
+  .mf label { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent); }
+  .mf.purple label { color:var(--purple); }
+  .mf input,.mf textarea,.mf select {
     background:var(--surface2);border:1px solid var(--border);border-radius:8px;
-    padding:9px 12px;color:var(--text);font-family:var(--font);font-size:13px;
+    padding:8px 12px;color:var(--text);font-family:var(--font);font-size:13px;
     resize:vertical;transition:border-color .2s;width:100%;box-sizing:border-box;
   }
-  .eml-f input:focus,.eml-f textarea:focus { outline:none;border-color:var(--accent); }
-  .eml-f textarea { min-height:110px; }
-  .eml-f input[readonly] { opacity:.65;cursor:default; }
+  .mf input:focus,.mf textarea:focus { outline:none;border-color:var(--accent); }
+  .mf.purple input:focus,.mf.purple textarea:focus { border-color:var(--purple); }
+  .mf input[readonly] { opacity:.65;cursor:default; }
+  .mf textarea.tall { min-height:130px; }
+
+  /* tags de destinatários */
   .eml-tags {
     background:var(--surface2);border:1px solid var(--border);border-radius:8px;
     padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px;cursor:text;
-    transition:border-color .2s;box-sizing:border-box;min-height:40px;align-items:center;
+    transition:border-color .2s;min-height:40px;align-items:center;
   }
   .eml-tags:focus-within { border-color:var(--accent); }
   .eml-tag {
-    display:inline-flex;align-items:center;gap:4px;
-    background:var(--surface3);border:1px solid var(--border2);
-    border-radius:20px;padding:3px 10px;font-size:11px;color:var(--muted);
+    display:inline-flex;align-items:center;gap:4px;background:var(--surface3);
+    border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--muted);
   }
   .eml-tag button { background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0;line-height:1; }
   .eml-tag button:hover { color:var(--red); }
-  .eml-tag-input {
-    background:none;border:none;outline:none;color:var(--text);
-    font-family:var(--font);font-size:13px;min-width:180px;flex:1;
-  }
-  /* Anexos encontrados */
-  .eml-attachments {
-    background:var(--surface2);border:1px solid var(--border);border-radius:8px;
-    padding:10px 14px;display:flex;flex-direction:column;gap:6px;
-  }
-  .eml-att-item {
-    display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);
-  }
-  .eml-att-item .att-icon { font-size:14px; }
-  .eml-att-item .att-name { color:var(--text);font-weight:600; }
-  .eml-att-none { font-size:12px;color:var(--muted);font-style:italic; }
-  .eml-ft {
-    padding:14px 22px;border-top:1px solid var(--border);
-    display:flex;gap:10px;justify-content:flex-end;align-items:center;
-  }
-  .eml-att-info { font-size:11px;color:var(--muted);margin-right:auto; }
-  .eml-cancel {
+  .eml-tag-input { background:none;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:13px;min-width:160px;flex:1; }
+
+  /* botões de modal */
+  .btn-cancel {
     padding:8px 18px;border-radius:8px;border:1px solid var(--border);
-    background:none;color:var(--muted);font-size:13px;font-weight:600;
-    cursor:pointer;font-family:var(--font);
+    background:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);
   }
-  .eml-cancel:hover { border-color:var(--text);color:var(--text); }
-  .eml-send {
-    padding:8px 22px;border-radius:8px;border:none;
+  .btn-cancel:hover { border-color:var(--text);color:var(--text); }
+  .btn-primary {
+    padding:8px 20px;border-radius:8px;border:none;
     background:linear-gradient(135deg,var(--accent),#0088ff);
-    color:#fff;font-size:13px;font-weight:700;
-    cursor:pointer;font-family:var(--font);transition:opacity .2s;
+    color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);transition:opacity .2s;
   }
-  .eml-send:hover { opacity:.85; }
-  .eml-send:disabled { opacity:.5;cursor:not-allowed; }
+  .btn-primary:hover { opacity:.85; }
+  .btn-primary:disabled { opacity:.5;cursor:not-allowed; }
+  .btn-purple {
+    padding:8px 20px;border-radius:8px;border:none;
+    background:linear-gradient(135deg,var(--purple),#7c3aed);
+    color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);transition:opacity .2s;
+  }
+  .btn-purple:hover { opacity:.85; }
+  .btn-purple:disabled { opacity:.5;cursor:not-allowed; }
+
+  /* ── ATA ESPECÍFICO ── */
+  .ata-steps { display:flex;gap:8px;margin-bottom:4px; }
+  .ata-step {
+    flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface2);font-size:11px;color:var(--muted);text-align:center;
+    transition:all .3s;
+  }
+  .ata-step.active { border-color:var(--purple);color:var(--purple);background:var(--purple-bg);font-weight:700; }
+  .ata-step.done   { border-color:var(--green);color:var(--green);background:var(--green-bg); }
+  .ata-result {
+    background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+    padding:14px;font-size:13px;color:var(--text);line-height:1.7;
+    max-height:260px;overflow-y:auto;white-space:pre-wrap;
+  }
+  .ata-section { margin-bottom:10px; }
+  .ata-section strong { color:var(--purple);font-size:11px;text-transform:uppercase;letter-spacing:.06em; }
+  .ata-loading { display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;padding:20px 0; }
+  .ata-spinner {
+    width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--purple);
+    border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
   .doc-empty { font-size: 11px; color: var(--muted); text-align: center; padding: 6px 0; }
 
   .doc-size-warning { font-size: 10px; color: var(--amber); margin-top: 4px; }
@@ -2029,7 +2052,8 @@
           <div class="card-subsect-header" onclick="toggleSubsect(this)">
             <span class="card-subsect-title">📄 Documentação</span>
             <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-              <button class="doc-email-btn" onclick="event.stopPropagation();abrirModalEmail()">✉ Enviar E-mail</button>
+              <button class="doc-action-btn doc-ata-btn" onclick="event.stopPropagation();abrirModalAta()">📝 Preencher Ata</button>
+              <button class="doc-action-btn doc-email-btn" onclick="event.stopPropagation();abrirModalEmail()">✉ Enviar E-mail</button>
               <span class="card-subsect-chevron">▼</span>
             </div>
           </div>
@@ -2714,11 +2738,7 @@ function _processDocFiles(files) {
           toast.textContent = '📎 Documento salvo com sucesso!';
           toast.style.background = 'var(--green)';
           toast.classList.add('show');
-          setTimeout(() => {
-            toast.classList.remove('show');
-            toast.textContent = '✓ Alterações salvas!';
-            toast.style.background = '';
-          }, 3000);
+          setTimeout(() => { toast.classList.remove('show'); toast.textContent = '✓ Alterações salvas!'; toast.style.background = ''; }, 3000);
         }
 
       } catch(e) {
@@ -4864,23 +4884,78 @@ render();
 <script src="supabase-integration.js"></script>
 
 <!-- ════════════════════════════════════
-     MODAL — ENVIAR E-MAIL COM ANEXOS
+     MODAL — PREENCHER ATA
 ════════════════════════════════════ -->
-<div class="eml-overlay" id="emlOverlay" style="display:none;" onclick="if(event.target===this)fecharEml()">
-  <div class="eml-modal">
-    <div class="eml-hd">
+<div class="modal-overlay" id="ataOverlay" style="display:none;" onclick="if(event.target===this)fecharAta()">
+  <div class="modal-box" style="max-width:660px;">
+    <div class="modal-hd purple">
       <div>
-        <div class="eml-hd-sub">Reforma Tributária · TOTVS</div>
-        <div class="eml-hd-title">✉ Enviar E-mail</div>
+        <div class="modal-hd-sub">Reforma Tributária · TOTVS</div>
+        <div class="modal-hd-title">📝 Preencher Ata de Reunião</div>
       </div>
-      <button class="eml-x" onclick="fecharEml()">✕</button>
+      <button class="modal-x" onclick="fecharAta()">✕</button>
     </div>
-    <div class="eml-bd">
-      <div class="eml-f">
-        <label>De (Remetente)</label>
-        <input type="text" id="emlFrom" readonly />
+    <div class="modal-bd" id="ataBd">
+      <!-- Step 1: colar transcrição -->
+      <div id="ataStep1">
+        <div class="ata-steps">
+          <div class="ata-step active" id="ataS1">1 · Transcrição</div>
+          <div class="ata-step" id="ataS2">2 · Gerando Ata</div>
+          <div class="ata-step" id="ataS3">3 · Download</div>
+        </div>
+        <div class="mf purple" style="margin-top:8px;">
+          <label>Cole aqui a transcrição da reunião</label>
+          <textarea class="tall" id="ataTranscricao" style="min-height:200px;"
+            placeholder="Cole o texto da transcrição da reunião aqui. A IA vai identificar automaticamente: participantes, tópicos discutidos, decisões, pendências, riscos e próximos passos."></textarea>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+          💡 Pode ser a transcrição gerada pelo Teams, Meet ou qualquer formato de texto.
+        </div>
       </div>
-      <div class="eml-f">
+      <!-- Step 2: loading -->
+      <div id="ataStep2" style="display:none;">
+        <div class="ata-loading">
+          <div class="ata-spinner"></div>
+          <span id="ataLoadMsg">Analisando transcrição…</span>
+        </div>
+      </div>
+      <!-- Step 3: resultado -->
+      <div id="ataStep3" style="display:none;">
+        <div class="ata-steps">
+          <div class="ata-step done" id="ataS1b">✓ Transcrição</div>
+          <div class="ata-step done" id="ataS2b">✓ Ata Gerada</div>
+          <div class="ata-step active" id="ataS3b">3 · Download</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin:8px 0 4px;">Prévia da ata preenchida:</div>
+        <div class="ata-result" id="ataPreview"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">
+          ✅ Ata gerada com sucesso! Clique em <strong style="color:var(--purple);">Baixar .docx</strong> para salvar.
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-cancel" onclick="fecharAta()">Fechar</button>
+      <button class="btn-purple" id="ataBtnGerar" onclick="gerarAta()">✨ Gerar Ata com IA</button>
+      <button class="btn-purple" id="ataBtnDownload" style="display:none;" onclick="baixarAta()">⬇ Baixar .docx</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     MODAL — ENVIAR E-MAIL
+════════════════════════════════════ -->
+<div class="modal-overlay" id="emlOverlay" style="display:none;" onclick="if(event.target===this)fecharEml()">
+  <div class="modal-box" style="max-width:600px;">
+    <div class="modal-hd">
+      <div>
+        <div class="modal-hd-sub">Reforma Tributária · TOTVS</div>
+        <div class="modal-hd-title">✉ Enviar E-mail</div>
+      </div>
+      <button class="modal-x" onclick="fecharEml()">✕</button>
+    </div>
+    <div class="modal-bd">
+      <div class="mf"><label>De (Remetente)</label><input type="text" id="emlFrom" readonly /></div>
+      <div class="mf">
         <label>Para (Destinatários)</label>
         <div class="eml-tags" id="emlTagsBox" onclick="document.getElementById('emlTagInput').focus()">
           <span id="emlTagsList"></span>
@@ -4889,288 +4964,440 @@ render();
             onkeydown="emlKeydown(event)" onblur="emlBlur()" />
         </div>
       </div>
-      <div class="eml-f">
-        <label>Assunto</label>
-        <input type="text" id="emlSubject" />
-      </div>
-      <div class="eml-f">
-        <label>Mensagem</label>
-        <textarea id="emlBody"></textarea>
-      </div>
-      <div class="eml-f">
-        <label>📎 Anexos do dia (carregando…)</label>
-        <div class="eml-attachments" id="emlAttachList">
-          <span class="eml-att-none">Buscando documentos de hoje…</span>
-        </div>
-      </div>
+      <div class="mf"><label>Assunto</label><input type="text" id="emlSubject" /></div>
+      <div class="mf"><label>Mensagem</label><textarea class="tall" id="emlBody"></textarea></div>
     </div>
-    <div class="eml-ft">
-      <span class="eml-att-info" id="emlAttInfo"></span>
-      <button class="eml-cancel" onclick="fecharEml()">Cancelar</button>
-      <button class="eml-send" id="emlSendBtn" onclick="enviarEml()">📤 Enviar</button>
+    <div class="modal-ft">
+      <button class="btn-cancel" onclick="fecharEml()">Cancelar</button>
+      <button class="btn-primary" id="emlSendBtn" onclick="enviarEml()">📤 Enviar</button>
     </div>
   </div>
 </div>
 
 <script>
-let _emlTo   = [];
-let _emlDocs = []; // docs do dia { nome_arquivo, storage_path, tamanho }
+// ══════════════════════════════════════════════
+//  ATA DE REUNIÃO — preenchimento via Claude AI
+// ══════════════════════════════════════════════
 
-// ── Abre o modal ─────────────────────────────────────────
-async function abrirModalEmail() {
+// Modelo da ata (estrutura fixa)
+const ATA_MODELO = `ATA DE ALINHAMENTO DE PROJETO – REFORMA TRIBUTÁRIA
+
+Projeto/Cliente: {CLIENTE}
+Consultor: {CONSULTOR}
+GP: Ana Paula Colombo
+Data: {DATA}
+
+1. TÓPICOS DISCUTIDOS
+- Participantes: {PARTICIPANTES}
+- Status do projeto: {STATUS}
+
+2. DECISÕES TOMADAS
+{DECISOES}
+
+3. PENDÊNCIAS E RESPONSÁVEIS
+{PENDENCIAS}
+
+4. RISCOS IDENTIFICADOS
+{RISCOS}
+
+5. PRÓXIMOS PASSOS / AÇÕES DA SEMANA
+{PROXIMOS_PASSOS}`;
+
+let _ataData = null; // dados extraídos pela IA
+
+function abrirModalAta() {
   if (!currentProject) return;
+  // Reset
+  _ataData = null;
+  document.getElementById('ataTranscricao').value = '';
+  document.getElementById('ataStep1').style.display = '';
+  document.getElementById('ataStep2').style.display = 'none';
+  document.getElementById('ataStep3').style.display = 'none';
+  document.getElementById('ataBtnGerar').style.display = '';
+  document.getElementById('ataBtnDownload').style.display = 'none';
+  document.getElementById('ataBtnGerar').disabled = false;
+  document.getElementById('ataBtnGerar').textContent = '✨ Gerar Ata com IA';
+  document.getElementById('ataOverlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('ataTranscricao').focus(), 100);
+}
 
-  // Remetente
+function fecharAta() {
+  document.getElementById('ataOverlay').style.display = 'none';
+}
+
+async function gerarAta() {
+  const transcricao = (document.getElementById('ataTranscricao').value || '').trim();
+  if (!transcricao) { alert('Cole a transcrição da reunião antes de gerar a ata.'); return; }
+
+  const btn = document.getElementById('ataBtnGerar');
+  btn.disabled = true;
+
+  // Mostra step 2
+  document.getElementById('ataStep1').style.display = 'none';
+  document.getElementById('ataStep2').style.display = '';
+  document.getElementById('ataBtnGerar').style.display = 'none';
+
+  const msgs = ['Analisando transcrição…','Identificando participantes…','Extraindo decisões…','Mapeando pendências…','Montando próximos passos…'];
+  let mi = 0;
+  const interval = setInterval(() => {
+    document.getElementById('ataLoadMsg').textContent = msgs[++mi % msgs.length];
+  }, 1800);
+
+  const hoje    = new Date();
+  const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' + String(hoje.getMonth()+1).padStart(2,'0') + '/' + hoje.getFullYear();
+  const cliente  = currentProject?.c || '';
+  const consultor = currentProject?.cons || '';
+
+  const prompt = `Você é um assistente especialista em projetos de Reforma Tributária TOTVS.
+Leia a transcrição abaixo e extraia as informações para preencher uma ata de reunião.
+Responda APENAS com um JSON válido, sem markdown, sem explicações.
+
+Formato esperado:
+{
+  "participantes": "lista dos nomes mencionados separados por vírgula",
+  "status": "resumo do status atual do projeto em 1-2 frases",
+  "decisoes": "lista de decisões tomadas, uma por linha começando com -",
+  "pendencias": "lista no formato: - [atividade] | [responsável] | [prazo] | [status]",
+  "riscos": "lista de riscos identificados, uma por linha começando com -, ou 'Nenhum identificado'",
+  "proximos_passos": "lista de ações para a próxima semana, uma por linha começando com -"
+}
+
+Dados do projeto:
+- Cliente: ${cliente}
+- Consultor: ${consultor}
+- Data: ${dataFmt}
+
+TRANSCRIÇÃO:
+${transcricao.slice(0, 8000)}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    clearInterval(interval);
+    const resData = await res.json();
+    const texto   = (resData.content || []).map(b => b.text || '').join('');
+
+    // Parse JSON da resposta
+    let dados;
+    try {
+      const jsonStr = texto.replace(/```json|```/g, '').trim();
+      dados = JSON.parse(jsonStr);
+    } catch(e) {
+      throw new Error('A IA não retornou um formato válido. Tente novamente.');
+    }
+
+    _ataData = {
+      cliente, consultor, data: dataFmt,
+      participantes:  dados.participantes   || '',
+      status:         dados.status          || '',
+      decisoes:       dados.decisoes        || '',
+      pendencias:     dados.pendencias      || '',
+      riscos:         dados.riscos          || 'Nenhum identificado',
+      proximos_passos: dados.proximos_passos || ''
+    };
+
+    // Monta prévia
+    const preview = ATA_MODELO
+      .replace('{CLIENTE}',        _ataData.cliente)
+      .replace('{CONSULTOR}',      _ataData.consultor)
+      .replace('{DATA}',           _ataData.data)
+      .replace('{PARTICIPANTES}',  _ataData.participantes)
+      .replace('{STATUS}',         _ataData.status)
+      .replace('{DECISOES}',       _ataData.decisoes)
+      .replace('{PENDENCIAS}',     _ataData.pendencias)
+      .replace('{RISCOS}',         _ataData.riscos)
+      .replace('{PROXIMOS_PASSOS}',_ataData.proximos_passos);
+
+    document.getElementById('ataPreview').textContent = preview;
+    document.getElementById('ataStep2').style.display = 'none';
+    document.getElementById('ataStep3').style.display = '';
+    document.getElementById('ataBtnDownload').style.display = '';
+
+  } catch(err) {
+    clearInterval(interval);
+    document.getElementById('ataStep2').style.display = 'none';
+    document.getElementById('ataStep1').style.display = '';
+    document.getElementById('ataBtnGerar').style.display = '';
+    btn.disabled = false;
+    btn.textContent = '✨ Gerar Ata com IA';
+    alert('Erro ao gerar ata: ' + err.message);
+  }
+}
+
+// ── Gera e baixa o .docx ────────────────────────────────
+async function baixarAta() {
+  if (!_ataData) return;
+  const btn = document.getElementById('ataBtnDownload');
+  btn.disabled = true;
+  btn.textContent = '⏳ Gerando .docx…';
+
+  try {
+    // Carrega docx.js dinamicamente
+    if (!window.docx) {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+            AlignmentType, WidthType, BorderStyle, ShadingType, HeadingLevel } = window.docx;
+
+    const ACCENT = '1F6B8E';
+    const PURPLE = '7C3AED';
+    const LIGHT  = 'D5E8F0';
+
+    function borderSingle(color) {
+      return { style: BorderStyle.SINGLE, size: 1, color: color || 'CCCCCC' };
+    }
+    function cellBorders(color) {
+      const b = borderSingle(color);
+      return { top:b, bottom:b, left:b, right:b };
+    }
+
+    function heading(text, level) {
+      return new Paragraph({
+        children: [new TextRun({ text, bold:true, size: level===1?28:24, color: ACCENT, font:'Arial' })],
+        spacing: { before: 200, after: 100 }
+      });
+    }
+
+    function body(text) {
+      return (text||'').split('\n').filter(l=>l.trim()).map(line =>
+        new Paragraph({ children:[new TextRun({text:line.trim(), size:22, font:'Arial'})], spacing:{after:60} })
+      );
+    }
+
+    // Tabela de cabeçalho
+    function makeHeaderTable() {
+      const cellOpts = { borders: cellBorders(ACCENT), margins:{top:80,bottom:80,left:120,right:120} };
+      return new Table({
+        width: { size: 9360, type: WidthType.DXA },
+        columnWidths: [9360],
+        rows: [
+          new TableRow({ children:[
+            new TableCell({ ...cellOpts, width:{size:9360,type:WidthType.DXA},
+              shading:{fill:ACCENT,type:ShadingType.CLEAR},
+              children:[new Paragraph({ alignment:AlignmentType.CENTER,
+                children:[new TextRun({text:'ATA DE ALINHAMENTO DE PROJETO – REFORMA TRIBUTÁRIA',
+                  bold:true,size:26,color:'FFFFFF',font:'Arial'})] })]
+            })
+          ]}),
+          new TableRow({ children:[
+            new TableCell({ ...cellOpts, width:{size:9360,type:WidthType.DXA},
+              children:[
+                new Paragraph({children:[new TextRun({text:'Projeto/Cliente: ',bold:true,size:22,font:'Arial'}),
+                  new TextRun({text:_ataData.cliente,size:22,font:'Arial'})]}),
+                new Paragraph({children:[new TextRun({text:'Consultor: ',bold:true,size:22,font:'Arial'}),
+                  new TextRun({text:_ataData.consultor,size:22,font:'Arial'})]}),
+                new Paragraph({children:[new TextRun({text:'GP: Ana Paula Colombo  |  Data: '+_ataData.data,size:22,font:'Arial'})]}),
+              ]
+            })
+          ]})
+        ]
+      });
+    }
+
+    // Tabela de pendências
+    function makePendenciasTable() {
+      const linhas = (_ataData.pendencias||'').split('\n').filter(l=>l.trim());
+      const hdrCell = (txt) => new TableCell({
+        width:{size:2340,type:WidthType.DXA},
+        borders:cellBorders(ACCENT),
+        shading:{fill:LIGHT,type:ShadingType.CLEAR},
+        margins:{top:60,bottom:60,left:100,right:100},
+        children:[new Paragraph({children:[new TextRun({text:txt,bold:true,size:20,font:'Arial'})]})]
+      });
+      const dataCell = (txt) => new TableCell({
+        width:{size:2340,type:WidthType.DXA},
+        borders:cellBorders('CCCCCC'),
+        margins:{top:60,bottom:60,left:100,right:100},
+        children:[new Paragraph({children:[new TextRun({text:txt,size:20,font:'Arial'})]})]
+      });
+
+      const rows = [
+        new TableRow({children:[hdrCell('Pendência/Atividade'),hdrCell('Responsável'),hdrCell('Prazo'),hdrCell('Status')]})
+      ];
+
+      linhas.forEach(l => {
+        const parts = l.replace(/^-\s*/,'').split('|').map(s=>s.trim());
+        rows.push(new TableRow({children:[
+          dataCell(parts[0]||''), dataCell(parts[1]||''), dataCell(parts[2]||''), dataCell(parts[3]||'')
+        ]}));
+      });
+
+      if (linhas.length === 0) {
+        rows.push(new TableRow({children:[
+          dataCell('—'), dataCell('—'), dataCell('—'), dataCell('—')
+        ]}));
+      }
+
+      return new Table({ width:{size:9360,type:WidthType.DXA}, columnWidths:[2340,2340,2340,2340], rows });
+    }
+
+    const doc = new Document({
+      sections: [{
+        properties: { page: { size:{width:12240,height:15840}, margin:{top:1080,right:1080,bottom:1080,left:1080} } },
+        children: [
+          makeHeaderTable(),
+          new Paragraph({spacing:{after:160}}),
+
+          heading('1. Tópicos Discutidos', 1),
+          new Paragraph({children:[new TextRun({text:'Participantes: ',bold:true,size:22,font:'Arial'}),
+            new TextRun({text:_ataData.participantes,size:22,font:'Arial'})],spacing:{after:60}}),
+          new Paragraph({children:[new TextRun({text:'Status do projeto: ',bold:true,size:22,font:'Arial'}),
+            new TextRun({text:_ataData.status,size:22,font:'Arial'})],spacing:{after:160}}),
+
+          heading('2. Decisões Tomadas', 1),
+          ...body(_ataData.decisoes),
+          new Paragraph({spacing:{after:100}}),
+
+          heading('3. Pendências e Responsáveis', 1),
+          makePendenciasTable(),
+          new Paragraph({spacing:{after:100}}),
+
+          heading('4. Riscos Identificados', 1),
+          ...body(_ataData.riscos),
+          new Paragraph({spacing:{after:100}}),
+
+          heading('5. Próximos Passos / Ações da Semana', 1),
+          ...body(_ataData.proximos_passos),
+        ]
+      }]
+    });
+
+    const buffer = await Packer.toBlob(doc);
+    const url    = URL.createObjectURL(buffer);
+    const a      = document.createElement('a');
+    const dataArq = _ataData.data.replace(/\//g,'-');
+    a.href     = url;
+    a.download = `Ata_${_ataData.cliente}_${dataArq}.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    btn.disabled = false;
+    btn.textContent = '⬇ Baixar .docx';
+    fecharAta();
+
+    const toast = document.getElementById('saveToast');
+    if (toast) {
+      toast.textContent = '📝 Ata gerada e baixada com sucesso!';
+      toast.style.background = 'var(--purple)';
+      toast.classList.add('show');
+      setTimeout(()=>{ toast.classList.remove('show'); toast.textContent='✓ Alterações salvas!'; toast.style.background=''; }, 3500);
+    }
+
+  } catch(err) {
+    btn.disabled = false;
+    btn.textContent = '⬇ Baixar .docx';
+    alert('Erro ao gerar .docx: ' + err.message);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  E-MAIL
+// ══════════════════════════════════════════════
+let _emlTo = [];
+
+function abrirModalEmail() {
+  if (!currentProject) return;
   const nome  = CURRENT_USER?.nome  || '';
   const email = CURRENT_USER?.email || '';
   document.getElementById('emlFrom').value = nome ? nome + ' <' + email + '>' : email;
-
-  // Destinatários
-  _emlTo = [];
-  _emlDrawTags();
-
-  // Assunto: [Cliente] || Reforma Tributária || DD/MM/AAAA
+  _emlTo = []; _emlDrawTags();
   const hoje    = new Date();
-  const dataFmt = _fmtDataBR(hoje);
-  document.getElementById('emlSubject').value =
-    (currentProject.c || '') + ' || Reforma Tributária || ' + dataFmt;
-
-  // Corpo
-  document.getElementById('emlBody').value =
-    'Olá,\n\nSegue em anexo ata da nossa agenda de hoje, com principais assuntos discutidos e próximos passos.\n\nAt.\n' + nome;
-
-  // Botão
+  const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' + String(hoje.getMonth()+1).padStart(2,'0') + '/' + hoje.getFullYear();
+  document.getElementById('emlSubject').value = (currentProject.c||'') + ' || Reforma Tributária || ' + dataFmt;
+  document.getElementById('emlBody').value = 'Olá,\n\nSegue em anexo ata da nossa agenda de hoje, com principais assuntos discutidos e próximos passos.\n\nAt.\n' + nome;
   const btn = document.getElementById('emlSendBtn');
-  btn.disabled = false;
-  btn.textContent = '📤 Enviar';
-
-  // Abre modal
+  btn.disabled = false; btn.textContent = '📤 Enviar';
   document.getElementById('emlOverlay').style.display = 'flex';
   setTimeout(() => document.getElementById('emlTagInput').focus(), 100);
-
-  // Busca docs do dia
-  _emlDocs = [];
-  document.getElementById('emlAttachList').innerHTML =
-    '<span class="eml-att-none">Buscando documentos de hoje…</span>';
-  document.getElementById('emlAttInfo').textContent = '';
-
-  await _emlBuscarDocsHoje(hoje, dataFmt);
 }
 
-function fecharEml() {
-  document.getElementById('emlOverlay').style.display = 'none';
-}
+function fecharEml() { document.getElementById('emlOverlay').style.display = 'none'; }
 
-// ── Formata data DD/MM/AAAA ─────────────────────────────
-function _fmtDataBR(d) {
-  return String(d.getDate()).padStart(2,'0') + '/' +
-         String(d.getMonth()+1).padStart(2,'0') + '/' +
-         d.getFullYear();
-}
-
-// ── Busca documentos de hoje no Supabase ─────────────────
-async function _emlBuscarDocsHoje(hoje, dataFmt) {
-  const list = document.getElementById('emlAttachList');
-  const info = document.getElementById('emlAttInfo');
-
-  if (!CURRENT_USER?.access_token || !currentProject?._uuid) {
-    list.innerHTML = '<span class="eml-att-none">Login necessário para buscar anexos.</span>';
-    return;
-  }
-
-  try {
-    // Busca todos os docs do projeto e filtra pelo campo data_upload = hoje
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/documents?project_id=eq.' + currentProject._uuid +
-      '&select=id,nome_arquivo,storage_path,tamanho,data_upload&order=created_at.desc',
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token } }
-    );
-
-    if (!res.ok) throw new Error('Erro ao buscar documentos');
-    const rows = await res.json();
-
-    // Filtra pela data de hoje (campo data_upload = "DD/MM/AAAA" ou ISO date)
-    const hoje_iso   = hoje.toISOString().slice(0,10); // "2026-05-22"
-    _emlDocs = rows.filter(r => {
-      const d = r.data_upload || '';
-      return d === dataFmt || d.startsWith(hoje_iso);
-    });
-
-    if (!_emlDocs.length) {
-      list.innerHTML = '<span class="eml-att-none">Nenhum documento enviado hoje para este projeto.</span>';
-      info.textContent = '';
-      return;
-    }
-
-    list.innerHTML = _emlDocs.map(d =>
-      '<div class="eml-att-item">' +
-        '<span class="att-icon">📄</span>' +
-        '<span class="att-name">' + escapeHtml(d.nome_arquivo || '') + '</span>' +
-        '<span style="margin-left:auto;font-size:11px;">' + escapeHtml(d.tamanho || '') + '</span>' +
-      '</div>'
-    ).join('');
-
-    info.textContent = _emlDocs.length + ' anexo' + (_emlDocs.length > 1 ? 's' : '') + ' do dia';
-
-  } catch (err) {
-    list.innerHTML = '<span class="eml-att-none">Erro ao buscar anexos: ' + err.message + '</span>';
-  }
-}
-
-// ── Tags de destinatários ────────────────────────────────
 function _emlDrawTags() {
-  document.getElementById('emlTagsList').innerHTML = _emlTo.map(function(e, i) {
-    return '<span class="eml-tag">' + escapeHtml(e) +
-      '<button onclick="emlRemove(' + i + ')">✕</button></span>';
-  }).join('');
+  document.getElementById('emlTagsList').innerHTML = _emlTo.map((e,i) =>
+    '<span class="eml-tag">'+escapeHtml(e)+'<button onclick="emlRemove('+i+')">✕</button></span>'
+  ).join('');
 }
 function emlRemove(i) { _emlTo.splice(i,1); _emlDrawTags(); }
 function emlAdd(val) {
-  val = (val||'').trim().toLowerCase();
-  if (val && val.indexOf('@') > 0 && _emlTo.indexOf(val) === -1) { _emlTo.push(val); _emlDrawTags(); }
-  document.getElementById('emlTagInput').value = '';
+  val=(val||'').trim().toLowerCase();
+  if(val&&val.indexOf('@')>0&&_emlTo.indexOf(val)===-1){_emlTo.push(val);_emlDrawTags();}
+  document.getElementById('emlTagInput').value='';
 }
 function emlKeydown(e) {
-  if (e.key==='Enter'||e.key==='Tab'||e.key===',') { e.preventDefault(); emlAdd(e.target.value); }
-  if (e.key==='Backspace'&&!e.target.value&&_emlTo.length) { _emlTo.pop(); _emlDrawTags(); }
+  if(e.key==='Enter'||e.key==='Tab'||e.key===','){e.preventDefault();emlAdd(e.target.value);}
+  if(e.key==='Backspace'&&!e.target.value&&_emlTo.length){_emlTo.pop();_emlDrawTags();}
 }
-function emlBlur() { emlAdd(document.getElementById('emlTagInput').value); }
+function emlBlur(){emlAdd(document.getElementById('emlTagInput').value);}
 
-// ── Converte blob para base64 ─────────────────────────────
-function _blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
-// ── Envia e-mail com anexos ───────────────────────────────
 async function enviarEml() {
   emlAdd(document.getElementById('emlTagInput').value);
-  if (!_emlTo.length) { alert('Adicione pelo menos um destinatário.'); return; }
+  if(!_emlTo.length){alert('Adicione pelo menos um destinatário.');return;}
+  const subject=(document.getElementById('emlSubject').value||'').trim();
+  const bodyTxt=(document.getElementById('emlBody').value||'').trim();
+  if(!subject){alert('Preencha o assunto.');return;}
+  if(!bodyTxt){alert('Preencha a mensagem.');return;}
+  const btn=document.getElementById('emlSendBtn');
+  btn.disabled=true; btn.textContent='⏳ Enviando…';
 
-  const subject = (document.getElementById('emlSubject').value||'').trim();
-  const bodyTxt = (document.getElementById('emlBody').value||'').trim();
-  if (!subject) { alert('Preencha o assunto.'); return; }
-  if (!bodyTxt) { alert('Preencha a mensagem.'); return; }
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  const bodyHtml=esc(bodyTxt).replace(/\n/g,'<br>');
+  const cliente=esc(currentProject?.c||'');
+  const remetente=esc(document.getElementById('emlFrom').value);
+  const hoje=new Date();
+  const dataHora=String(hoje.getDate()).padStart(2,'0')+'/'+String(hoje.getMonth()+1).padStart(2,'0')+'/'+hoje.getFullYear()+' '+String(hoje.getHours()).padStart(2,'0')+':'+String(hoje.getMinutes()).padStart(2,'0');
 
-  const btn = document.getElementById('emlSendBtn');
-  btn.disabled = true;
-
-  // ── Baixa cada PDF do Storage e converte para base64 ──
-  let attachments = [];
-  if (_emlDocs.length && CURRENT_USER?.access_token) {
-    btn.textContent = '⏳ Preparando anexos…';
-    for (const doc of _emlDocs) {
-      try {
-        const dlRes = await fetch(
-          SUPABASE_URL + '/storage/v1/object/kanban-documents/' + doc.storage_path,
-          { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token } }
-        );
-        if (dlRes.ok) {
-          const blob   = await dlRes.blob();
-          const b64    = await _blobToBase64(blob);
-          attachments.push({ filename: doc.nome_arquivo, content: b64 });
-        }
-      } catch (err) {
-        console.warn('Falha ao baixar anexo:', doc.nome_arquivo, err);
-      }
-    }
-  }
-
-  btn.textContent = '⏳ Enviando…';
-
-  // ── Monta HTML do e-mail ──────────────────────────────
-  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  const bodyHtml  = esc(bodyTxt).replace(/\n/g,'<br>');
-  const cliente   = esc(currentProject?.c || '');
-  const remetente = esc(document.getElementById('emlFrom').value);
-  const hoje      = new Date();
-  const dataHora  = _fmtDataBR(hoje) + ' ' +
-                    String(hoje.getHours()).padStart(2,'0') + ':' +
-                    String(hoje.getMinutes()).padStart(2,'0');
-
-  // Lista de anexos no corpo (para referência visual)
-  const attList = attachments.length
-    ? '<table cellpadding="4" cellspacing="0" style="margin-top:16px;font-size:12px;color:#7aadcc;">' +
-      attachments.map(a => '<tr><td>📄</td><td style="color:#e8f4fd;">' + esc(a.filename) + '</td></tr>').join('') +
-      '</table>'
-    : '';
-
-  const html =
-    '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>' +
-    '<body bgcolor="#f0f4f8" style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;">' +
-    '<table width="100%" bgcolor="#f0f4f8" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">' +
-    '<table width="560" cellpadding="0" cellspacing="0" bgcolor="#0d1f30" style="border-radius:12px;overflow:hidden;max-width:560px;">' +
-
-    // Cabeçalho
-    '<tr><td bgcolor="#081420" style="padding:24px 28px;border-bottom:3px solid #00c4cc;">' +
-    '<p style="margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#00c4cc;">REFORMA TRIBUTÁRIA · TOTVS</p>' +
-    '<p style="margin:0;font-size:18px;font-weight:800;color:#e8f4fd;">📋 ' + cliente + ' — Ata de Reunião</p>' +
-    '</td></tr>' +
-
-    // Card de detalhes
-    '<tr><td style="padding:24px 28px;">' +
-    '<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#112840" style="border-radius:8px;margin-bottom:20px;">' +
-    '<tr><td bgcolor="#163352" style="padding:8px 16px;border-radius:8px 8px 0 0;">' +
-    '<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#00c4cc;">Detalhes</span>' +
-    '</td></tr><tr><td style="padding:14px 16px;">' +
-    '<table cellpadding="4" cellspacing="0" style="font-size:13px;color:#e8f4fd;">' +
-    '<tr><td style="color:#7aadcc;width:100px;">Cliente</td><td style="font-weight:700;">' + cliente + '</td></tr>' +
-    '<tr><td style="color:#7aadcc;">Remetente</td><td>' + remetente + '</td></tr>' +
-    '<tr><td style="color:#7aadcc;">Data</td><td>' + dataHora + '</td></tr>' +
-    (attachments.length ? '<tr><td style="color:#7aadcc;vertical-align:top;">Anexos</td><td>' + attList + '</td></tr>' : '') +
-    '</table></td></tr></table>' +
-
-    // Corpo
-    '<div style="font-size:14px;color:#c8dff0;line-height:1.8;">' + bodyHtml + '</div>' +
-    '<p style="margin:20px 0 0;font-size:11px;color:#7aadcc;">Gerado automaticamente pelo Kanban — Reforma Tributária TOTVS.</p>' +
-    '</td></tr>' +
-
-    // Rodapé
-    '<tr><td bgcolor="#081420" style="padding:12px 28px;border-top:1px solid #1e3d5c;text-align:center;">' +
-    '<p style="margin:0;font-size:11px;color:#4a7a9b;">TOTVS S.A. · Gerenciamento de Projetos Reforma Tributária</p>' +
-    '</td></tr>' +
-    '</table></td></tr></table></body></html>';
+  const html='<!DOCTYPE html><html><head><meta charset="UTF-8"></head>'
+    +'<body bgcolor="#f0f4f8" style="margin:0;padding:0;font-family:Arial,sans-serif;">'
+    +'<table width="100%" bgcolor="#f0f4f8" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">'
+    +'<table width="560" cellpadding="0" cellspacing="0" bgcolor="#0d1f30" style="border-radius:12px;overflow:hidden;max-width:560px;">'
+    +'<tr><td bgcolor="#081420" style="padding:24px 28px;border-bottom:3px solid #00c4cc;">'
+    +'<p style="margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#00c4cc;">REFORMA TRIBUTÁRIA · TOTVS</p>'
+    +'<p style="margin:0;font-size:18px;font-weight:800;color:#e8f4fd;">📋 '+cliente+' — Ata de Reunião</p>'
+    +'</td></tr>'
+    +'<tr><td style="padding:24px 28px;">'
+    +'<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#112840" style="border-radius:8px;margin-bottom:20px;">'
+    +'<tr><td bgcolor="#163352" style="padding:8px 16px;border-radius:8px 8px 0 0;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#00c4cc;">Detalhes</span></td></tr>'
+    +'<tr><td style="padding:14px 16px;"><table cellpadding="4" cellspacing="0" style="font-size:13px;color:#e8f4fd;">'
+    +'<tr><td style="color:#7aadcc;width:100px;">Cliente</td><td style="font-weight:700;">'+cliente+'</td></tr>'
+    +'<tr><td style="color:#7aadcc;">Remetente</td><td>'+remetente+'</td></tr>'
+    +'<tr><td style="color:#7aadcc;">Data</td><td>'+dataHora+'</td></tr>'
+    +'</table></td></tr></table>'
+    +'<div style="font-size:14px;color:#c8dff0;line-height:1.8;">'+bodyHtml+'</div>'
+    +'<p style="margin:20px 0 0;font-size:11px;color:#7aadcc;">Gerado automaticamente pelo Kanban — Reforma Tributária TOTVS.</p>'
+    +'</td></tr>'
+    +'<tr><td bgcolor="#081420" style="padding:12px 28px;border-top:1px solid #1e3d5c;text-align:center;">'
+    +'<p style="margin:0;font-size:11px;color:#4a7a9b;">TOTVS S.A. · Gerenciamento de Projetos Reforma Tributária</p>'
+    +'</td></tr></table></td></tr></table></body></html>';
 
   try {
-    const payload = { to: _emlTo, subject: subject, html: html, from: 'onboarding@resend.dev' };
-    if (attachments.length) payload.attachments = attachments;
-
-    const res = await fetch(SUPABASE_URL + '/functions/v1/resend-email', {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'apikey':        SUPABASE_KEY,
-        'Authorization': 'Bearer ' + (CURRENT_USER?.access_token || SUPABASE_KEY),
-      },
-      body: JSON.stringify(payload),
+    const res=await fetch(SUPABASE_URL+'/functions/v1/resend-email',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+(CURRENT_USER?.access_token||SUPABASE_KEY)},
+      body:JSON.stringify({to:_emlTo,subject,html,from:'onboarding@resend.dev'})
     });
-
-    const data = await res.json();
-    if (!res.ok || data.ok === false) throw new Error(data.error || 'Falha ao enviar');
-
+    const data=await res.json();
+    if(!res.ok||data.ok===false) throw new Error(data.error||'Falha ao enviar');
     fecharEml();
-    const toast = document.getElementById('saveToast');
-    if (toast) {
-      const qtd = attachments.length;
-      toast.textContent = qtd
-        ? '📧 E-mail enviado com ' + qtd + ' anexo' + (qtd > 1 ? 's' : '') + '!'
-        : '📧 E-mail enviado com sucesso!';
-      toast.style.background = 'var(--green)';
-      toast.classList.add('show');
-      setTimeout(function() {
-        toast.classList.remove('show');
-        toast.textContent = '✓ Alterações salvas!';
-        toast.style.background = '';
-      }, 3500);
-    }
-  } catch (err) {
-    btn.disabled = false;
-    btn.textContent = '📤 Enviar';
-    alert('Erro ao enviar e-mail: ' + err.message);
+    const toast=document.getElementById('saveToast');
+    if(toast){toast.textContent='📧 E-mail enviado com sucesso!';toast.style.background='var(--green)';toast.classList.add('show');setTimeout(()=>{toast.classList.remove('show');toast.textContent='✓ Alterações salvas!';toast.style.background='';},3500);}
+  } catch(err){
+    btn.disabled=false; btn.textContent='📤 Enviar';
+    alert('Erro ao enviar e-mail: '+err.message);
   }
 }
 </script>
