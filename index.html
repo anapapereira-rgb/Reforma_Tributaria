@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kanban — Reforma Tributária</title>
+<!-- localForage: wrapper sobre IndexedDB/WebSQL/localStorage.
+     Usado como fallback offline para documentos PDF (substitui base64 no localStorage). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"
+        integrity="sha512-+BMamP0e4rHBNFHPHhz/8HJSmkq9IDNX2WdNMHPcwHgT2cD8aHJnAv8PZIAg3or3f4JFTb3TUZQH+ORfXH9g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -2429,21 +2434,94 @@ function renderStats(data) {
 // ──────────────────────────────────────────────
 
 // ──────────────────────────────────────────────
-// DOCUMENTAÇÃO (PDF) — armazena base64 no localStorage
 // ──────────────────────────────────────────────
-const DOC_MAX_MB  = 4;          // limite por arquivo (MB)
+// DOCUMENTAÇÃO (PDF) — armazenamento local via IndexedDB (localForage)
+//
+// Substitui o fallback de localStorage (limite duro de ~5 MB por domínio
+// e ineficiência de converter Blobs inteiros para base64) por IndexedDB,
+// que suporta gigabytes e armazena Blob/ArrayBuffer nativamente.
+//
+// localForage é carregado do CDN e escolhe automaticamente o melhor
+// driver disponível (IndexedDB → WebSQL → localStorage).  O namespace
+// isolado 'kanban_docs_idb' garante zero colisão com outras chaves.
+// ──────────────────────────────────────────────
+
+const DOC_MAX_MB  = 50;         // limite por arquivo aumentado (MB) — IndexedDB suporta GBs
 const DOC_STORE   = 'kanban_docs';
 
+// ── Instância dedicada do localForage para documentos ─────────────
+// Criada de forma lazy: o script CDN pode ainda estar carregando
+// quando este bloco é avaliado, por isso usamos um getter com retry.
+let _docForage = null;
+
+function _getDocForage() {
+  if (_docForage) return _docForage;
+  if (typeof localforage === 'undefined') return null;
+  _docForage = localforage.createInstance({
+    name:        'kanbanRT',          // banco IndexedDB
+    storeName:   'docs',              // object store
+    description: 'Documentos offline do Kanban Reforma Tributária'
+  });
+  return _docForage;
+}
+
+// ── Chave de projeto ───────────────────────────────────────────────
 function _docKey(pid) { return DOC_STORE + '_' + pid; }
 
-function getDocs(pid) {
-  try { return JSON.parse(localStorage.getItem(_docKey(pid)) || '[]'); } catch(e) { return []; }
-}
-function saveDocs(pid, arr) {
-  try { localStorage.setItem(_docKey(pid), JSON.stringify(arr)); } catch(e) {}
+// ── getDocs: lê do IndexedDB e faz migration do localStorage ──────
+async function getDocs(pid) {
+  const forage = _getDocForage();
+
+  if (forage) {
+    try {
+      const stored = await forage.getItem(_docKey(pid));
+      if (Array.isArray(stored) && stored.length > 0) return stored;
+    } catch(e) { console.warn('[docs] IndexedDB getItem falhou:', e); }
+  }
+
+  // Fallback: dados legados ainda no localStorage (migração transparente)
+  try {
+    const raw = localStorage.getItem(_docKey(pid));
+    if (raw) {
+      const arr = JSON.parse(raw);
+      // Migra para IndexedDB e apaga do localStorage
+      if (Array.isArray(arr) && arr.length > 0 && forage) {
+        await forage.setItem(_docKey(pid), arr).catch(() => {});
+        localStorage.removeItem(_docKey(pid));
+        console.info('[docs] Migrado localStorage → IndexedDB para', pid);
+      }
+      return arr;
+    }
+  } catch(e) {}
+
+  return [];
 }
 
-function renderDocs(pid) {
+// ── saveDocs: persiste no IndexedDB; localStorage apenas como último recurso ──
+async function saveDocs(pid, arr) {
+  const forage = _getDocForage();
+  if (forage) {
+    try {
+      await forage.setItem(_docKey(pid), arr);
+      return;
+    } catch(e) {
+      console.warn('[docs] IndexedDB setItem falhou, tentando localStorage:', e);
+    }
+  }
+  // Último recurso: localStorage com base64 (comportamento legado)
+  try { localStorage.setItem(_docKey(pid), JSON.stringify(arr)); } catch(e) {
+    console.error('[docs] Impossível persistir localmente — armazenamento cheio?', e);
+  }
+}
+
+// ── removeDocLocal: apaga entrada pelo índice no IndexedDB ─────────
+async function _removeDocLocal(pid, idx) {
+  const docs = await getDocs(pid);
+  docs.splice(idx, 1);
+  await saveDocs(pid, docs);
+}
+
+async function renderDocs(pid) {
   const list = document.getElementById('docList');
   if (!list) return;
 
@@ -2453,74 +2531,93 @@ function renderDocs(pid) {
       return;
     }
     list.innerHTML = docs.map((d, i) => {
-      const nome   = escapeHtml(d.name || d.nome_arquivo || '');
+      const nome    = escapeHtml(d.name || d.nome_arquivo || '');
       const tamanho = d.size || d.tamanho || '';
-      const data   = d.date || d.data_upload || '';
-      const href   = d.data || d.url || '#';
-      const docId  = d.sbId || d.id || '';
+      const data    = d.date || d.data_upload || '';
+      // Docs offline têm objectURL gerado na hora; docs online têm URL do Supabase
+      const href    = d.objectURL || d.data || d.url || '#';
+      const docId   = d.sbId || d.id || '';
+      const removeArg = docId ? `'${docId}'` : `${i}`;
+      const offlineBadge = (!docId && !d.url)
+        ? '<span style="font-size:9px;background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b33;border-radius:4px;padding:1px 5px;margin-left:4px;">offline</span>'
+        : '';
       return `<div class="doc-item">
         <div class="doc-icon">📄</div>
         <div class="doc-info">
-          <div class="doc-name" title="${nome}">${nome}</div>
+          <div class="doc-name" title="${nome}">${nome}${offlineBadge}</div>
           <div class="doc-meta">${tamanho} · ${data}</div>
         </div>
         <div class="doc-actions">
           <a class="doc-btn" title="Visualizar" href="${href}" target="_blank">👁</a>
           <a class="doc-btn" title="Baixar" href="${href}" download="${nome}">⬇</a>
-          <button class="doc-btn del" title="Remover" onclick="removeDoc('${docId || i}')">✕</button>
+          <button class="doc-btn del" title="Remover" onclick="removeDoc(${removeArg})">✕</button>
         </div>
       </div>`;
     }).join('');
   }
 
-  // Busca documentos do Supabase se disponível
+  // ── Prioridade 1: Supabase (usuário logado com projeto sincronizado) ──
   if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER?.access_token && currentProject?._uuid) {
     fetch(`${SUPABASE_URL}/rest/v1/documents?project_id=eq.${currentProject._uuid}&select=*&order=created_at.asc`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
     })
     .then(r => r.ok ? r.json() : [])
-    .then(rows => {
+    .then(async rows => {
       if (rows && rows.length > 0) {
-        // Monta URLs públicas do Storage
         const docs = rows.map(r => ({
-          sbId:        r.id,
-          name:        r.nome_arquivo,
-          size:        r.tamanho || '',
-          date:        r.data_upload || '',
-          url:         `${SUPABASE_URL}/storage/v1/object/public/kanban-documents/${r.storage_path}`,
+          sbId:         r.id,
+          name:         r.nome_arquivo,
+          size:         r.tamanho || '',
+          date:         r.data_upload || '',
+          url:          `${SUPABASE_URL}/storage/v1/object/public/kanban-documents/${r.storage_path}`,
           storage_path: r.storage_path
         }));
         mostrarDocs(docs);
       } else {
-        mostrarDocs(getDocs(pid));
+        // Nenhum doc no servidor → tenta IndexedDB local
+        const localDocs = await getDocs(pid).catch(() => []);
+        mostrarDocs(_docsComObjectURL(localDocs));
       }
     })
-    .catch(() => mostrarDocs(getDocs(pid)));
+    .catch(async () => {
+      const localDocs = await getDocs(pid).catch(() => []);
+      mostrarDocs(_docsComObjectURL(localDocs));
+    });
   } else {
-    mostrarDocs(getDocs(pid));
+    // ── Prioridade 2: IndexedDB (modo offline / sem sessão) ──
+    const localDocs = await getDocs(pid).catch(() => []);
+    mostrarDocs(_docsComObjectURL(localDocs));
   }
 }
 
-function removeDoc(idxOrId) {
+// Gera objectURLs temporários para Blobs armazenados no IndexedDB
+function _docsComObjectURL(docs) {
+  return docs.map(d => {
+    if (d.blob instanceof Blob && !d.objectURL) {
+      d.objectURL = URL.createObjectURL(d.blob);
+    }
+    return d;
+  });
+}
+
+async function removeDoc(idxOrId) {
   if (!currentProjectId) return;
   if (!confirm('Remover este documento?')) return;
 
   const isUuid = typeof idxOrId === 'string' && idxOrId.includes('-');
 
   if (isUuid && typeof CURRENT_USER !== 'undefined' && CURRENT_USER?.access_token) {
-    // Busca o storage_path antes de deletar
+    // Remove do Supabase Storage + tabela documents
     fetch(`${SUPABASE_URL}/rest/v1/documents?id=eq.${idxOrId}&select=storage_path`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
     })
     .then(r => r.json())
     .then(async rows => {
       if (rows && rows[0]) {
-        // Remove do Storage
         await fetch(`${SUPABASE_URL}/storage/v1/object/kanban-documents/${rows[0].storage_path}`, {
           method: 'DELETE',
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
         });
-        // Remove da tabela documents
         await fetch(`${SUPABASE_URL}/rest/v1/documents?id=eq.${idxOrId}`, {
           method: 'DELETE',
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
@@ -2531,10 +2628,8 @@ function removeDoc(idxOrId) {
     return;
   }
 
-  // Fallback localStorage
-  const docs = getDocs(currentProjectId);
-  docs.splice(Number(idxOrId), 1);
-  saveDocs(currentProjectId, docs);
+  // Fallback offline: remove do IndexedDB pelo índice numérico
+  await _removeDocLocal(currentProjectId, Number(idxOrId));
   renderDocs(currentProjectId);
 }
 
@@ -2596,7 +2691,7 @@ function _processDocFiles(files) {
   });
 
   if (oversize.length) {
-    warn.textContent = `⚠ Arquivo(s) muito grande(s) (limite ${DOC_MAX_MB} MB): ${oversize.join(', ')}`;
+    warn.textContent = `⚠ Arquivo(s) muito grande(s) (limite ${DOC_MAX_MB} MB por arquivo): ${oversize.join(', ')}`;
     warn.style.display = '';
   }
 
@@ -2673,24 +2768,43 @@ function _processDocFiles(files) {
     });
 
   } else {
-    // Fallback: localStorage (base64)
-    let loaded = 0;
-    const docs = getDocs(currentProjectId);
-    const today = new Date();
+    // ── Fallback offline: IndexedDB, armazenando Blob nativo ──────────
+    // Nenhuma conversão base64 → zero overhead de memória/CPU,
+    // sem limite prático de tamanho (IndexedDB suporta GBs).
+    const today   = new Date();
     const dataFmt = String(today.getDate()).padStart(2,'0') + '/' +
                     String(today.getMonth()+1).padStart(2,'0') + '/' +
                     today.getFullYear();
-    toLoad.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        docs.push({ name: file.name, size: _fmtSize(file.size), date: dataFmt, data: e.target.result });
-        loaded++;
-        if (loaded === toLoad.length) {
-          saveDocs(currentProjectId, docs);
-          renderDocs(currentProjectId);
-        }
-      };
-      reader.readAsDataURL(file);
+
+    // Lê lista atual de forma assíncrona antes de gravar
+    getDocs(currentProjectId).then(async docs => {
+      for (const file of toLoad) {
+        docs.push({
+          localId:  `loc_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          name:     file.name,
+          size:     _fmtSize(file.size),
+          date:     dataFmt,
+          blob:     file,           // Blob nativo — sem base64
+          // objectURL gerado dinamicamente em _docsComObjectURL() na hora de exibir
+        });
+      }
+      await saveDocs(currentProjectId, docs);
+      renderDocs(currentProjectId);
+
+      const toast = document.getElementById('saveToast');
+      if (toast) {
+        toast.textContent = '📎 Documento salvo localmente!';
+        toast.style.background = 'var(--amber)';
+        toast.classList.add('show');
+        setTimeout(() => {
+          toast.classList.remove('show');
+          toast.textContent = '✓ Alterações salvas!';
+          toast.style.background = '';
+        }, 3000);
+      }
+    }).catch(e => {
+      console.error('[docs] Erro ao salvar no IndexedDB:', e);
+      alert('Não foi possível salvar o documento localmente. Tente novamente.');
     });
   }
 }

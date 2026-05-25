@@ -410,8 +410,198 @@ async function iniciarApp() {
   document.body.style.overflow='';
   atualizarTopbar();
   await carregarDadosDoSupabase();
+  // Após carregar os projetos (que populam RAW e _uuid), sincroniza
+  // qualquer documento que ficou pendente no IndexedDB durante uso offline.
+  sincronizarDocsPendentes();
   iniciarAutoRefresh();
   adicionarBotaoRefresh();
+}
+
+// ============================================================
+//  SYNC AUTOMÁTICO DE DOCUMENTOS OFFLINE → SUPABASE
+//
+//  Fluxo:
+//   1. Varre TODAS as chaves do IndexedDB que começam com "kanban_docs_".
+//   2. Para cada projeto com docs pendentes (sem sbId = nunca enviados),
+//      tenta fazer upload para o Supabase Storage + inserir metadados.
+//   3. Ao confirmar o upload, substitui o item local com {sbId, url}
+//      e remove o Blob da memória (libera espaço no IndexedDB).
+//   4. Exibe um toast discreto informando quantos docs foram sincronizados.
+//   5. Erros por arquivo são ignorados silenciosamente (tenta no próximo login).
+// ============================================================
+async function sincronizarDocsPendentes() {
+  if (!CURRENT_USER?.access_token) return;
+
+  // localForage pode ainda não estar disponível (race condition improvável mas possível)
+  if (typeof localforage === 'undefined') return;
+
+  const forage = typeof _getDocForage === 'function' ? _getDocForage() : null;
+  if (!forage) return;
+
+  const token = CURRENT_USER.access_token;
+  let totalSincronizados = 0;
+  let totalErros = 0;
+
+  try {
+    // Lista todas as chaves do object store 'docs'
+    const todasChaves = await forage.keys();
+    const chavesDoc   = todasChaves.filter(k => k.startsWith('kanban_docs_'));
+
+    if (chavesDoc.length === 0) return; // nada pendente
+
+    console.info(`[sync] ${chavesDoc.length} chave(s) no IndexedDB. Verificando pendências...`);
+
+    for (const chave of chavesDoc) {
+      // Extrai o projectId da chave: "kanban_docs_<pid>"
+      const pid = chave.replace('kanban_docs_', '');
+
+      let docs;
+      try { docs = await forage.getItem(chave); } catch(e) { continue; }
+      if (!Array.isArray(docs) || docs.length === 0) continue;
+
+      // Filtra apenas os docs sem sbId (= nunca enviados ao Supabase)
+      const pendentes = docs.filter(d => !d.sbId && d.blob instanceof Blob);
+      if (pendentes.length === 0) continue;
+
+      // Descobre o UUID do projeto pelo projectId (formato "cliente|consultor")
+      // Tenta primeiro pelo cache, depois pelos arrays RAW já carregados
+      const uuid = _resolverUuidPorPid(pid);
+      if (!uuid) {
+        console.warn(`[sync] UUID não encontrado para pid="${pid}". Ficará pendente.`);
+        continue;
+      }
+
+      const today   = new Date();
+      const dataFmt = String(today.getDate()).padStart(2,'0') + '/' +
+                      String(today.getMonth()+1).padStart(2,'0') + '/' +
+                      today.getFullYear();
+
+      for (const doc of pendentes) {
+        try {
+          const _san = n => n.normalize('NFD')
+            .replace(/[\u0300-\u036f]/g,'')
+            .replace(/[[\](){}]/g,'')
+            .replace(/[^a-zA-Z0-9._-]/g,'_')
+            .replace(/_+/g,'_')
+            .slice(0,100);
+
+          const safeName    = _san(doc.name || 'documento.pdf');
+          const storagePath = `${uuid}/${Date.now()}_${safeName}`;
+
+          // 1. Upload do Blob para o Supabase Storage
+          const upRes = await fetch(
+            `${SUPABASE_URL}/storage/v1/object/kanban-documents/${storagePath}`,
+            {
+              method:  'POST',
+              headers: {
+                'apikey':        SUPABASE_KEY,
+                'Authorization': 'Bearer ' + token,
+                'Content-Type':  doc.blob.type || 'application/pdf',
+                'x-upsert':      'true',
+              },
+              body: doc.blob,
+            }
+          );
+
+          if (!upRes.ok) {
+            const err = await upRes.text();
+            console.warn(`[sync] Upload falhou para "${doc.name}":`, err);
+            totalErros++;
+            continue;
+          }
+
+          // 2. Persiste metadados na tabela documents
+          const metaRes = await fetch(`${SUPABASE_URL}/rest/v1/documents`, {
+            method:  'POST',
+            headers: {
+              'Content-Type':  'application/json',
+              'apikey':        SUPABASE_KEY,
+              'Authorization': 'Bearer ' + token,
+              'Prefer':        'return=representation',
+            },
+            body: JSON.stringify({
+              project_id:    uuid,
+              nome_arquivo:  doc.name,
+              tamanho:       doc.size || '',
+              tamanho_bytes: doc.blob.size,
+              data_upload:   doc.date || dataFmt,
+              storage_path:  storagePath,
+              mime_type:     doc.blob.type || 'application/pdf',
+              uploaded_by:   CURRENT_USER.nome || '',
+            }),
+          });
+
+          if (!metaRes.ok) {
+            console.warn(`[sync] Metadata falhou para "${doc.name}":`, await metaRes.text());
+            totalErros++;
+            continue;
+          }
+
+          const metaData = await metaRes.json();
+          const sbId     = (Array.isArray(metaData) ? metaData[0] : metaData)?.id || null;
+
+          // 3. Substitui o item local: troca Blob pesado por referência leve (sbId + url)
+          doc.sbId       = sbId;
+          doc.url        = `${SUPABASE_URL}/storage/v1/object/public/kanban-documents/${storagePath}`;
+          doc.blob       = null;      // libera Blob do IndexedDB
+          doc.objectURL  = undefined; // invalida objectURL antigo
+          totalSincronizados++;
+          console.info(`[sync] ✅ "${doc.name}" enviado para o Supabase (projeto ${pid}).`);
+
+        } catch(errDoc) {
+          console.warn(`[sync] Erro ao sincronizar "${doc.name}":`, errDoc);
+          totalErros++;
+        }
+      }
+
+      // 4. Persiste a lista atualizada no IndexedDB (Blobs removidos, sbIds adicionados)
+      try { await forage.setItem(chave, docs); } catch(e) { /* ignora */ }
+    }
+
+  } catch(e) {
+    console.error('[sync] Erro geral na sincronização de docs:', e);
+    return;
+  }
+
+  // 5. Feedback visual
+  if (totalSincronizados > 0) {
+    const msg = totalSincronizados === 1
+      ? '☁️ 1 documento offline sincronizado com o servidor!'
+      : `☁️ ${totalSincronizados} documentos offline sincronizados com o servidor!`;
+    const extra = totalErros > 0 ? ` (${totalErros} falharam e serão reenviados no próximo acesso)` : '';
+    const toast = document.getElementById('saveToast');
+    if (toast) {
+      toast.textContent = msg + extra;
+      toast.style.background = 'var(--teal, #14b8a6)';
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+        toast.textContent = '✓ Alterações salvas!';
+        toast.style.background = '';
+      }, 5000);
+    }
+    console.info(`[sync] Sincronização concluída: ${totalSincronizados} ok, ${totalErros} erro(s).`);
+  }
+}
+
+// ── Resolve o _uuid do Supabase a partir do projectId local ──
+// projectId tem o formato "cliente|consultor" (gerado pela função projectId() do index.html)
+function _resolverUuidPorPid(pid) {
+  // Tenta pelo cache de UUIDs (PROJECT_ID_CACHE) preenchido ao carregar os projetos
+  const todosProjs = [...(RAW.f1||[]), ...(RAW.f2||[]), ...(RAW.f3||[])];
+  for (const p of todosProjs) {
+    // Reconstrói o pid do jeito que a função projectId() do index.html faz:
+    // (p.c + '|' + (p.cons||'')).toLowerCase().replace(/\s+/g,'_')
+    const candidato = (p.c + '|' + (p.cons||'')).toLowerCase().replace(/\s+/g,'_');
+    if (candidato === pid && p._uuid) return p._uuid;
+  }
+  // Fallback: PROJECT_ID_CACHE indexado por "cliente_fN"
+  for (const [key, uuid] of Object.entries(PROJECT_ID_CACHE)) {
+    const [clienteRaw] = key.split('_f');
+    const clienteNorm  = clienteRaw.toLowerCase().replace(/\s+/g,'_');
+    if (pid.startsWith(clienteNorm)) return uuid;
+  }
+  return null;
 }
 
 function atualizarTopbar() {
