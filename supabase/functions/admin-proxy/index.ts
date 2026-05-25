@@ -5,7 +5,7 @@
 //  Pré-requisitos:
 //    Secrets no Supabase:
 //      ANTHROPIC_API_KEY=sk-ant-xxxx   (já existente)
-//      SUPABASE_SERVICE_KEY=eyJ...     (service_role key — Project Settings → API)
+//      SERVICE_ROLE_KEY=eyJ...     (service_role key — Project Settings → API)
 //
 //  Deploy:
 //    supabase functions deploy admin-proxy --no-verify-jwt
@@ -66,10 +66,10 @@ serve(async (req: Request) => {
   const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
   if (!jwt) return err("Token de autenticação ausente.", 401);
 
-  const serviceKey   = Deno.env.get("SUPABASE_SERVICE_KEY");
+  const serviceKey   = Deno.env.get("SERVICE_ROLE_KEY");
   const supabaseUrl  = Deno.env.get("SUPABASE_URL") || "";
 
-  if (!serviceKey) return err("SUPABASE_SERVICE_KEY não configurada nos secrets da Edge Function.", 500);
+  if (!serviceKey) return err("SERVICE_ROLE_KEY não configurada nos secrets da Edge Function.", 500);
 
   // Valida permissão de gerente
   const ehGerente = await verificarGerente(jwt, supabaseUrl, serviceKey);
