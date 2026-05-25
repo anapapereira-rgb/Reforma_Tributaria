@@ -954,20 +954,20 @@ async function guResetarSenha(uid, email, nome, btn) {
   btn.innerHTML = '<div class="gu-spin" style="width:14px;height:14px;border-width:2px;margin:0 auto;"></div>';
 
   try {
-    if (uid) {
-      // Caminho 1: via Edge Function admin-proxy
-      await _adminCall('reset_password', { uid, password: 'Mudar@123' });
-    } else {
-      // Caminho 2: Supabase envia e-mail de redefinição
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
-        body: JSON.stringify({ email })
-      });
-      if (!res.ok) throw new Error('Falha ao enviar e-mail de redefinição.');
+    // Se não tiver uid, busca pelo e-mail na lista de usuários Auth
+    let uidFinal = uid;
+    if (!uidFinal) {
+      const data = await _adminCall('list_users');
+      const found = (data.users || []).find(u => u.email?.toLowerCase() === email.toLowerCase());
+      if (found) uidFinal = found.id;
     }
 
-    // Feedback visual na linha do usuário
+    if (!uidFinal) throw new Error('Usuário não encontrado no Supabase Auth. Verifique se o cadastro existe.');
+
+    // Redefine a senha via admin-proxy
+    await _adminCall('reset_password', { uid: uidFinal, password: 'Mudar@123' });
+
+    // Feedback visual
     btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Redefinida!`;
     btn.style.borderColor = '#22c55e33';
     btn.style.color = '#22c55e';
@@ -978,14 +978,13 @@ async function guResetarSenha(uid, email, nome, btn) {
   } catch(e) {
     console.error('Erro ao redefinir senha:', e);
     btn.innerHTML = orig; btn.disabled = false;
-    // Mostra erro inline sem alert()
     const row = btn.closest('.gu-user-row');
     if (row) {
-      const err = document.createElement('div');
-      err.style.cssText = 'font-size:11px;color:#fca5a5;margin-top:6px;padding:6px 10px;background:#ef444411;border-radius:6px;';
-      err.textContent = `⚠ ${e.message || 'Não foi possível redefinir. Tente pelo Supabase Dashboard.'}`;
-      row.insertAdjacentElement('afterend', err);
-      setTimeout(() => err.remove(), 5000);
+      const errDiv = document.createElement('div');
+      errDiv.style.cssText = 'font-size:11px;color:#fca5a5;margin-top:6px;padding:6px 10px;background:#ef444411;border-radius:6px;';
+      errDiv.textContent = `⚠ ${e.message || 'Não foi possível redefinir. Tente pelo SQL Editor no Supabase Dashboard.'}`;
+      row.insertAdjacentElement('afterend', errDiv);
+      setTimeout(() => errDiv.remove(), 6000);
     }
   }
 }
