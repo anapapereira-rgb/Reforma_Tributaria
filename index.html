@@ -196,6 +196,58 @@
   .upd-date { font-size: 10px; color: var(--muted); }
   .card-alert { position: absolute; top: 8px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
 
+  /* ── BLOQUEIO / IMPEDIMENTO ── */
+  /* Borda âmbar pulsante quando blk ≠ Consultor e projeto em andamento */
+  .card.card-blocked {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 1px #f59e0b44, 0 2px 8px rgba(0,0,0,.25);
+    animation: blk-pulse 3s ease-in-out infinite;
+  }
+  .card.card-blocked:hover {
+    border-color: #fbbf24;
+    box-shadow: 0 0 0 2px #f59e0b55, 0 4px 14px rgba(0,0,0,.35);
+  }
+  @keyframes blk-pulse {
+    0%, 100% { box-shadow: 0 0 0 1px #f59e0b44, 0 2px 8px rgba(0,0,0,.25); }
+    50%       { box-shadow: 0 0 0 3px #f59e0b22, 0 2px 8px rgba(0,0,0,.25); }
+  }
+
+  /* Tarja de bloqueio no topo do card */
+  .card-blocked-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    background: linear-gradient(90deg, #f59e0b18, #f59e0b0a);
+    border: 1px solid #f59e0b33;
+    border-radius: 4px;
+    padding: 3px 8px;
+    margin-bottom: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #f59e0b;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .card-blocked-banner .blk-icon { font-size: 11px; flex-shrink: 0; }
+  .card-blocked-banner .blk-who  { flex: 1; }
+  /* Contador de dias parado */
+  .card-stale-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  /* Cores por faixa de dias sem movimentação */
+  .stale-ok     { background: #1e293b;          color: #64748b; }            /* < 3 dias  */
+  .stale-warn   { background: #f59e0b18;         color: #f59e0b; border: 1px solid #f59e0b33; } /* 3–7 dias  */
+  .stale-danger { background: var(--red-bg);     color: var(--red);   border: 1px solid #ef444433; } /* > 7 dias  */
+
   /* avatar colors per consultant */
   .av-Erica    { background: #6366f1; }
   .av-Otavio   { background: #14b8a6; }
@@ -1590,6 +1642,7 @@
     <button class="sb-btn" id="sb-st-EA" onclick="sbFilterSt('EM ANDAMENTO',this)"><span class="sb-dot" style="background:#60a5fa"></span>Em andamento</button>
     <button class="sb-btn" id="sb-st-CO" onclick="sbFilterSt('CONCLUÍDO',this)"><span class="sb-dot" style="background:var(--green)"></span>Concluído</button>
     <button class="sb-btn" id="sb-st-CA" onclick="sbFilterSt('CANCELADO',this)"><span class="sb-dot" style="background:var(--red)"></span>Cancelado</button>
+    <button class="sb-btn" id="sb-st-BL" onclick="sbFilterSt('BLOQUEADO',this)"><span class="sb-dot" style="background:#f59e0b"></span>Bloqueados 🔒</button>
   </div>
 
   <div class="sb-divider"></div>
@@ -2293,8 +2346,15 @@ function filtered() {
   return src.filter(p => {
     if (filterCons_ !== 'all' && p.cons !== filterCons_) return false;
     if (filterSt_ !== 'all') {
-      if (filterSt_ === 'CANCELADO') { if (p.atv !== 'CANCELADO') return false; }
-      else { if ((p.st || '') !== filterSt_) return false; }
+      if (filterSt_ === 'CANCELADO') {
+        if (p.atv !== 'CANCELADO') return false;
+      } else if (filterSt_ === 'BLOQUEADO') {
+        // Pseudo-status: em andamento com responsável ≠ Consultor
+        const isBlocked = p.st === 'EM ANDAMENTO' && p.blk && p.blk !== 'Consultor';
+        if (!isBlocked) return false;
+      } else {
+        if ((p.st || '') !== filterSt_) return false;
+      }
     }
     if (filterPrazo_ !== 'all' && (p.prazo || '') !== filterPrazo_) return false;
     if (filterAtv_ !== 'all' && p.atv !== filterAtv_) return false;
@@ -2360,7 +2420,60 @@ function makeCard(p) {
   el.className = 'card';
   el.draggable = true;
   el.dataset.clientId = projectId(p);
+
   const isAtrasado = p.prazo === 'ATRASADO';
+
+  // ── Lógica de bloqueio ────────────────────────────────────────────
+  // Um card está BLOQUEADO quando o projeto está em andamento e a bola
+  // está do lado do cliente, da sustentação ou de outra área — não do consultor.
+  const BLK_RESPONSAVEL = p.blk || '';
+  const isBlocked = p.st === 'EM ANDAMENTO' &&
+                    BLK_RESPONSAVEL !== '' &&
+                    BLK_RESPONSAVEL !== 'Consultor';
+
+  if (isBlocked) el.classList.add('card-blocked');
+
+  // ── Contador de dias sem movimentação ─────────────────────────────
+  // Calculado a partir de upd (última atualização salva no card).
+  // Formato esperado: DD/MM/AAAA  — converte para Date antes de calcular.
+  const diasParado = _calcDiasParado(p.upd);
+
+  // Classe visual por faixa de dias
+  const staleCls = diasParado === null  ? ''
+                 : diasParado < 3       ? 'stale-ok'
+                 : diasParado <= 7      ? 'stale-warn'
+                 :                       'stale-danger';
+
+  // Só exibe o contador quando há data E o card não está concluído/cancelado
+  const mostrarStale = diasParado !== null &&
+                       p.st !== 'CONCLUÍDO' &&
+                       p.st !== 'CANCELADO';
+
+  const staleBadgeHtml = mostrarStale
+    ? `<span class="card-stale-badge ${staleCls}" title="Dias sem atualização">
+         🕐 ${diasParado}d
+       </span>`
+    : '';
+
+  // ── Banner de impedimento ──────────────────────────────────────────
+  // Ícone e texto variam pelo responsável
+  const BLK_CFG = {
+    'Cliente':        { icon: '👤', label: 'AGUARDANDO CLIENTE' },
+    'Sustentação':    { icon: '🔧', label: 'AGUARDANDO SUSTENTAÇÃO' },
+    'Suporte Matriz': { icon: '🏢', label: 'AGUARDANDO SUPORTE MATRIZ' },
+    'Terceiros':      { icon: '🤝', label: 'AGUARDANDO TERCEIROS' },
+  };
+  const blkCfg = BLK_CFG[BLK_RESPONSAVEL] || { icon: '⏸', label: `AGUARDANDO ${BLK_RESPONSAVEL.toUpperCase()}` };
+
+  const blockedBannerHtml = isBlocked
+    ? `<div class="card-blocked-banner">
+         <span class="blk-icon">${blkCfg.icon}</span>
+         <span class="blk-who">${blkCfg.label}</span>
+         ${staleBadgeHtml}
+       </div>`
+    : '';
+
+  // ── Dots de progresso de tarefas ──────────────────────────────────
   const stDotCls = s => s==='Em andamento'?'st-done':s==='Concluído'?'st-conc':s==='Não Iniciado'?'st-wait':s==='N/A'?'st-na':'';
   const isTaskFinished = s => s==='Concluído' || s==='Em andamento' || s==='N/A';
   const dotHtml = phase === 1
@@ -2382,6 +2495,7 @@ function makeCard(p) {
 
   el.innerHTML = `
     ${isAtrasado ? '<div class="card-alert"></div>' : ''}
+    ${blockedBannerHtml}
     <div class="card-top">
       <div class="card-name">${p.c}</div>
       <span class="pkg-badge pkg-${p.pkg||'P'}">${p.pkg||'P'}</span>
@@ -2396,25 +2510,55 @@ function makeCard(p) {
     ${(p.sus==='Sustentação'||p.sus==='Totvs Matriz') ? `<div class="sus-badge sus-yes">${p.sus==='Totvs Matriz'?'🏢':'🔧'} ${p.sus}</div>` : ''}
     <div class="card-footer">
       ${p.prazo ? `<span class="prazo-tag ${p.prazo === 'ATRASADO' ? 'prazo-at' : p.prazo === 'ADIANTADO' ? 'prazo-ad' : 'prazo-ok'}">${p.prazo === 'ATRASADO' ? '⚠ Atrasado' : p.prazo === 'ADIANTADO' ? '⚡ Adiantado' : '✓ No prazo'}</span>` : '<span></span>'}
+      ${!isBlocked && mostrarStale ? staleBadgeHtml : ''}
       ${p.upd ? `<span class="upd-date">${p.upd}</span>` : ''}
     </div>`;
+
   el.addEventListener('click', () => openModal(p));
   el.addEventListener('dragstart', e => onDragStart(e, p));
   el.addEventListener('dragend',   e => onDragEnd(e));
   return el;
 }
 
+// ── Calcula quantos dias se passaram desde a última atualização ────
+// upd está no formato DD/MM/AAAA (string salva pelo sistema).
+// Retorna null se a data for inválida ou ausente.
+function _calcDiasParado(upd) {
+  if (!upd) return null;
+  const partes = upd.split('/');
+  if (partes.length !== 3) return null;
+  const [d, m, a] = partes.map(Number);
+  if (!d || !m || !a || a < 2000) return null;
+  const dataUpd = new Date(a, m - 1, d);
+  const hoje    = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const diff = Math.floor((hoje - dataUpd) / 86400000);
+  return diff >= 0 ? diff : null;
+}
+
 function renderStats(data) {
   const el = document.getElementById('statsRow');
+
+  // Projetos bloqueados: em andamento com responsável ≠ Consultor
+  const bloq = data.filter(p =>
+    p.st === 'EM ANDAMENTO' && p.blk && p.blk !== 'Consultor'
+  ).length;
+
+  // Cor do card de bloqueio: destaque se houver algum
+  const bloqColor = bloq > 0 ? '#f59e0b' : 'var(--muted)';
+  const bloqBg    = bloq > 0 ? '#f59e0b22' : '#1e293b22';
+  const bloqIcon  = bloq > 0 ? '🔒' : '🔓';
+
   if (phase === 1) {
     const done = data.filter(p => p.st === 'CONCLUÍDO').length;
     const prog = data.filter(p => p.st === 'EM ANDAMENTO').length;
-    const at = data.filter(p => p.prazo === 'ATRASADO').length;
+    const at   = data.filter(p => p.prazo === 'ATRASADO').length;
     el.innerHTML = `
       <div class="stat-card"><div class="stat-icon" style="background:#6366f122">📋</div><div class="stat-info"><div class="val">${data.length}</div><div class="lbl">Total projetos</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">✅</div><div class="stat-info"><div class="val" style="color:var(--green)">${done}</div><div class="lbl">Concluídos</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#3b82f622">🔄</div><div class="stat-info"><div class="val" style="color:#60a5fa">${prog}</div><div class="lbl">Em andamento</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#ef444422">⚠️</div><div class="stat-info"><div class="val" style="color:var(--red)">${at}</div><div class="lbl">Atrasados</div></div></div>
+      <div class="stat-card" title="Projetos aguardando ação de Cliente, Sustentação ou terceiros"><div class="stat-icon" style="background:${bloqBg}">${bloqIcon}</div><div class="stat-info"><div class="val" style="color:${bloqColor}">${bloq}</div><div class="lbl">Bloqueados</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${Math.round(done/Math.max(data.length,1)*100)}%</div><div class="lbl">Conclusão</div></div></div>`;
   } else {
     const done = data.filter(p => p.st === 'CONCLUÍDO').length;
@@ -2425,6 +2569,7 @@ function renderStats(data) {
       <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">✅</div><div class="stat-info"><div class="val" style="color:var(--green)">${done}</div><div class="lbl">Concluídos</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#3b82f622">🔄</div><div class="stat-info"><div class="val" style="color:#60a5fa">${prog}</div><div class="lbl">Em andamento</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#1e293b22">⏸</div><div class="stat-info"><div class="val" style="color:var(--muted)">${ni}</div><div class="lbl">Não iniciado</div></div></div>
+      <div class="stat-card" title="Projetos aguardando ação de Cliente, Sustentação ou terceiros"><div class="stat-icon" style="background:${bloqBg}">${bloqIcon}</div><div class="stat-info"><div class="val" style="color:${bloqColor}">${bloq}</div><div class="lbl">Bloqueados</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${Math.round(done/Math.max(data.length,1)*100)}%</div><div class="lbl">Conclusão</div></div></div>`;
   }
 }
