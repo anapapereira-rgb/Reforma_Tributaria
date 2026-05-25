@@ -4,9 +4,7 @@
 // ============================================================
 
 const SUPABASE_URL = 'https://vxeoabwqkzfdwsatuvqf.supabase.co';
-//const SUPABASE_KEY = 'sb_publishable_H47gHBW02AOIdECpaPiY0A_N1Bmd6H6';
-
-const SUPABASE_KEY ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4ZW9hYndxa3pmZHdzYXR1dnFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDA4MDIsImV4cCI6MjA5NDY3NjgwMn0.47vBJTcNACxa3-PxMqLBdaGqxOB2lXLP8qGV6BdQRGI';
+const SUPABASE_KEY = 'sb_publishable_H47gHBW02AOIdECpaPiY0A_N1Bmd6H6';
 
 const USUARIOS = [
   { nome: 'Ana Paula', email: 'ana.papereira@totvs.com.br',        perfil: 'gerente',   consultor: '' },
@@ -423,9 +421,16 @@ function atualizarTopbar() {
   const iniciais    = CURRENT_USER.nome.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
   const cor         = CURRENT_USER.perfil==='gerente' ? 'linear-gradient(135deg,#00c4cc,#0088ff)' : 'linear-gradient(135deg,#a855f7,#6366f1)';
   const labelPerfil = CURRENT_USER.perfil==='gerente' ? 'Gerente de Projetos' : 'Consultor';
+  const btnUsuarios = CURRENT_USER.perfil==='gerente'
+    ? `<button onclick="abrirGerenciarUsuarios()" title="Gerenciar Usuários" style="background:none;border:1px solid #1e3d5c;border-radius:6px;color:#7aadcc;
+        cursor:pointer;font-size:12px;margin-left:6px;padding:4px 10px;line-height:1;transition:all .15s;font-family:Inter,sans-serif;"
+        onmouseover="this.style.borderColor='#00c4cc';this.style.color='#00c4cc'" onmouseout="this.style.borderColor='#1e3d5c';this.style.color='#7aadcc'">
+        👥 Usuários</button>`
+    : '';
   badge.innerHTML = `
     <div class="avatar" style="background:${cor};font-size:11px;">${iniciais}</div>
     <span>${CURRENT_USER.nome} · ${labelPerfil}</span>
+    ${btnUsuarios}
     <button onclick="fazerLogout()" title="Sair" style="background:none;border:none;color:#7aadcc;
       cursor:pointer;font-size:16px;margin-left:6px;padding:0;line-height:1;transition:color .15s;"
       onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#7aadcc'">&#x23FB;</button>
@@ -442,6 +447,252 @@ function atualizarTopbar() {
       });
     }, 500);
   }
+}
+
+// ============================================================
+//  TELA DE GERENCIAMENTO DE USUÁRIOS (apenas gerentes)
+// ============================================================
+function abrirGerenciarUsuarios() {
+  if (!CURRENT_USER || CURRENT_USER.perfil !== 'gerente') return;
+
+  let overlay = document.getElementById('gu-overlay');
+  if (overlay) { overlay.remove(); }
+
+  overlay = document.createElement('div');
+  overlay.id = 'gu-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(8,20,32,.85);display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;backdrop-filter:blur(4px);';
+  overlay.innerHTML = `
+    <style>
+      #gu-modal{background:#0d1f30;border:1px solid #1e3d5c;border-radius:16px;padding:32px 36px;
+        width:100%;max-width:680px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.7);
+        animation:guFade .25s ease;}
+      @keyframes guFade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+      #gu-modal h2{font-size:18px;font-weight:800;color:#e8f4fd;margin-bottom:4px;}
+      #gu-modal .gu-sub{font-size:12px;color:#7aadcc;margin-bottom:24px;}
+      .gu-section{margin-bottom:28px;}
+      .gu-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+        color:#00c4cc;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #1e3d5c;}
+      .gu-user-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;
+        background:#112840;border:1px solid #1e3d5c;margin-bottom:8px;transition:border-color .15s;}
+      .gu-user-row:hover{border-color:#2a5278;}
+      .gu-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+        font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+      .gu-user-info{flex:1;min-width:0;}
+      .gu-user-name{font-size:13px;font-weight:600;color:#e8f4fd;}
+      .gu-user-email{font-size:11px;color:#7aadcc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+      .gu-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;flex-shrink:0;}
+      .gu-badge-g{background:#00c4cc22;color:#00c4cc;border:1px solid #00c4cc44;}
+      .gu-badge-c{background:#a855f722;color:#a855f7;border:1px solid #a855f744;}
+      .gu-btn-reset{background:none;border:1px solid #1e3d5c;border-radius:6px;color:#7aadcc;
+        cursor:pointer;font-size:11px;padding:4px 10px;transition:all .15s;font-family:Inter,sans-serif;flex-shrink:0;}
+      .gu-btn-reset:hover{border-color:#f59e0b;color:#f59e0b;}
+      .gu-divider{height:1px;background:#1e3d5c;margin:24px 0;}
+      .gu-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+      .gu-field{display:flex;flex-direction:column;gap:5px;}
+      .gu-field.full{grid-column:1/-1;}
+      .gu-field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#7aadcc;}
+      .gu-field input,.gu-field select{background:#112840;border:1px solid #1e3d5c;border-radius:8px;
+        padding:9px 12px;color:#e8f4fd;font-size:13px;font-family:Inter,sans-serif;outline:none;
+        transition:border-color .15s;width:100%;box-sizing:border-box;}
+      .gu-field input:focus,.gu-field select:focus{border-color:#00c4cc;}
+      .gu-field select option{background:#112840;}
+      .gu-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end;}
+      .gu-btn-cancel{padding:10px 20px;border:1px solid #1e3d5c;border-radius:8px;background:none;
+        color:#7aadcc;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s;}
+      .gu-btn-cancel:hover{border-color:#2a5278;color:#e8f4fd;}
+      .gu-btn-criar{padding:10px 24px;border:none;border-radius:8px;
+        background:linear-gradient(135deg,#00c4cc,#0088ff);color:#fff;font-size:13px;
+        font-weight:700;cursor:pointer;font-family:Inter,sans-serif;transition:opacity .15s;}
+      .gu-btn-criar:hover{opacity:.88;} .gu-btn-criar:disabled{opacity:.5;cursor:not-allowed;}
+      .gu-msg{padding:10px 14px;border-radius:8px;font-size:12px;margin-top:12px;display:none;grid-column:1/-1;}
+      .gu-msg.ok{background:#22c55e22;border:1px solid #22c55e44;color:#86efac;}
+      .gu-msg.err{background:#ef444422;border:1px solid #ef444444;color:#f87171;}
+    </style>
+    <div id="gu-modal">
+      <h2>👥 Gerenciar Usuários</h2>
+      <div class="gu-sub">Visualize, redefina senhas e crie novos acessos ao sistema.</div>
+
+      <!-- Lista de usuários existentes -->
+      <div class="gu-section">
+        <div class="gu-section-title">Usuários cadastrados</div>
+        <div id="gu-user-list"></div>
+      </div>
+
+      <div class="gu-divider"></div>
+
+      <!-- Formulário de novo usuário -->
+      <div class="gu-section">
+        <div class="gu-section-title">➕ Criar novo acesso</div>
+        <div class="gu-form">
+          <div class="gu-field">
+            <label>Nome</label>
+            <input type="text" id="gu-nome" placeholder="Ex: Carlos Silva"/>
+          </div>
+          <div class="gu-field">
+            <label>E-mail</label>
+            <input type="email" id="gu-email" placeholder="usuario@totvs.com.br"/>
+          </div>
+          <div class="gu-field">
+            <label>Perfil</label>
+            <select id="gu-perfil" onchange="guToggleConsultor()">
+              <option value="consultor">Consultor</option>
+              <option value="gerente">Gerente de Projetos</option>
+            </select>
+          </div>
+          <div class="gu-field" id="gu-consultor-wrap">
+            <label>Nome do Consultor (filtro Kanban)</label>
+            <input type="text" id="gu-consultor" placeholder="Ex: Carlos"/>
+          </div>
+          <div class="gu-field full">
+            <label>Senha inicial</label>
+            <input type="text" id="gu-senha-ini" value="Mudar@123" placeholder="Senha provisória"/>
+          </div>
+          <div class="gu-msg" id="gu-criar-msg"></div>
+        </div>
+        <div class="gu-actions">
+          <button class="gu-btn-cancel" onclick="document.getElementById('gu-overlay').remove()">Fechar</button>
+          <button class="gu-btn-criar" id="gu-btn-criar" onclick="guCriarUsuario()">✓ Criar acesso</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  // Renderizar lista de usuários
+  _guRenderLista();
+}
+
+function guToggleConsultor() {
+  const perfil = document.getElementById('gu-perfil').value;
+  const wrap   = document.getElementById('gu-consultor-wrap');
+  if (wrap) wrap.style.display = perfil === 'consultor' ? 'flex' : 'none';
+}
+
+function _guRenderLista() {
+  const el = document.getElementById('gu-user-list');
+  if (!el) return;
+  const cores = ['#6366f1','#14b8a6','#f59e0b','#ec4899','#22c55e','#a855f7','#3b82f6','#ef4444'];
+  el.innerHTML = USUARIOS.map((u, i) => {
+    const iniciais = u.nome.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+    const cor      = cores[i % cores.length];
+    const badge    = u.perfil === 'gerente'
+      ? '<span class="gu-badge gu-badge-g">Gerente</span>'
+      : '<span class="gu-badge gu-badge-c">Consultor</span>';
+    return `
+      <div class="gu-user-row">
+        <div class="gu-avatar" style="background:${cor}">${iniciais}</div>
+        <div class="gu-user-info">
+          <div class="gu-user-name">${u.nome}</div>
+          <div class="gu-user-email">${u.email}</div>
+        </div>
+        ${badge}
+        <button class="gu-btn-reset" onclick="guResetarSenha('${u.email}','${u.nome}',this)" title="Redefinir senha para Mudar@123">
+          🔑 Redefinir senha
+        </button>
+      </div>`;
+  }).join('');
+}
+
+async function guResetarSenha(email, nome, btn) {
+  if (!confirm(`Redefinir a senha de ${nome} para "Mudar@123"?\n\nEle(a) precisará alterar no próximo acesso.`)) return;
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '⏳ Aguarde...';
+
+  try {
+    // Usa o endpoint de admin via service_role se disponível, senão orienta
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
+    });
+    const data = res.ok ? await res.json() : null;
+    const users = data?.users || [];
+    const user  = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+    if (!user) {
+      // Fallback: mostra instrução
+      btn.innerHTML = orig; btn.disabled = false;
+      alert(`Usuário encontrado no sistema.\n\nPara redefinir a senha de ${nome}, acesse:\n🔗 Supabase Dashboard → Authentication → Users\n→ Selecione "${email}" → Send password reset email`);
+      return;
+    }
+
+    const upd = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${user.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token },
+      body: JSON.stringify({ password: 'Mudar@123' })
+    });
+
+    if (upd.ok) {
+      btn.innerHTML = '✅ Redefinida!';
+      btn.style.borderColor = '#22c55e'; btn.style.color = '#22c55e';
+      setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; btn.disabled = false; }, 3000);
+    } else {
+      throw new Error(await upd.text());
+    }
+  } catch(e) {
+    console.error('Erro ao redefinir senha:', e);
+    btn.innerHTML = orig; btn.disabled = false;
+    alert(`Não foi possível redefinir via API.\n\nAcesse o Supabase Dashboard para redefinir manualmente:\n→ Authentication → Users → ${email}`);
+  }
+}
+
+async function guCriarUsuario() {
+  const nome    = (document.getElementById('gu-nome').value || '').trim();
+  const email   = (document.getElementById('gu-email').value || '').trim().toLowerCase();
+  const perfil  = document.getElementById('gu-perfil').value;
+  const consul  = (document.getElementById('gu-consultor').value || '').trim();
+  const senha   = (document.getElementById('gu-senha-ini').value || 'Mudar@123').trim();
+  const msg     = document.getElementById('gu-criar-msg');
+  const btn     = document.getElementById('gu-btn-criar');
+
+  msg.style.display = 'none';
+
+  if (!nome)  { _guMsg('err', 'Informe o nome do usuário.'); return; }
+  if (!email || !email.includes('@')) { _guMsg('err', 'Informe um e-mail válido.'); return; }
+  if (perfil === 'consultor' && !consul) { _guMsg('err', 'Informe o nome do consultor para o filtro.'); return; }
+  if (senha.length < 8) { _guMsg('err', 'A senha deve ter pelo menos 8 caracteres.'); return; }
+  if (USUARIOS.find(u => u.email.toLowerCase() === email)) { _guMsg('err', 'Este e-mail já está cadastrado.'); return; }
+
+  btn.disabled = true; btn.textContent = '⏳ Criando...';
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token },
+      body: JSON.stringify({ email, password: senha, email_confirm: true })
+    });
+
+    if (res.ok) {
+      // Adiciona na lista local USUARIOS para sessão atual
+      const novo = { nome, email, perfil, consultor: perfil === 'gerente' ? '' : consul };
+      USUARIOS.push(novo);
+      _guMsg('ok', `✅ Usuário "${nome}" criado com sucesso! Senha inicial: ${senha}`);
+      _guRenderLista();
+      document.getElementById('gu-nome').value = '';
+      document.getElementById('gu-email').value = '';
+      document.getElementById('gu-consultor').value = '';
+      document.getElementById('gu-senha-ini').value = 'Mudar@123';
+    } else {
+      const err = await res.json();
+      if (err.msg && err.msg.includes('already')) {
+        _guMsg('err', 'Este e-mail já existe no sistema de autenticação.');
+      } else {
+        _guMsg('err', `Erro ao criar: ${err.msg || err.message || 'Verifique o Supabase Dashboard.'}`);
+      }
+    }
+  } catch(e) {
+    _guMsg('err', 'Erro de conexão. Verifique sua internet.');
+  }
+
+  btn.disabled = false; btn.textContent = '✓ Criar acesso';
+}
+
+function _guMsg(tipo, texto) {
+  const el = document.getElementById('gu-criar-msg');
+  if (!el) return;
+  el.className = `gu-msg ${tipo}`;
+  el.textContent = texto;
+  el.style.display = 'block';
 }
 
 // ============================================================
