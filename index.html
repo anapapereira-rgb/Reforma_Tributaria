@@ -705,6 +705,8 @@
   .card-atv[data-atv='EM CONFIGURAÇÃO']          { background: var(--blue-bg);   color: #60a5fa;       border: 1px solid #3b82f644; }
   .card-atv[data-atv='MANUTENÇÃO PERFIS']        { background: var(--purple-bg); color: #c084fc;       border: 1px solid var(--purple)44; }
   .card-atv[data-atv='AGUARDANDO PLANILHA']      { background: var(--amber-bg);  color: var(--amber);  border: 1px solid var(--amber)44; }
+  .card-atv[data-atv='DEPLOY PROD']              { background: #0a3050;          color: #38bdf8;       border: 1px solid #38bdf844; }
+  .card-atv[data-atv='PARALISADO']               { background: #1e293b;          color: #94a3b8;       border: 1px solid #94a3b833; }
 
   /* ── FILTRO ATIVIDADE ── */
   .filter-bar-atv {
@@ -1657,6 +1659,8 @@
     <button class="sb-btn" id="sb-atv-PP" onclick="sbFilterAtv('EM PRODUÇÃO - PENDÊNCIAS',this)"><span class="sb-dot" style="background:var(--amber)"></span>Em produção (pendências)</button>
     <button class="sb-btn" id="sb-atv-PE" onclick="sbFilterAtv('EM PRODUÇÃO - ERROS',this)"><span class="sb-dot" style="background:var(--red)"></span>Em produção (erros)</button>
     <button class="sb-btn" id="sb-atv-PR" onclick="sbFilterAtv('EM PRODUÇÃO',this)"><span class="sb-dot" style="background:var(--green)"></span>Em produção</button>
+    <button class="sb-btn" id="sb-atv-DP" onclick="sbFilterAtv('DEPLOY PROD',this)"><span class="sb-dot" style="background:#38bdf8"></span>Deploy Prod 🚀</button>
+    <button class="sb-btn" id="sb-atv-PA" onclick="sbFilterAtv('PARALISADO',this)"><span class="sb-dot" style="background:#94a3b8"></span>Paralisado ⏹</button>
   </div>
 
   <div class="sb-divider"></div>
@@ -3175,6 +3179,8 @@ function renderModalView(p) {
         'EM CONFIGURAÇÃO':          'background:var(--blue-bg);color:#60a5fa;border:1px solid #3b82f644',
         'MANUTENÇÃO PERFIS':        'background:var(--purple-bg);color:#c084fc;border:1px solid var(--purple)44',
         'AGUARDANDO PLANILHA':      'background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber)44',
+        'DEPLOY PROD':              'background:#0a3050;color:#38bdf8;border:1px solid #38bdf844',
+        'PARALISADO':               'background:#1e293b;color:#94a3b8;border:1px solid #94a3b833',
       };
       const style = atvColors[p.atv] || 'background:var(--surface2);color:var(--muted)';
       return `<span class="mtag" style="${style}">${p.atv}</span>`;
@@ -3740,9 +3746,28 @@ const FIELD_OPTS = {
       { val: 'EM PRODUÇÃO - PENDÊNCIAS', label: '🟡 Em produção (pendências)',  color: 'amber'  },
       { val: 'EM PRODUÇÃO - ERROS',      label: '🔴 Em produção (erros)',       color: 'red'    },
       { val: 'EM PRODUÇÃO',             label: '🟢 Em produção',               color: 'green'  },
+      { val: 'DEPLOY PROD',             label: '🚀 Deploy Prod',               color: 'blue'   },
+      { val: 'PARALISADO',              label: '⏹ Paralisado',                 color: ''       },
       { val: '',                        label: '— Sem atividade',               color: ''       },
     ]
   }
+};
+
+// ── Regras de automação: ATV → BLK ────────────────────────────────
+// Sempre que o consultor selecionar uma atividade, o responsável
+// pela tarefa é preenchido automaticamente conforme esta tabela.
+// O usuário pode sobrescrever manualmente depois se necessário.
+const ATV_BLK_RULES = {
+  'EM CONFIGURAÇÃO':          'Consultor',
+  'AGUARDANDO PLANILHA':      'Cliente',
+  'VALIDAÇÃO':                'Cliente',
+  'MANUTENÇÃO PERFIS':        'Cliente',
+  'EM PRODUÇÃO - ERROS':      'Consultor',
+  'EM PRODUÇÃO - PENDÊNCIAS': 'Consultor',
+  'EM PRODUÇÃO':              '',           // não definido
+  'DEPLOY PROD':              'Consultor',
+  'PARALISADO':               '',           // não definido
+  '':                         '',           // sem atividade → não definido
 };
 
 let editState = {};
@@ -3800,6 +3825,33 @@ function selectOpt(el, field, val) {
   const fieldDef = FIELD_OPTS[field];
   const optDef = fieldDef.opts.find(o => o.val === val);
   el.className = 'edit-option selected' + (optDef && optDef.color ? ' sel-' + optDef.color : '');
+
+  // ── Automação ATV → BLK ──────────────────────────────────────────
+  // Quando o usuário seleciona uma atividade, o responsável é
+  // preenchido automaticamente conforme ATV_BLK_RULES.
+  // O painel de "Responsável" também é atualizado visualmente.
+  if (field === 'atv' && val in ATV_BLK_RULES) {
+    const autoBlk = ATV_BLK_RULES[val];
+    editState.blk = autoBlk;
+
+    // Atualiza visualmente os botões do campo blk
+    const blkContainer = document.getElementById('opt-blk');
+    if (blkContainer) {
+      blkContainer.querySelectorAll('.edit-option').forEach(o => {
+        o.className = 'edit-option';
+      });
+      const blkOptDef = FIELD_OPTS.blk.opts.find(o => o.val === autoBlk);
+      const blkEl = blkContainer.querySelector(`[data-val="${CSS.escape(autoBlk)}"]`);
+      if (blkEl) {
+        blkEl.className = 'edit-option selected' + (blkOptDef && blkOptDef.color ? ' sel-' + blkOptDef.color : '');
+      }
+
+      // Pisca o campo blk para sinalizar que foi auto-preenchido
+      blkContainer.style.transition = 'background .2s';
+      blkContainer.style.background = 'var(--accent)11';
+      setTimeout(() => { blkContainer.style.background = ''; }, 600);
+    }
+  }
 }
 
 
@@ -4396,7 +4448,7 @@ function persistProjectState(p) {
 const ATV_VALID = new Set([
   'AGUARDANDO PLANILHA', 'EM CONFIGURAÇÃO', 'MANUTENÇÃO PERFIS',
   'VALIDAÇÃO', 'EM PRODUÇÃO - PENDÊNCIAS', 'EM PRODUÇÃO - ERROS',
-  'EM PRODUÇÃO', 'CANCELADO', ''
+  'EM PRODUÇÃO', 'DEPLOY PROD', 'PARALISADO', 'CANCELADO', ''
 ]);
 
 function normalizeAtv(atv) {
@@ -5021,6 +5073,8 @@ render();
             <option value="EM PRODUÇÃO - PENDÊNCIAS">Em produção (pendências)</option>
             <option value="EM PRODUÇÃO - ERROS">Em produção (erros)</option>
             <option value="EM PRODUÇÃO">Em produção</option>
+            <option value="DEPLOY PROD">🚀 Deploy Prod</option>
+            <option value="PARALISADO">⏹ Paralisado</option>
           </select>
         </div>
         <!-- Responsável pela tarefa -->
