@@ -422,10 +422,14 @@ function atualizarTopbar() {
   const cor         = CURRENT_USER.perfil==='gerente' ? 'linear-gradient(135deg,#00c4cc,#0088ff)' : 'linear-gradient(135deg,#a855f7,#6366f1)';
   const labelPerfil = CURRENT_USER.perfil==='gerente' ? 'Gerente de Projetos' : 'Consultor';
   const btnUsuarios = CURRENT_USER.perfil==='gerente'
-    ? `<button onclick="abrirGerenciarUsuarios()" title="Gerenciar Usuários" style="background:none;border:1px solid #1e3d5c;border-radius:6px;color:#7aadcc;
-        cursor:pointer;font-size:12px;margin-left:6px;padding:4px 10px;line-height:1;transition:all .15s;font-family:Inter,sans-serif;"
-        onmouseover="this.style.borderColor='#00c4cc';this.style.color='#00c4cc'" onmouseout="this.style.borderColor='#1e3d5c';this.style.color='#7aadcc'">
-        👥 Usuários</button>`
+    ? `<button onclick="abrirGerenciarUsuarios()" title="Gerenciar Usuários"
+        style="background:none;border:1px solid #1e3d5c;border-radius:6px;color:#7aadcc;
+        cursor:pointer;font-size:12px;margin-left:6px;padding:4px 10px;line-height:1;
+        transition:all .15s;font-family:Inter,sans-serif;display:flex;align-items:center;gap:5px;"
+        onmouseover="this.style.borderColor='#00c4cc';this.style.color='#00c4cc'"
+        onmouseout="this.style.borderColor='#1e3d5c';this.style.color='#7aadcc'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Usuários</button>`
     : '';
   badge.innerHTML = `
     <div class="avatar" style="background:${cor};font-size:11px;">${iniciais}</div>
@@ -450,249 +454,607 @@ function atualizarTopbar() {
 }
 
 // ============================================================
-//  TELA DE GERENCIAMENTO DE USUÁRIOS (apenas gerentes)
+//  GERENCIAMENTO DE USUÁRIOS — estado interno
+// ============================================================
+// URL da Edge Function de proxy admin (deploy separado, veja admin-proxy/index.ts)
+const ADMIN_PROXY_URL = `${SUPABASE_URL}/functions/v1/admin-proxy`;
+
+// Cache dos usuários Auth carregados do Supabase (enriquecidos com dados locais)
+let _guUsuariosAuth = [];
+
+// Cores fixas por índice para avatares
+const _GU_CORES = ['#6366f1','#14b8a6','#f59e0b','#ec4899','#22c55e','#a855f7','#3b82f6','#ef4444','#00c4cc','#f97316'];
+
+// ── Chama a Edge Function admin-proxy ────────────────────────
+async function _adminCall(action, payload = {}) {
+  const res = await fetch(ADMIN_PROXY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': 'Bearer ' + CURRENT_USER.access_token,
+      'apikey':        SUPABASE_KEY
+    },
+    body: JSON.stringify({ action, ...payload })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || data.message || `Erro HTTP ${res.status}`);
+  return data;
+}
+
+// ── Mescla lista Auth com metadados locais (USUARIOS) ────────
+function _guEnriquecer(authUsers) {
+  return authUsers.map((au, i) => {
+    const local = USUARIOS.find(u => u.email.toLowerCase() === au.email.toLowerCase());
+    return {
+      uid:       au.id,
+      email:     au.email,
+      nome:      local?.nome      || au.user_metadata?.nome || au.email.split('@')[0],
+      perfil:    local?.perfil    || au.user_metadata?.perfil    || 'consultor',
+      consultor: local?.consultor || au.user_metadata?.consultor || '',
+      cor:       _GU_CORES[i % _GU_CORES.length],
+      ultimo_login: au.last_sign_in_at || null,
+      criado_em:    au.created_at      || null,
+    };
+  });
+}
+
+// ============================================================
+//  ABRIR MODAL GERENCIAR USUÁRIOS
 // ============================================================
 function abrirGerenciarUsuarios() {
   if (!CURRENT_USER || CURRENT_USER.perfil !== 'gerente') return;
 
-  let overlay = document.getElementById('gu-overlay');
-  if (overlay) { overlay.remove(); }
+  // Remove overlay anterior se existir
+  document.getElementById('gu-overlay')?.remove();
 
-  overlay = document.createElement('div');
+  const overlay = document.createElement('div');
   overlay.id = 'gu-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(8,20,32,.85);display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;backdrop-filter:blur(4px);';
   overlay.innerHTML = `
-    <style>
-      #gu-modal{background:#0d1f30;border:1px solid #1e3d5c;border-radius:16px;padding:32px 36px;
-        width:100%;max-width:680px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.7);
-        animation:guFade .25s ease;}
-      @keyframes guFade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-      #gu-modal h2{font-size:18px;font-weight:800;color:#e8f4fd;margin-bottom:4px;}
-      #gu-modal .gu-sub{font-size:12px;color:#7aadcc;margin-bottom:24px;}
-      .gu-section{margin-bottom:28px;}
-      .gu-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
-        color:#00c4cc;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #1e3d5c;}
-      .gu-user-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;
-        background:#112840;border:1px solid #1e3d5c;margin-bottom:8px;transition:border-color .15s;}
-      .gu-user-row:hover{border-color:#2a5278;}
-      .gu-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-        font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
-      .gu-user-info{flex:1;min-width:0;}
-      .gu-user-name{font-size:13px;font-weight:600;color:#e8f4fd;}
-      .gu-user-email{font-size:11px;color:#7aadcc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-      .gu-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;flex-shrink:0;}
-      .gu-badge-g{background:#00c4cc22;color:#00c4cc;border:1px solid #00c4cc44;}
-      .gu-badge-c{background:#a855f722;color:#a855f7;border:1px solid #a855f744;}
-      .gu-btn-reset{background:none;border:1px solid #1e3d5c;border-radius:6px;color:#7aadcc;
-        cursor:pointer;font-size:11px;padding:4px 10px;transition:all .15s;font-family:Inter,sans-serif;flex-shrink:0;}
-      .gu-btn-reset:hover{border-color:#f59e0b;color:#f59e0b;}
-      .gu-divider{height:1px;background:#1e3d5c;margin:24px 0;}
-      .gu-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-      .gu-field{display:flex;flex-direction:column;gap:5px;}
-      .gu-field.full{grid-column:1/-1;}
-      .gu-field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#7aadcc;}
-      .gu-field input,.gu-field select{background:#112840;border:1px solid #1e3d5c;border-radius:8px;
-        padding:9px 12px;color:#e8f4fd;font-size:13px;font-family:Inter,sans-serif;outline:none;
-        transition:border-color .15s;width:100%;box-sizing:border-box;}
-      .gu-field input:focus,.gu-field select:focus{border-color:#00c4cc;}
-      .gu-field select option{background:#112840;}
-      .gu-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end;}
-      .gu-btn-cancel{padding:10px 20px;border:1px solid #1e3d5c;border-radius:8px;background:none;
-        color:#7aadcc;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s;}
-      .gu-btn-cancel:hover{border-color:#2a5278;color:#e8f4fd;}
-      .gu-btn-criar{padding:10px 24px;border:none;border-radius:8px;
-        background:linear-gradient(135deg,#00c4cc,#0088ff);color:#fff;font-size:13px;
-        font-weight:700;cursor:pointer;font-family:Inter,sans-serif;transition:opacity .15s;}
-      .gu-btn-criar:hover{opacity:.88;} .gu-btn-criar:disabled{opacity:.5;cursor:not-allowed;}
-      .gu-msg{padding:10px 14px;border-radius:8px;font-size:12px;margin-top:12px;display:none;grid-column:1/-1;}
-      .gu-msg.ok{background:#22c55e22;border:1px solid #22c55e44;color:#86efac;}
-      .gu-msg.err{background:#ef444422;border:1px solid #ef444444;color:#f87171;}
-    </style>
-    <div id="gu-modal">
-      <h2>👥 Gerenciar Usuários</h2>
-      <div class="gu-sub">Visualize, redefina senhas e crie novos acessos ao sistema.</div>
+  <style>
+    #gu-overlay{
+      position:fixed;inset:0;z-index:9999;
+      background:rgba(8,20,32,.88);
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Inter',system-ui,sans-serif;
+      backdrop-filter:blur(6px);
+      padding:16px;
+    }
+    #gu-modal{
+      background:#0d1f30;border:1px solid #1e3d5c;border-radius:18px;
+      width:100%;max-width:740px;max-height:92vh;
+      display:flex;flex-direction:column;
+      box-shadow:0 32px 80px rgba(0,0,0,.75);
+      animation:guSlide .22s cubic-bezier(.22,1,.36,1);
+      overflow:hidden;
+    }
+    @keyframes guSlide{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 
-      <!-- Lista de usuários existentes -->
-      <div class="gu-section">
-        <div class="gu-section-title">Usuários cadastrados</div>
-        <div id="gu-user-list"></div>
+    /* ── Cabeçalho ── */
+    .gu-head{
+      padding:22px 28px 18px;border-bottom:1px solid #1e3d5c;
+      display:flex;align-items:center;gap:14px;flex-shrink:0;
+    }
+    .gu-head-icon{
+      width:40px;height:40px;border-radius:10px;flex-shrink:0;
+      background:linear-gradient(135deg,#00c4cc22,#0088ff22);
+      border:1px solid #00c4cc44;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .gu-head h2{font-size:17px;font-weight:800;color:#e8f4fd;margin:0;}
+    .gu-head p{font-size:12px;color:#7aadcc;margin:2px 0 0;}
+    .gu-head-close{
+      margin-left:auto;background:none;border:none;color:#7aadcc;
+      cursor:pointer;font-size:20px;padding:4px;line-height:1;
+      transition:color .15s;border-radius:6px;
+    }
+    .gu-head-close:hover{color:#e8f4fd;}
+
+    /* ── Tabs ── */
+    .gu-tabs{
+      display:flex;border-bottom:1px solid #1e3d5c;
+      flex-shrink:0;background:#081420;
+    }
+    .gu-tab{
+      padding:12px 22px;font-size:13px;font-weight:600;color:#7aadcc;
+      background:none;border:none;border-bottom:3px solid transparent;
+      cursor:pointer;transition:all .15s;font-family:inherit;
+      display:flex;align-items:center;gap:7px;
+    }
+    .gu-tab.active{color:#00c4cc;border-bottom-color:#00c4cc;background:#00c4cc08;}
+    .gu-tab-count{
+      background:#1e3d5c;border-radius:10px;padding:1px 7px;
+      font-size:11px;font-weight:700;
+    }
+    .gu-tab.active .gu-tab-count{background:#00c4cc;color:#081420;}
+
+    /* ── Corpo scrollável ── */
+    .gu-body{flex:1;overflow-y:auto;padding:20px 28px 28px;}
+    .gu-body::-webkit-scrollbar{width:5px;}
+    .gu-body::-webkit-scrollbar-track{background:transparent;}
+    .gu-body::-webkit-scrollbar-thumb{background:#1e3d5c;border-radius:3px;}
+
+    /* ── Painel ── */
+    .gu-panel{display:none;}
+    .gu-panel.active{display:block;}
+
+    /* ── Busca ── */
+    .gu-search-wrap{position:relative;margin-bottom:14px;}
+    .gu-search{
+      width:100%;box-sizing:border-box;
+      background:#112840;border:1px solid #1e3d5c;border-radius:8px;
+      padding:9px 12px 9px 34px;color:#e8f4fd;font-size:13px;
+      font-family:inherit;outline:none;transition:border-color .15s;
+    }
+    .gu-search:focus{border-color:#00c4cc;}
+    .gu-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#7aadcc;pointer-events:none;}
+
+    /* ── Loading ── */
+    .gu-loading{
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:40px;gap:12px;color:#7aadcc;font-size:13px;
+    }
+    .gu-spin{
+      width:32px;height:32px;border:3px solid #1e3d5c;
+      border-top-color:#00c4cc;border-radius:50%;
+      animation:guSpin .7s linear infinite;
+    }
+    @keyframes guSpin{to{transform:rotate(360deg)}}
+
+    /* ── Lista de usuários ── */
+    #gu-user-list{}
+    .gu-user-row{
+      display:flex;align-items:center;gap:12px;
+      padding:11px 14px;border-radius:10px;
+      background:#112840;border:1px solid #1e3d5c;
+      margin-bottom:8px;transition:border-color .15s;
+    }
+    .gu-user-row:hover{border-color:#2a5278;}
+    .gu-av{
+      width:36px;height:36px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:13px;font-weight:700;color:#fff;flex-shrink:0;
+    }
+    .gu-info{flex:1;min-width:0;}
+    .gu-name{font-size:13px;font-weight:600;color:#e8f4fd;margin-bottom:2px;}
+    .gu-email{font-size:11px;color:#7aadcc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .gu-meta{font-size:10px;color:#4a7a99;margin-top:1px;}
+    .gu-chip{
+      font-size:10px;font-weight:700;padding:2px 9px;border-radius:10px;flex-shrink:0;
+    }
+    .gu-chip-g{background:#00c4cc18;color:#00c4cc;border:1px solid #00c4cc33;}
+    .gu-chip-c{background:#a855f718;color:#a855f7;border:1px solid #a855f733;}
+    .gu-row-actions{display:flex;gap:6px;flex-shrink:0;}
+    .gu-btn-act{
+      background:none;border:1px solid #1e3d5c;border-radius:6px;
+      color:#7aadcc;cursor:pointer;font-size:11px;padding:5px 10px;
+      transition:all .15s;font-family:inherit;white-space:nowrap;
+      display:flex;align-items:center;gap:5px;
+    }
+    .gu-btn-act:hover{border-color:#f59e0b;color:#f59e0b;}
+    .gu-btn-act:disabled{opacity:.45;cursor:not-allowed;}
+    .gu-empty{text-align:center;padding:32px;color:#4a7a99;font-size:13px;}
+
+    /* ── Formulário ── */
+    .gu-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    .gu-field{display:flex;flex-direction:column;gap:6px;}
+    .gu-field.span2{grid-column:1/-1;}
+    .gu-field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#7aadcc;}
+    .gu-field input,.gu-field select{
+      background:#112840;border:1px solid #1e3d5c;border-radius:8px;
+      padding:10px 13px;color:#e8f4fd;font-size:13px;font-family:inherit;
+      outline:none;transition:border-color .15s;width:100%;box-sizing:border-box;
+    }
+    .gu-field input:focus,.gu-field select:focus{border-color:#00c4cc;}
+    .gu-field input.invalid{border-color:#ef4444;}
+    .gu-field select option{background:#112840;}
+    .gu-field-hint{font-size:10px;color:#4a7a99;margin-top:1px;}
+    .gu-senha-wrap{position:relative;}
+    .gu-senha-wrap input{padding-right:38px;}
+    .gu-senha-eye{
+      position:absolute;right:10px;top:50%;transform:translateY(-50%);
+      background:none;border:none;color:#7aadcc;cursor:pointer;padding:2px;
+      font-size:14px;transition:color .15s;
+    }
+    .gu-senha-eye:hover{color:#00c4cc;}
+
+    /* ── Alerta de perfil ── */
+    .gu-perfil-hint{
+      background:#00c4cc11;border:1px solid #00c4cc33;border-radius:8px;
+      padding:10px 13px;font-size:12px;color:#7aadcc;line-height:1.5;
+      margin-top:2px;display:none;
+    }
+
+    /* ── Rodapé do formulário ── */
+    .gu-form-footer{
+      display:flex;align-items:center;justify-content:flex-end;
+      gap:10px;margin-top:20px;padding-top:16px;
+      border-top:1px solid #1e3d5c;
+    }
+    .gu-btn-secondary{
+      padding:10px 20px;border:1px solid #1e3d5c;border-radius:8px;background:none;
+      color:#7aadcc;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+      transition:all .15s;
+    }
+    .gu-btn-secondary:hover{border-color:#2a5278;color:#e8f4fd;}
+    .gu-btn-primary{
+      padding:10px 24px;border:none;border-radius:8px;
+      background:linear-gradient(135deg,#00c4cc,#0088ff);
+      color:#fff;font-size:13px;font-weight:700;cursor:pointer;
+      font-family:inherit;transition:opacity .15s;
+      display:flex;align-items:center;gap:7px;
+    }
+    .gu-btn-primary:hover{opacity:.88;}
+    .gu-btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+
+    /* ── Toast / mensagem ── */
+    .gu-toast{
+      padding:11px 15px;border-radius:8px;font-size:12px;
+      margin-top:14px;display:none;line-height:1.5;
+    }
+    .gu-toast.ok{background:#22c55e18;border:1px solid #22c55e44;color:#86efac;}
+    .gu-toast.err{background:#ef444418;border:1px solid #ef444444;color:#fca5a5;}
+    .gu-toast.warn{background:#f59e0b18;border:1px solid #f59e0b44;color:#fcd34d;}
+  </style>
+
+  <div id="gu-modal">
+    <!-- Cabeçalho -->
+    <div class="gu-head">
+      <div class="gu-head-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00c4cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div>
+        <h2>Manutenção de Usuários</h2>
+        <p>Gerencie acessos, perfis e senhas do sistema</p>
+      </div>
+      <button class="gu-head-close" onclick="document.getElementById('gu-overlay').remove()" title="Fechar">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="gu-tabs">
+      <button class="gu-tab active" id="gu-tab-lista" onclick="guMudarTab('lista')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Usuários cadastrados
+        <span class="gu-tab-count" id="gu-count">—</span>
+      </button>
+      <button class="gu-tab" id="gu-tab-novo" onclick="guMudarTab('novo')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Novo acesso
+      </button>
+    </div>
+
+    <!-- Corpo -->
+    <div class="gu-body">
+
+      <!-- Painel: lista -->
+      <div class="gu-panel active" id="gu-panel-lista">
+        <div class="gu-search-wrap">
+          <svg class="gu-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="gu-search" type="text" id="gu-busca" placeholder="Buscar por nome ou e-mail…" oninput="guFiltrarLista()"/>
+        </div>
+        <div id="gu-user-list">
+          <div class="gu-loading">
+            <div class="gu-spin"></div>
+            <span>Carregando usuários…</span>
+          </div>
+        </div>
       </div>
 
-      <div class="gu-divider"></div>
+      <!-- Painel: novo usuário -->
+      <div class="gu-panel" id="gu-panel-novo">
+        <div class="gu-form-grid">
 
-      <!-- Formulário de novo usuário -->
-      <div class="gu-section">
-        <div class="gu-section-title">➕ Criar novo acesso</div>
-        <div class="gu-form">
           <div class="gu-field">
-            <label>Nome</label>
-            <input type="text" id="gu-nome" placeholder="Ex: Carlos Silva"/>
+            <label>Nome completo *</label>
+            <input type="text" id="gu-nome" placeholder="Ex: Carlos Silva" autocomplete="off"/>
           </div>
+
           <div class="gu-field">
-            <label>E-mail</label>
-            <input type="email" id="gu-email" placeholder="usuario@totvs.com.br"/>
+            <label>E-mail corporativo *</label>
+            <input type="email" id="gu-email" placeholder="usuario@totvs.com.br" autocomplete="off"/>
           </div>
+
           <div class="gu-field">
-            <label>Perfil</label>
-            <select id="gu-perfil" onchange="guToggleConsultor()">
+            <label>Perfil de acesso *</label>
+            <select id="gu-perfil" onchange="guOnPerfilChange()">
               <option value="consultor">Consultor</option>
-              <option value="gerente">Gerente de Projetos</option>
+              <option value="gerente">Gestor de Projetos</option>
             </select>
           </div>
-          <div class="gu-field" id="gu-consultor-wrap">
-            <label>Nome do Consultor (filtro Kanban)</label>
-            <input type="text" id="gu-consultor" placeholder="Ex: Carlos"/>
+
+          <div class="gu-field" id="gu-wrap-consultor">
+            <label>Apelido do consultor *</label>
+            <input type="text" id="gu-consultor" placeholder="Ex: Carlos (usado no filtro do Kanban)" autocomplete="off"/>
+            <span class="gu-field-hint">Deve corresponder ao nome exibido nos cards do Kanban</span>
           </div>
-          <div class="gu-field full">
-            <label>Senha inicial</label>
-            <input type="text" id="gu-senha-ini" value="Mudar@123" placeholder="Senha provisória"/>
+
+          <div class="gu-field span2" id="gu-hint-gerente" style="display:none;">
+            <div class="gu-perfil-hint" style="display:block;">
+              ℹ️ Gestores têm acesso total ao sistema: todos os projetos, todas as fases, painel de usuários e configurações.
+            </div>
           </div>
-          <div class="gu-msg" id="gu-criar-msg"></div>
+
+          <div class="gu-field span2">
+            <label>Senha inicial *</label>
+            <div class="gu-senha-wrap">
+              <input type="text" id="gu-senha" value="Mudar@123" autocomplete="new-password"/>
+              <button class="gu-senha-eye" type="button" onclick="guToggleSenha(this)" title="Mostrar/ocultar">👁</button>
+            </div>
+            <span class="gu-field-hint">O usuário deverá alterar a senha no primeiro acesso</span>
+          </div>
+
         </div>
-        <div class="gu-actions">
-          <button class="gu-btn-cancel" onclick="document.getElementById('gu-overlay').remove()">Fechar</button>
-          <button class="gu-btn-criar" id="gu-btn-criar" onclick="guCriarUsuario()">✓ Criar acesso</button>
+
+        <div class="gu-toast" id="gu-toast-novo"></div>
+
+        <div class="gu-form-footer">
+          <button class="gu-btn-secondary" onclick="guLimparForm()">Limpar campos</button>
+          <button class="gu-btn-primary" id="gu-btn-criar" onclick="guCriarUsuario()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Criar acesso
+          </button>
         </div>
       </div>
-    </div>
+
+    </div><!-- /gu-body -->
+  </div><!-- /gu-modal -->
   `;
 
   document.body.appendChild(overlay);
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.addEventListener('click', e => { if (e.target === overlay) document.getElementById('gu-overlay').remove(); });
 
-  // Renderizar lista de usuários
-  _guRenderLista();
+  // Carregar usuários imediatamente
+  guCarregarUsuarios();
 }
 
-function guToggleConsultor() {
-  const perfil = document.getElementById('gu-perfil').value;
-  const wrap   = document.getElementById('gu-consultor-wrap');
-  if (wrap) wrap.style.display = perfil === 'consultor' ? 'flex' : 'none';
+// ── Navegação entre tabs ──────────────────────────────────────
+function guMudarTab(tab) {
+  document.querySelectorAll('.gu-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.gu-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`gu-tab-${tab}`).classList.add('active');
+  document.getElementById(`gu-panel-${tab}`).classList.add('active');
 }
 
-function _guRenderLista() {
+// ── Carregar usuários do Supabase Auth via admin-proxy ────────
+async function guCarregarUsuarios() {
+  const list = document.getElementById('gu-user-list');
+  if (!list) return;
+  list.innerHTML = '<div class="gu-loading"><div class="gu-spin"></div><span>Buscando usuários…</span></div>';
+
+  try {
+    const data = await _adminCall('list_users');
+    _guUsuariosAuth = _guEnriquecer(data.users || []);
+    guRenderLista(_guUsuariosAuth);
+    const cnt = document.getElementById('gu-count');
+    if (cnt) cnt.textContent = _guUsuariosAuth.length;
+  } catch(e) {
+    console.warn('admin-proxy indisponível, usando lista local:', e.message);
+    // Fallback: usa a lista local USUARIOS
+    _guUsuariosAuth = USUARIOS.map((u, i) => ({
+      uid: null, email: u.email, nome: u.nome,
+      perfil: u.perfil, consultor: u.consultor,
+      cor: _GU_CORES[i % _GU_CORES.length],
+      ultimo_login: null, criado_em: null
+    }));
+    guRenderLista(_guUsuariosAuth);
+    const cnt = document.getElementById('gu-count');
+    if (cnt) cnt.textContent = _guUsuariosAuth.length;
+  }
+}
+
+// ── Renderizar lista (recebe array já filtrado) ───────────────
+function guRenderLista(lista) {
   const el = document.getElementById('gu-user-list');
   if (!el) return;
-  const cores = ['#6366f1','#14b8a6','#f59e0b','#ec4899','#22c55e','#a855f7','#3b82f6','#ef4444'];
-  el.innerHTML = USUARIOS.map((u, i) => {
-    const iniciais = u.nome.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
-    const cor      = cores[i % cores.length];
-    const badge    = u.perfil === 'gerente'
-      ? '<span class="gu-badge gu-badge-g">Gerente</span>'
-      : '<span class="gu-badge gu-badge-c">Consultor</span>';
+
+  if (!lista || lista.length === 0) {
+    el.innerHTML = '<div class="gu-empty">Nenhum usuário encontrado.</div>';
+    return;
+  }
+
+  // Ordena: gerentes primeiro, depois por nome
+  const ordenados = [...lista].sort((a, b) => {
+    if (a.perfil === b.perfil) return a.nome.localeCompare(b.nome, 'pt-BR');
+    return a.perfil === 'gerente' ? -1 : 1;
+  });
+
+  el.innerHTML = ordenados.map(u => {
+    const iniciais = u.nome.split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const chip     = u.perfil === 'gerente'
+      ? '<span class="gu-chip gu-chip-g">Gestor</span>'
+      : '<span class="gu-chip gu-chip-c">Consultor</span>';
+    const login = u.ultimo_login
+      ? `Último acesso: ${new Date(u.ultimo_login).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}`
+      : 'Nunca acessou';
+    const emailSafe = u.email.replace(/'/g, "\\'");
+    const nomeSafe  = u.nome.replace(/'/g, "\\'");
+    const uidSafe   = (u.uid || '').replace(/'/g, "\\'");
+
     return `
-      <div class="gu-user-row">
-        <div class="gu-avatar" style="background:${cor}">${iniciais}</div>
-        <div class="gu-user-info">
-          <div class="gu-user-name">${u.nome}</div>
-          <div class="gu-user-email">${u.email}</div>
-        </div>
-        ${badge}
-        <button class="gu-btn-reset" onclick="guResetarSenha('${u.email}','${u.nome}',this)" title="Redefinir senha para Mudar@123">
-          🔑 Redefinir senha
+    <div class="gu-user-row" id="gu-row-${uidSafe || u.email.replace(/[@.]/g,'_')}">
+      <div class="gu-av" style="background:${u.cor}">${iniciais}</div>
+      <div class="gu-info">
+        <div class="gu-name">${u.nome}</div>
+        <div class="gu-email">${u.email}</div>
+        <div class="gu-meta">${login}</div>
+      </div>
+      ${chip}
+      <div class="gu-row-actions">
+        <button class="gu-btn-act" onclick="guResetarSenha('${uidSafe}','${emailSafe}','${nomeSafe}',this)" title="Redefinir senha para Mudar@123">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Redefinir senha
         </button>
-      </div>`;
+      </div>
+    </div>`;
   }).join('');
 }
 
-async function guResetarSenha(email, nome, btn) {
-  if (!confirm(`Redefinir a senha de ${nome} para "Mudar@123"?\n\nEle(a) precisará alterar no próximo acesso.`)) return;
+// ── Filtro de busca ───────────────────────────────────────────
+function guFiltrarLista() {
+  const q = (document.getElementById('gu-busca')?.value || '').toLowerCase().trim();
+  if (!q) { guRenderLista(_guUsuariosAuth); return; }
+  guRenderLista(_guUsuariosAuth.filter(u =>
+    u.nome.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  ));
+}
+
+// ── Toggle visibilidade da senha ──────────────────────────────
+function guToggleSenha(btn) {
+  const inp = document.getElementById('gu-senha');
+  if (!inp) return;
+  const oculto = inp.type === 'password';
+  inp.type = oculto ? 'text' : 'password';
+  btn.textContent = oculto ? '🙈' : '👁';
+}
+
+// ── Toggle campo consultor conforme perfil ────────────────────
+function guOnPerfilChange() {
+  const perfil = document.getElementById('gu-perfil')?.value;
+  const wrapC  = document.getElementById('gu-wrap-consultor');
+  const wrapG  = document.getElementById('gu-hint-gerente');
+  if (wrapC) wrapC.style.display = perfil === 'consultor' ? 'flex' : 'none';
+  if (wrapG) wrapG.style.display = perfil === 'gerente'   ? 'block' : 'none';
+}
+
+// ── Limpar formulário ─────────────────────────────────────────
+function guLimparForm() {
+  ['gu-nome','gu-email','gu-consultor'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.classList.remove('invalid'); }
+  });
+  const senha = document.getElementById('gu-senha');
+  if (senha) senha.value = 'Mudar@123';
+  const perfil = document.getElementById('gu-perfil');
+  if (perfil) { perfil.value = 'consultor'; guOnPerfilChange(); }
+  _guToast('novo', '', '');
+}
+
+// ── Toast interno ─────────────────────────────────────────────
+function _guToast(painel, tipo, msg) {
+  const el = document.getElementById(`gu-toast-${painel}`);
+  if (!el) return;
+  if (!tipo) { el.style.display = 'none'; return; }
+  el.className = `gu-toast ${tipo}`;
+  el.innerHTML = msg;
+  el.style.display = 'block';
+}
+
+// ============================================================
+//  REDEFINIR SENHA (via admin-proxy ou fallback)
+// ============================================================
+async function guResetarSenha(uid, email, nome, btn) {
+  if (!confirm(`Redefinir a senha de "${nome}" para "Mudar@123"?\n\nNo próximo acesso, o sistema exigirá que ele(a) crie uma nova senha.`)) return;
+
   const orig = btn.innerHTML;
-  btn.disabled = true; btn.innerHTML = '⏳ Aguarde...';
+  btn.disabled = true;
+  btn.innerHTML = '<div class="gu-spin" style="width:14px;height:14px;border-width:2px;margin:0 auto;"></div>';
 
   try {
-    // Usa o endpoint de admin via service_role se disponível, senão orienta
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
-    });
-    const data = res.ok ? await res.json() : null;
-    const users = data?.users || [];
-    const user  = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-
-    if (!user) {
-      // Fallback: mostra instrução
-      btn.innerHTML = orig; btn.disabled = false;
-      alert(`Usuário encontrado no sistema.\n\nPara redefinir a senha de ${nome}, acesse:\n🔗 Supabase Dashboard → Authentication → Users\n→ Selecione "${email}" → Send password reset email`);
-      return;
-    }
-
-    const upd = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${user.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token },
-      body: JSON.stringify({ password: 'Mudar@123' })
-    });
-
-    if (upd.ok) {
-      btn.innerHTML = '✅ Redefinida!';
-      btn.style.borderColor = '#22c55e'; btn.style.color = '#22c55e';
-      setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; btn.disabled = false; }, 3000);
+    if (uid) {
+      // Caminho 1: via Edge Function admin-proxy
+      await _adminCall('reset_password', { uid, password: 'Mudar@123' });
     } else {
-      throw new Error(await upd.text());
+      // Caminho 2: Supabase envia e-mail de redefinição
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY },
+        body: JSON.stringify({ email })
+      });
+      if (!res.ok) throw new Error('Falha ao enviar e-mail de redefinição.');
     }
+
+    // Feedback visual na linha do usuário
+    btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Redefinida!`;
+    btn.style.borderColor = '#22c55e33';
+    btn.style.color = '#22c55e';
+    setTimeout(() => {
+      btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; btn.disabled = false;
+    }, 3500);
+
   } catch(e) {
     console.error('Erro ao redefinir senha:', e);
     btn.innerHTML = orig; btn.disabled = false;
-    alert(`Não foi possível redefinir via API.\n\nAcesse o Supabase Dashboard para redefinir manualmente:\n→ Authentication → Users → ${email}`);
+    // Mostra erro inline sem alert()
+    const row = btn.closest('.gu-user-row');
+    if (row) {
+      const err = document.createElement('div');
+      err.style.cssText = 'font-size:11px;color:#fca5a5;margin-top:6px;padding:6px 10px;background:#ef444411;border-radius:6px;';
+      err.textContent = `⚠ ${e.message || 'Não foi possível redefinir. Tente pelo Supabase Dashboard.'}`;
+      row.insertAdjacentElement('afterend', err);
+      setTimeout(() => err.remove(), 5000);
+    }
   }
 }
 
+// ============================================================
+//  CRIAR NOVO USUÁRIO (via admin-proxy)
+// ============================================================
 async function guCriarUsuario() {
-  const nome    = (document.getElementById('gu-nome').value || '').trim();
-  const email   = (document.getElementById('gu-email').value || '').trim().toLowerCase();
-  const perfil  = document.getElementById('gu-perfil').value;
-  const consul  = (document.getElementById('gu-consultor').value || '').trim();
-  const senha   = (document.getElementById('gu-senha-ini').value || 'Mudar@123').trim();
-  const msg     = document.getElementById('gu-criar-msg');
-  const btn     = document.getElementById('gu-btn-criar');
+  const nome   = (document.getElementById('gu-nome')?.value   || '').trim();
+  const email  = (document.getElementById('gu-email')?.value  || '').trim().toLowerCase();
+  const perfil = document.getElementById('gu-perfil')?.value  || 'consultor';
+  const consul = (document.getElementById('gu-consultor')?.value || '').trim();
+  const senha  = (document.getElementById('gu-senha')?.value  || 'Mudar@123').trim();
+  const btn    = document.getElementById('gu-btn-criar');
 
-  msg.style.display = 'none';
+  // Limpa estado de erro
+  ['gu-nome','gu-email','gu-consultor','gu-senha'].forEach(id =>
+    document.getElementById(id)?.classList.remove('invalid'));
+  _guToast('novo', '', '');
 
-  if (!nome)  { _guMsg('err', 'Informe o nome do usuário.'); return; }
-  if (!email || !email.includes('@')) { _guMsg('err', 'Informe um e-mail válido.'); return; }
-  if (perfil === 'consultor' && !consul) { _guMsg('err', 'Informe o nome do consultor para o filtro.'); return; }
-  if (senha.length < 8) { _guMsg('err', 'A senha deve ter pelo menos 8 caracteres.'); return; }
-  if (USUARIOS.find(u => u.email.toLowerCase() === email)) { _guMsg('err', 'Este e-mail já está cadastrado.'); return; }
+  // Validações
+  let erros = [];
+  if (!nome)                                     { erros.push('Nome obrigatório.');      document.getElementById('gu-nome')?.classList.add('invalid'); }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+                                                 { erros.push('E-mail inválido.');       document.getElementById('gu-email')?.classList.add('invalid'); }
+  if (perfil === 'consultor' && !consul)         { erros.push('Informe o apelido do consultor.'); document.getElementById('gu-consultor')?.classList.add('invalid'); }
+  if (senha.length < 8)                          { erros.push('Senha deve ter no mínimo 8 caracteres.'); document.getElementById('gu-senha')?.classList.add('invalid'); }
+  if (USUARIOS.find(u => u.email.toLowerCase() === email))
+                                                 { erros.push('Este e-mail já está na lista de acesso.'); document.getElementById('gu-email')?.classList.add('invalid'); }
+  if (erros.length) {
+    _guToast('novo', 'err', erros.map(e => `• ${e}`).join('<br>'));
+    return;
+  }
 
-  btn.disabled = true; btn.textContent = '⏳ Criando...';
+  btn.disabled = true;
+  btn.innerHTML = '<div class="gu-spin" style="width:14px;height:14px;border-width:2px;"></div> Criando…';
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token },
-      body: JSON.stringify({ email, password: senha, email_confirm: true })
+    // 1. Criar na autenticação via admin-proxy
+    await _adminCall('create_user', {
+      email, password: senha,
+      user_metadata: { nome, perfil, consultor: perfil === 'gerente' ? '' : consul }
     });
 
-    if (res.ok) {
-      // Adiciona na lista local USUARIOS para sessão atual
-      const novo = { nome, email, perfil, consultor: perfil === 'gerente' ? '' : consul };
-      USUARIOS.push(novo);
-      _guMsg('ok', `✅ Usuário "${nome}" criado com sucesso! Senha inicial: ${senha}`);
-      _guRenderLista();
-      document.getElementById('gu-nome').value = '';
-      document.getElementById('gu-email').value = '';
-      document.getElementById('gu-consultor').value = '';
-      document.getElementById('gu-senha-ini').value = 'Mudar@123';
-    } else {
-      const err = await res.json();
-      if (err.msg && err.msg.includes('already')) {
-        _guMsg('err', 'Este e-mail já existe no sistema de autenticação.');
-      } else {
-        _guMsg('err', `Erro ao criar: ${err.msg || err.message || 'Verifique o Supabase Dashboard.'}`);
-      }
-    }
+    // 2. Adiciona na lista local para a sessão atual (persistência real fica no Supabase)
+    const novoLocal = { nome, email, perfil, consultor: perfil === 'gerente' ? '' : consul };
+    USUARIOS.push(novoLocal);
+
+    // 3. Feedback e atualiza lista
+    _guToast('novo', 'ok',
+      `✅ Usuário <strong>${nome}</strong> criado com sucesso!<br>` +
+      `Perfil: <strong>${perfil === 'gerente' ? 'Gestor de Projetos' : 'Consultor'}</strong> · ` +
+      `Senha inicial: <strong>${senha}</strong>`
+    );
+    guLimparForm();
+
+    // Atualiza aba de lista
+    guCarregarUsuarios();
+
   } catch(e) {
-    _guMsg('err', 'Erro de conexão. Verifique sua internet.');
+    console.error('Erro ao criar usuário:', e);
+    const msg = e.message?.includes('already') || e.message?.includes('existe')
+      ? 'Este e-mail já existe na autenticação do Supabase.'
+      : (e.message || 'Erro ao criar usuário. Verifique o Supabase Dashboard.');
+    _guToast('novo', 'err', `❌ ${msg}`);
   }
 
-  btn.disabled = false; btn.textContent = '✓ Criar acesso';
-}
-
-function _guMsg(tipo, texto) {
-  const el = document.getElementById('gu-criar-msg');
-  if (!el) return;
-  el.className = `gu-msg ${tipo}`;
-  el.textContent = texto;
-  el.style.display = 'block';
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Criar acesso';
 }
 
 // ============================================================
