@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kanban — Reforma Tributária</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Kanban — Reforma Tributária v2</title>
 <!-- localForage: wrapper sobre IndexedDB/WebSQL/localStorage.
      Usado como fallback offline para documentos PDF (substitui base64 no localStorage). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"
@@ -5666,7 +5669,7 @@ function _ataRenderPreview() {
     <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:8px;">✅ Ata gerada com sucesso!</div>
     <div class="ata-preview">ATA DE ALINHAMENTO – REFORMA TRIBUTÁRIA\n\nCliente: ${escapeHtml(d.cliente||'')}\nConsultor: ${escapeHtml(d.consultor||'')}\nGP: Ana Paula Colombo  |  Data: ${d.data||''}\n\n1. TÓPICOS DISCUTIDOS\nParticipantes: ${escapeHtml(d.participantes||'')}\nStatus: ${escapeHtml(d.status_projeto||'')}${topicosTxt ? '\n\nAssuntos:\n'+escapeHtml(topicosTxt) : ''}\n\n2. DECISÕES TOMADAS\n${(d.decisoes||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'—'}\n\n3. PENDÊNCIAS E RESPONSÁVEIS\n${escapeHtml(pendPreview)||'—'}\n\n4. RISCOS IDENTIFICADOS\n${(d.riscos||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'Nenhum identificado'}\n\n5. PRÓXIMOS PASSOS\n${(d.proximos_passos||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'—'}</div>
     <div style="font-size:11px;color:var(--muted);margin-top:8px;">
-      Clique em <strong style="color:var(--purple);">💾 Salvar no Card</strong> para gerar o .docx no modelo padrão.
+      Clique em <strong style="color:var(--purple);">💾 Salvar no Card</strong> para gerar o PDF no modelo padrão.
     </div>
   `);
   _ataBtn('💾 Salvar no Card', true, false);
