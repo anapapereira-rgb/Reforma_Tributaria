@@ -1577,6 +1577,7 @@
   .pkg-bar { height: 6px; border-radius: 3px; }
   .pkg-count { font-size: 11px; color: var(--muted); min-width: 25px; text-align: right; }
 </style>
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 </head>
 <body>
 
@@ -5676,13 +5677,7 @@ async function salvarAtaNoCard() {
   btn.disabled = true; btn.textContent = '⏳ Gerando .docx…';
 
   try {
-    if (!window.docx) {
-      await new Promise((res,rej) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js';
-        s.onload=res; s.onerror=rej; document.head.appendChild(s);
-      });
-    }
+    if (!window.docx) throw new Error('Biblioteca docx não carregou. Recarregue a página (Ctrl+Shift+R) e tente novamente.');
     const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
             AlignmentType, WidthType, BorderStyle, ShadingType } = window.docx;
 
