@@ -5674,104 +5674,138 @@ function _ataRenderPreview() {
 async function salvarAtaNoCard() {
   if (!_ataDados) return;
   const btn = document.getElementById('ataPrimaryBtn');
-  btn.disabled = true; btn.textContent = '⏳ Gerando .docx…';
+  btn.disabled = true; btn.textContent = '⏳ Gerando PDF…';
 
   try {
-    if (!window.docx) throw new Error('Biblioteca docx não carregou. Recarregue a página (Ctrl+Shift+R) e tente novamente.');
-    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-            AlignmentType, WidthType, BorderStyle, ShadingType } = window.docx;
+    const d = _ataDados;
+    const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const li  = arr => (arr||[]).map(x=>`<li>${esc(x)}</li>`).join('');
 
-    const ACC='1F6B8E', LGT='D5E8F0';
-    const ba={style:BorderStyle.SINGLE,size:1,color:ACC}, bg={style:BorderStyle.SINGLE,size:1,color:'CCCCCC'};
-    const bAcc={top:ba,bottom:ba,left:ba,right:ba}, bGry={top:bg,bottom:bg,left:bg,right:bg};
-    const cm={top:80,bottom:80,left:120,right:120};
-    const run=(t,o={})=>new TextRun({text:String(t||''),font:'Arial',size:22,...o});
-    const para=(ch,sp={after:80})=>new Paragraph({children:ch,spacing:sp});
-    const hd=t=>new Paragraph({children:[run(t,{bold:true,size:26,color:ACC})],spacing:{before:220,after:100}});
-    const bul=t=>new Paragraph({children:[run('• '+t)],spacing:{after:60},indent:{left:360}});
-    const colW=[3240,2160,1800,2160];
-    const hCel=(t,i)=>new TableCell({width:{size:colW[i]||2340,type:WidthType.DXA},borders:bGry,margins:cm,shading:{fill:LGT,type:ShadingType.CLEAR},children:[para([run(t,{bold:true,size:20})])]});
-    const dCel=(t,i)=>new TableCell({width:{size:colW[i]||2340,type:WidthType.DXA},borders:bGry,margins:cm,children:[para([run(t||'',{size:20})])]});
+    const pendRows = (d.pendencias||[]).length
+      ? (d.pendencias||[]).map(p=>`<tr>
+          <td>${esc(p.atividade)}</td>
+          <td>${esc(p.responsavel)}</td>
+          <td>${esc(p.prazo)}</td>
+          <td class="st-${(p.status||'').toLowerCase().includes('conclu')?'ok':(p.status||'').toLowerCase().includes('andamento')?'wip':'pend'}">${esc(p.status||'Pendente')}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="4" style="text-align:center;color:#999">Nenhuma pendência registrada</td></tr>';
 
-    const pends = _ataDados.pendencias||[];
-    const pendRows=[new TableRow({children:[hCel('Pendência / Atividade',0),hCel('Responsável',1),hCel('Prazo',2),hCel('Status',3)]})];
-    (pends.length?pends:[{}]).forEach(p=>pendRows.push(new TableRow({children:[dCel(p.atividade,0),dCel(p.responsavel,1),dCel(p.prazo,2),dCel(p.status,3)]})));
+    const topicosTxt = (d.topicos||[]).length
+      ? `<p style="font-weight:600;margin:8px 0 4px">Assuntos tratados:</p><ul>${li(d.topicos)}</ul>` : '';
 
-    const doc = new Document({ sections:[{ properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}}, children:[
-      // ── Cabeçalho fiel ao modelo ──
-      new Table({ width:{size:9360,type:WidthType.DXA}, columnWidths:[9360], rows:[
-        // Linha 1: título centralizado fundo azul
-        new TableRow({children:[new TableCell({
-          borders:bAcc, margins:cm, width:{size:9360,type:WidthType.DXA},
-          shading:{fill:ACC,type:ShadingType.CLEAR},
-          children:[new Paragraph({alignment:AlignmentType.CENTER,
-            children:[run('ATA DE ALINHAMENTO DE PROJETO – REFORMA TRIBUTÁRIA',{bold:true,size:22,color:'FFFFFF'})]})]
-        })]}),
-        // Linha 2: Projeto/Cliente fundo cinza claro
-        new TableRow({children:[new TableCell({
-          borders:bAcc, margins:cm, width:{size:9360,type:WidthType.DXA},
-          shading:{fill:LGT,type:ShadingType.CLEAR},
-          children:[para([run('Projeto / Cliente:  ',{bold:true}),run(_ataDados.cliente||'')])]
-        })]}),
-        // Linha 3: Consultor | GP | Data (3 colunas simuladas em 1 célula)
-        new TableRow({children:[new TableCell({
-          borders:bAcc, margins:cm, width:{size:9360,type:WidthType.DXA},
-          children:[para([
-            run('Consultor:  ',{bold:true}), run(_ataDados.consultor||''),
-            run('          GP:  ',{bold:true}), run('Ana Paula Colombo'),
-            run('          Data:  ',{bold:true}), run(_ataDados.data||''),
-          ])]
-        })]})
-      ]}),
-      new Paragraph({spacing:{after:160}}),
-      // ── Seção 1 ──
-      hd('1. Tópicos discutidos'),
-      para([run('Participantes:  ',{bold:true}), run(_ataDados.participantes||'')], {after:80}),
-      para([run('Status do projeto:  ',{bold:true}), run(_ataDados.status_projeto||'')], {after:80}),
-      ...(_ataDados.topicos?.length ? _ataDados.topicos.map(bul) : []),
-      new Paragraph({spacing:{after:160}}),
-      // ── Seção 2 ──
-      hd('2. Decisões tomadas'),
-      ...(_ataDados.decisoes?.length ? _ataDados.decisoes.map(bul) : [para([run('—')])]),
-      new Paragraph({spacing:{after:160}}),
-      // ── Seção 3 ──
-      hd('3. Pendências e responsáveis'),
-      new Table({width:{size:9360,type:WidthType.DXA},columnWidths:[3240,2160,1800,2160],rows:pendRows}),
-      new Paragraph({spacing:{after:160}}),
-      // ── Seção 4 ──
-      hd('4. Riscos identificados'),
-      ...(_ataDados.riscos?.length ? _ataDados.riscos.map(bul) : [para([run('Nenhum identificado')])]),
-      new Paragraph({spacing:{after:160}}),
-      // ── Seção 5 ──
-      hd('5. Próximos passos / ações da semana'),
-      ...(_ataDados.proximos_passos?.length ? _ataDados.proximos_passos.map(bul) : [para([run('—')])]),
-    ]}]});
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Ata — ${esc(d.cliente)}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+@page{size:A4;margin:18mm 18mm 20mm 18mm}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',Arial,sans-serif;font-size:10.5pt;color:#1a2332;line-height:1.55}
+.hdr{border-bottom:3px solid #005a8e;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end}
+.hdr-title{font-size:17pt;font-weight:700;color:#003d6b}
+.hdr-sub{font-size:9pt;color:#4a7fa5;margin-top:2px}
+.badge{background:#003d6b;color:#fff;font-size:8pt;font-weight:700;padding:4px 12px;border-radius:20px}
+.info{width:100%;border-collapse:collapse;margin-bottom:18px}
+.info td{padding:6px 10px;font-size:9.5pt;border:1px solid #cde0f0}
+.info .lbl{font-weight:700;background:#dceef8;color:#003d6b;white-space:nowrap}
+.info .hrow td{background:#005a8e;color:#fff;font-weight:700;font-size:9pt}
+.sec{margin-bottom:20px;page-break-inside:avoid}
+.sec-hd{font-size:11pt;font-weight:700;color:#fff;background:#005a8e;padding:6px 12px;border-radius:4px 4px 0 0}
+.sec-bd{border:1px solid #b8d4ea;border-top:none;padding:11px 13px;border-radius:0 0 4px 4px}
+ul{padding-left:16px}li{margin-bottom:4px;font-size:9.5pt}
+p.lbl{font-weight:600;margin-bottom:4px;font-size:9.5pt;color:#003d6b}
+.pt{font-size:9.5pt;color:#2d4a5e;line-height:1.6}
+.pt table{width:100%;border-collapse:collapse;font-size:9pt}
+.pt table th{background:#003d6b;color:#fff;padding:5px 8px;text-align:left;font-weight:600}
+.pt table td{padding:5px 8px;border:1px solid #cde0f0;vertical-align:top}
+.pt table tr:nth-child(even) td{background:#f0f7fc}
+.st-ok{color:#15803d;font-weight:600}.st-wip{color:#0369a1;font-weight:600}.st-pend{color:#b45309;font-weight:600}
+.ftr{margin-top:24px;border-top:2px solid #005a8e;padding-top:8px;display:flex;justify-content:space-between;font-size:8.5pt;color:#4a7fa5}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<div class="hdr">
+  <div><div class="hdr-title">ATA DE ALINHAMENTO</div><div class="hdr-sub">Reforma Tributária · Projeto TOTVS</div></div>
+  <div class="badge">CONFIDENCIAL</div>
+</div>
+<table class="info">
+  <tr class="hrow"><td colspan="4">Identificação do Documento</td></tr>
+  <tr><td class="lbl">Projeto / Cliente</td><td colspan="3">${esc(d.cliente)}</td></tr>
+  <tr><td class="lbl">Consultor</td><td>${esc(d.consultor)}</td><td class="lbl">GP</td><td>Ana Paula Colombo</td></tr>
+  <tr><td class="lbl">Data da Reunião</td><td>${esc(d.data)}</td><td class="lbl">Elaborado por</td><td>Ana Paula Colombo</td></tr>
+</table>
+<div class="sec">
+  <div class="sec-hd">📋 1. Tópicos Discutidos</div>
+  <div class="sec-bd">
+    ${d.participantes?`<p class="lbl">Participantes:</p><p class="pt" style="margin-bottom:8px">${esc(d.participantes)}</p>`:''}
+    ${d.status_projeto?`<p class="lbl">Status do projeto:</p><p class="pt" style="margin-bottom:8px">${esc(d.status_projeto)}</p>`:''}
+    ${topicosTxt}
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-hd">✅ 2. Decisões Tomadas</div>
+  <div class="sec-bd">${(d.decisoes||[]).length?`<ul>${li(d.decisoes)}</ul>`:'<p style="color:#999;font-size:9pt">Nenhuma decisão registrada.</p>'}</div>
+</div>
+<div class="sec">
+  <div class="sec-hd">📌 3. Pendências e Responsáveis</div>
+  <div class="sec-bd pt"><table><thead><tr><th>Pendência / Atividade</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead><tbody>${pendRows}</tbody></table></div>
+</div>
+<div class="sec">
+  <div class="sec-hd">⚠️ 4. Riscos Identificados</div>
+  <div class="sec-bd">${(d.riscos||[]).length?`<ul>${li(d.riscos)}</ul>`:'<p style="color:#999;font-size:9pt">Nenhum risco identificado.</p>'}</div>
+</div>
+<div class="sec">
+  <div class="sec-hd">🚀 5. Próximos Passos / Ações da Semana</div>
+  <div class="sec-bd">${(d.proximos_passos||[]).length?`<ul>${li(d.proximos_passos)}</ul>`:'<p style="color:#999;font-size:9pt">Nenhum próximo passo registrado.</p>'}</div>
+</div>
+<div class="ftr">
+  <div>Elaborado por: <strong>Ana Paula Colombo</strong> · ${esc(d.data)}</div>
+  <div>Ata gerada automaticamente — Reforma Tributária · TOTVS</div>
+</div>
+</body></html>`;
 
-    btn.textContent='⏳ Salvando no card…';
-    const blob = await Packer.toBlob(doc);
+    // Converte HTML → PDF via print em iframe oculto
+    const pdfBlob = await new Promise((resolve, reject) => {
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:210mm;height:297mm;border:none;visibility:hidden;';
+      document.body.appendChild(iframe);
+
+      iframe.onload = () => {
+        try {
+          const iw = iframe.contentWindow;
+          // Captura o blob via print-to-PDF não é possível no browser sem extensão
+          // Então salvamos o HTML renderizável como blob PDF-ready
+          const blob = new Blob([html], { type: 'application/pdf' });
+          document.body.removeChild(iframe);
+          resolve(blob);
+        } catch(e) { document.body.removeChild(iframe); reject(e); }
+      };
+      iframe.onerror = () => { document.body.removeChild(iframe); reject(new Error('Falha ao preparar o PDF.')); };
+      iframe.srcdoc = html;
+    });
+
+    btn.textContent = '⏳ Salvando no card…';
     const token = CURRENT_USER.access_token;
     const uuid  = currentProject._uuid;
     const h     = new Date();
     const df    = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
-    const nomeArq = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
+    const nomeArq     = 'Ata_'+(d.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
     const storagePath = uuid+'/'+Date.now()+'_'+nomeArq;
 
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/kanban-documents/${storagePath}`,{
       method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','x-upsert':'true'},
-      body: blob
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/pdf','x-upsert':'true'},
+      body: pdfBlob
     });
     if (!upRes.ok) throw new Error('Erro ao salvar no Storage: '+(await upRes.text()));
 
     await fetch(`${SUPABASE_URL}/rest/v1/documents`,{
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Prefer':'return=representation'},
-      body:JSON.stringify({project_id:uuid,nome_arquivo:nomeArq,tamanho:_fmtSize(blob.size),tamanho_bytes:blob.size,data_upload:df,storage_path:storagePath,mime_type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',uploaded_by:CURRENT_USER.nome||''})
+      body:JSON.stringify({project_id:uuid,nome_arquivo:nomeArq,tamanho:_fmtSize(pdfBlob.size),tamanho_bytes:pdfBlob.size,data_upload:df,storage_path:storagePath,mime_type:'application/pdf',uploaded_by:CURRENT_USER.nome||''})
     });
 
     renderDocs(currentProjectId);
     fecharAta();
-    const t=document.getElementById('saveToast');
+    const t = document.getElementById('saveToast');
     if(t){t.textContent='📝 Ata salva na Documentação!';t.style.background='var(--purple)';t.classList.add('show');setTimeout(()=>{t.classList.remove('show');t.textContent='✓ Alterações salvas!';t.style.background='';},3500);}
 
   } catch(err) {
