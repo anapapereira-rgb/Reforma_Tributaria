@@ -5674,7 +5674,7 @@ function _ataRenderPreview() {
 async function salvarAtaNoCard() {
   if (!_ataDados) return;
   const btn = document.getElementById('ataPrimaryBtn');
-  btn.disabled = true; btn.textContent = '⏳ Gerando PDF…';
+  btn.disabled = true; btn.textContent = '⏳ Gerando ata…';
 
   try {
     const d = _ataDados;
@@ -5763,7 +5763,7 @@ p.lbl{font-weight:600;margin-bottom:4px;font-size:9.5pt;color:#003d6b}
 </body></html>`;
 
     // Converte HTML → PDF via print em iframe oculto
-    const pdfBlob = await new Promise((resolve, reject) => {
+    const htmlBlob = await new Promise((resolve, reject) => {
       const iframe = document.createElement('iframe');
       iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:210mm;height:297mm;border:none;visibility:hidden;';
       document.body.appendChild(iframe);
@@ -5773,7 +5773,7 @@ p.lbl{font-weight:600;margin-bottom:4px;font-size:9.5pt;color:#003d6b}
           const iw = iframe.contentWindow;
           // Captura o blob via print-to-PDF não é possível no browser sem extensão
           // Então salvamos o HTML renderizável como blob PDF-ready
-          const blob = new Blob([html], { type: 'application/pdf' });
+          const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
           document.body.removeChild(iframe);
           resolve(blob);
         } catch(e) { document.body.removeChild(iframe); reject(e); }
@@ -5787,20 +5787,20 @@ p.lbl{font-weight:600;margin-bottom:4px;font-size:9.5pt;color:#003d6b}
     const uuid  = currentProject._uuid;
     const h     = new Date();
     const df    = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
-    const nomeArq     = 'Ata_'+(d.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
+    const nomeArq     = 'Ata_'+(d.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.html';
     const storagePath = uuid+'/'+Date.now()+'_'+nomeArq;
 
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/kanban-documents/${storagePath}`,{
       method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/pdf','x-upsert':'true'},
-      body: pdfBlob
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'text/html','x-upsert':'true'},
+      body: htmlBlob
     });
     if (!upRes.ok) throw new Error('Erro ao salvar no Storage: '+(await upRes.text()));
 
     await fetch(`${SUPABASE_URL}/rest/v1/documents`,{
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Prefer':'return=representation'},
-      body:JSON.stringify({project_id:uuid,nome_arquivo:nomeArq,tamanho:_fmtSize(pdfBlob.size),tamanho_bytes:pdfBlob.size,data_upload:df,storage_path:storagePath,mime_type:'application/pdf',uploaded_by:CURRENT_USER.nome||''})
+      body:JSON.stringify({project_id:uuid,nome_arquivo:nomeArq,tamanho:_fmtSize(htmlBlob.size),tamanho_bytes:htmlBlob.size,data_upload:df,storage_path:storagePath,mime_type:'text/html',uploaded_by:CURRENT_USER.nome||''})
     });
 
     renderDocs(currentProjectId);
