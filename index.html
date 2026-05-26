@@ -5276,7 +5276,121 @@ async function abrirModalAta() {
   _ataDados = null; _ataPdfFile = null;
   document.getElementById('ataOverlay').style.display = 'flex';
   _ataBtn('', false, true);
-  _renderUploadUI();
+  await _renderSeletorDocs();
+}
+
+// ── Lista docs do card para o usuário escolher ────────────────────
+async function _renderSeletorDocs() {
+  const hoje    = new Date();
+  const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' +
+                  String(hoje.getMonth()+1).padStart(2,'0') + '/' +
+                  hoje.getFullYear();
+  const cliente   = escapeHtml(currentProject?.c    || '');
+  const consultor = escapeHtml(currentProject?.cons || '');
+
+  // Cabeçalho do projeto
+  const cabecalho = `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+                padding:10px 14px;margin-bottom:12px;font-size:12px;">
+      <div style="color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.04em;
+                  text-transform:uppercase;margin-bottom:3px;">Projeto</div>
+      <div style="color:var(--text);">📋 ${cliente} · ${consultor} · ${dataFmt}</div>
+    </div>`;
+
+  // Busca PDFs já anexados no card
+  let pdfDocs = [];
+  try {
+    if (CURRENT_USER?.access_token && currentProject?._uuid) {
+      const res  = await fetch(`${SUPABASE_URL}/rest/v1/documents?project_id=eq.${currentProject._uuid}&select=*&order=created_at.desc`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
+      });
+      const rows = res.ok ? await res.json() : [];
+      pdfDocs = rows.filter(r => (r.mime_type||'').includes('pdf') || (r.nome_arquivo||'').toLowerCase().endsWith('.pdf'));
+    }
+  } catch(_) {}
+
+  if (pdfDocs.length > 0) {
+    // Mostra seletor de docs existentes
+    const itens = pdfDocs.map(d => `
+      <div class="ata-doc-row" onclick="_ataEscolherDoc('${d.id}','${escapeHtml(d.nome_arquivo||'')}','${d.storage_path||''}')"
+           style="cursor:pointer;">
+        <div style="width:36px;height:36px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);
+                    border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📕</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;
+                      overflow:hidden;text-overflow:ellipsis;">${escapeHtml(d.nome_arquivo||'')}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${d.tamanho||''} · ${d.data_upload||''}</div>
+        </div>
+        <div style="font-size:11px;color:var(--purple);font-weight:600;flex-shrink:0;">Usar este ›</div>
+      </div>`).join('');
+
+    _ataBody(`
+      ${cabecalho}
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+                  letter-spacing:.06em;margin-bottom:8px;">Selecione a transcrição do card</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${itens}
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);
+                  text-align:center;">
+        <span style="font-size:11px;color:var(--muted);">ou prefere enviar outro arquivo?</span>
+        <button onclick="_renderUploadUI()"
+                style="background:none;border:none;color:var(--purple);font-size:12px;font-weight:700;
+                       cursor:pointer;margin-left:6px;font-family:var(--font);">Fazer upload ›</button>
+      </div>
+    `);
+    _ataBtn('', false, true);
+  } else {
+    // Sem PDFs no card — vai direto para upload
+    _renderUploadUI();
+  }
+}
+
+// Usuário escolheu um doc já existente no card — baixa e usa como PDF
+async function _ataEscolherDoc(docId, nomeArq, storagePath) {
+  _ataRenderProgress();
+  _ataSetStep(1, 'active');
+
+  try {
+    // Gera URL assinada para download
+    const token = CURRENT_USER.access_token;
+    const signRes = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/sign/kanban-documents/${storagePath}`,
+      { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiresIn: 60 }) }
+    );
+    const signData = signRes.ok ? await signRes.json() : null;
+    const fileUrl  = signData?.signedURL
+      ? `${SUPABASE_URL}/storage/v1${signData.signedURL}`
+      : `${SUPABASE_URL}/storage/v1/object/public/kanban-documents/${storagePath}`;
+
+    // Baixa o arquivo
+    const fileRes  = await fetch(fileUrl);
+    if (!fileRes.ok) throw new Error('Não foi possível baixar o arquivo do card.');
+    const blob     = await fileRes.blob();
+    const pdfBlob  = new Blob([blob], { type: 'application/pdf' });
+
+    // Converte para base64
+    const b64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('Falha ao ler o arquivo.'));
+      r.readAsDataURL(pdfBlob);
+    });
+    _ataSetStep(1, 'done');
+
+    // Prossegue com a análise
+    await _ataAnalisarB64(b64);
+
+  } catch(e) {
+    _ataSetStep(1, 'error');
+    const errBox = document.getElementById('ataProgressError');
+    if (errBox) {
+      errBox.style.display = 'block';
+      errBox.innerHTML = '⚠️ ' + escapeHtml(_errMsg(e)) +
+        ' <button onclick="_renderSeletorDocs()" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px;margin-left:8px;">↩ Voltar</button>';
+    }
+  }
 }
 
 function _renderUploadUI() {
@@ -5458,17 +5572,8 @@ function _ataSetStep(n, state) {
 async function _ataIniciarGeracao() {
   if (!_ataPdfFile) return;
   _ataRenderProgress();
-
-  const hoje    = new Date();
-  const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' +
-                  String(hoje.getMonth()+1).padStart(2,'0') + '/' +
-                  hoje.getFullYear();
-  const cliente   = currentProject?.c    || '';
-  const consultor = currentProject?.cons || '';
-
+  _ataSetStep(1, 'active');
   try {
-    // PASSO 1 — ler PDF como base64
-    _ataSetStep(1, 'active');
     const b64 = await new Promise((res, rej) => {
       const r = new FileReader();
       r.onload  = () => res(r.result.split(',')[1]);
@@ -5476,11 +5581,26 @@ async function _ataIniciarGeracao() {
       r.readAsDataURL(_ataPdfFile);
     });
     _ataSetStep(1, 'done');
+    await _ataAnalisarB64(b64);
+  } catch(e) {
+    _ataSetStep(1, 'error');
+    const errBox = document.getElementById('ataProgressError');
+    if (errBox) { errBox.style.display='block'; errBox.innerHTML='⚠️ '+escapeHtml(_errMsg(e)); }
+  }
+}
 
-    // PASSO 2 — Claude via proxy existente
+// Núcleo: envia b64 para o Claude e processa a resposta
+async function _ataAnalisarB64(b64) {
+  const cliente   = currentProject?.c    || '';
+  const consultor = currentProject?.cons || '';
+  const hoje      = new Date();
+  const dataFmt   = String(hoje.getDate()).padStart(2,'0') + '/' +
+                    String(hoje.getMonth()+1).padStart(2,'0') + '/' +
+                    hoje.getFullYear();
+  try {
     _ataSetStep(2, 'active');
     const resposta = await _claudeProxy({
-      model:      'claude-sonnet-4-20250514',
+      model:      'claude-sonnet-4-5',
       max_tokens: 4096,
       system: `Você é um assistente especialista em projetos de Reforma Tributária TOTVS.
 Leia o documento PDF anexado (transcrição de reunião) e extraia as informações para preencher uma ata.
@@ -5498,7 +5618,7 @@ Formato JSON esperado:
   "status_projeto": "descrição do status em 1-2 frases",
   "topicos": ["tópico 1", "tópico 2"],
   "decisoes": ["decisão 1", "decisão 2"],
-  "pendencias": [{"atividade":"...","responsavel":"...","prazo":"...","status":"..."}],
+  "pendencias": [{"atividade":"...","responsavel":"...","prazo":"...","status":"Pendente"}],
   "riscos": ["risco 1"],
   "proximos_passos": ["ação 1", "ação 2"]
 }
@@ -5508,7 +5628,7 @@ Se não houver informação para algum campo, use string vazia "" ou array vazio
         role: 'user',
         content: [
           { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
-          { type: 'text',     text: 'Analise esta transcrição e retorne o JSON conforme instruído.' }
+          { type: 'text', text: 'Analise esta transcrição e retorne o JSON conforme instruído.' }
         ]
       }]
     });
@@ -5520,21 +5640,16 @@ Se não houver informação para algum campo, use string vazia "" ou array vazio
 
     _ataDados = { cliente, consultor, data: dataFmt, ...dados };
     _ataSetStep(2, 'done');
-
-    // PASSO 3 — pronto
     _ataSetStep(3, 'done');
     _ataRenderPreview();
 
   } catch(e) {
-    [1,2,3].forEach(n => {
-      const el = document.getElementById('ataStep'+n);
-      if (el && el.style.borderColor.includes('purple')) _ataSetStep(n, 'error');
-    });
+    _ataSetStep(2, 'error');
     const errBox = document.getElementById('ataProgressError');
     if (errBox) {
       errBox.style.display = 'block';
       errBox.innerHTML = '⚠️ ' + escapeHtml(_errMsg(e)) +
-        ' <button onclick="_renderUploadUI();_ataBtn(\'\',false,true)" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px;margin-left:8px;">↩ Tentar novamente</button>';
+        ' <button onclick="_renderSeletorDocs()" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px;margin-left:8px;">↩ Voltar</button>';
     }
   }
 }
@@ -5549,7 +5664,7 @@ function _ataRenderPreview() {
     <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:8px;">✅ Ata gerada com sucesso!</div>
     <div class="ata-preview">ATA DE ALINHAMENTO – REFORMA TRIBUTÁRIA\n\nCliente: ${escapeHtml(d.cliente||'')}\nConsultor: ${escapeHtml(d.consultor||'')}\nGP: Ana Paula Colombo  |  Data: ${d.data||''}\n\n1. TÓPICOS DISCUTIDOS\nParticipantes: ${escapeHtml(d.participantes||'')}\nStatus: ${escapeHtml(d.status_projeto||'')}${topicosTxt ? '\n\nAssuntos:\n'+escapeHtml(topicosTxt) : ''}\n\n2. DECISÕES TOMADAS\n${(d.decisoes||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'—'}\n\n3. PENDÊNCIAS E RESPONSÁVEIS\n${escapeHtml(pendPreview)||'—'}\n\n4. RISCOS IDENTIFICADOS\n${(d.riscos||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'Nenhum identificado'}\n\n5. PRÓXIMOS PASSOS\n${(d.proximos_passos||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'—'}</div>
     <div style="font-size:11px;color:var(--muted);margin-top:8px;">
-      Clique em <strong style="color:var(--purple);">💾 Salvar no Card</strong> para gerar o .docx e adicionar à Documentação.
+      Clique em <strong style="color:var(--purple);">💾 Salvar no Card</strong> para gerar o .docx no modelo padrão.
     </div>
   `);
   _ataBtn('💾 Salvar no Card', true, false);
@@ -5579,39 +5694,62 @@ async function salvarAtaNoCard() {
     const para=(ch,sp={after:80})=>new Paragraph({children:ch,spacing:sp});
     const hd=t=>new Paragraph({children:[run(t,{bold:true,size:26,color:ACC})],spacing:{before:220,after:100}});
     const bul=t=>new Paragraph({children:[run('• '+t)],spacing:{after:60},indent:{left:360}});
-    const hCel=t=>new TableCell({width:{size:2340,type:WidthType.DXA},borders:bGry,margins:cm,shading:{fill:LGT,type:ShadingType.CLEAR},children:[para([run(t,{bold:true,size:20})])]});
-    const dCel=t=>new TableCell({width:{size:2340,type:WidthType.DXA},borders:bGry,margins:cm,children:[para([run(t||'',{size:20})])]});
+    const colW=[3240,2160,1800,2160];
+    const hCel=(t,i)=>new TableCell({width:{size:colW[i]||2340,type:WidthType.DXA},borders:bGry,margins:cm,shading:{fill:LGT,type:ShadingType.CLEAR},children:[para([run(t,{bold:true,size:20})])]});
+    const dCel=(t,i)=>new TableCell({width:{size:colW[i]||2340,type:WidthType.DXA},borders:bGry,margins:cm,children:[para([run(t||'',{size:20})])]});
 
     const pends = _ataDados.pendencias||[];
-    const pendRows=[new TableRow({children:[hCel('Pendência / Atividade'),hCel('Responsável'),hCel('Prazo'),hCel('Status')]})];
-    (pends.length?pends:[{}]).forEach(p=>pendRows.push(new TableRow({children:[dCel(p.atividade),dCel(p.responsavel),dCel(p.prazo),dCel(p.status)]})));
+    const pendRows=[new TableRow({children:[hCel('Pendência / Atividade',0),hCel('Responsável',1),hCel('Prazo',2),hCel('Status',3)]})];
+    (pends.length?pends:[{}]).forEach(p=>pendRows.push(new TableRow({children:[dCel(p.atividade,0),dCel(p.responsavel,1),dCel(p.prazo,2),dCel(p.status,3)]})));
 
     const doc = new Document({ sections:[{ properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}}, children:[
+      // ── Cabeçalho fiel ao modelo ──
       new Table({ width:{size:9360,type:WidthType.DXA}, columnWidths:[9360], rows:[
-        new TableRow({children:[new TableCell({borders:bAcc,margins:cm,width:{size:9360,type:WidthType.DXA},shading:{fill:ACC,type:ShadingType.CLEAR},children:[new Paragraph({alignment:AlignmentType.CENTER,children:[run('ATA DE ALINHAMENTO DE PROJETO – REFORMA TRIBUTÁRIA',{bold:true,size:24,color:'FFFFFF'})]})]})]})  ,
-        new TableRow({children:[new TableCell({borders:bAcc,margins:cm,width:{size:9360,type:WidthType.DXA},children:[
-          para([run('Projeto/Cliente:  ',{bold:true}),run(_ataDados.cliente)]),
-          para([run('Consultor:  ',{bold:true}),run(_ataDados.consultor),run('          GP:  Ana Paula Colombo',{bold:true})]),
-          para([run('Data: '+_ataDados.data)]),
-        ]})]})
+        // Linha 1: título centralizado fundo azul
+        new TableRow({children:[new TableCell({
+          borders:bAcc, margins:cm, width:{size:9360,type:WidthType.DXA},
+          shading:{fill:ACC,type:ShadingType.CLEAR},
+          children:[new Paragraph({alignment:AlignmentType.CENTER,
+            children:[run('ATA DE ALINHAMENTO DE PROJETO – REFORMA TRIBUTÁRIA',{bold:true,size:22,color:'FFFFFF'})]})]
+        })]}),
+        // Linha 2: Projeto/Cliente fundo cinza claro
+        new TableRow({children:[new TableCell({
+          borders:bAcc, margins:cm, width:{size:9360,type:WidthType.DXA},
+          shading:{fill:LGT,type:ShadingType.CLEAR},
+          children:[para([run('Projeto / Cliente:  ',{bold:true}),run(_ataDados.cliente||'')])]
+        })]}),
+        // Linha 3: Consultor | GP | Data (3 colunas simuladas em 1 célula)
+        new TableRow({children:[new TableCell({
+          borders:bAcc, margins:cm, width:{size:9360,type:WidthType.DXA},
+          children:[para([
+            run('Consultor:  ',{bold:true}), run(_ataDados.consultor||''),
+            run('          GP:  ',{bold:true}), run('Ana Paula Colombo'),
+            run('          Data:  ',{bold:true}), run(_ataDados.data||''),
+          ])]
+        })]})
       ]}),
-      new Paragraph({spacing:{after:200}}),
+      new Paragraph({spacing:{after:160}}),
+      // ── Seção 1 ──
       hd('1. Tópicos discutidos'),
-      para([run('Participantes:  ',{bold:true}),run(_ataDados.participantes||'')]),
-      para([run('Status do projeto:  ',{bold:true}),run(_ataDados.status_projeto||'')]),
-      ...(_ataDados.topicos?.length?[new Paragraph({spacing:{after:60}}), ...(_ataDados.topicos.map(bul))]:[ ]),
-      new Paragraph({spacing:{after:120}}),
+      para([run('Participantes:  ',{bold:true}), run(_ataDados.participantes||'')], {after:80}),
+      para([run('Status do projeto:  ',{bold:true}), run(_ataDados.status_projeto||'')], {after:80}),
+      ...(_ataDados.topicos?.length ? _ataDados.topicos.map(bul) : []),
+      new Paragraph({spacing:{after:160}}),
+      // ── Seção 2 ──
       hd('2. Decisões tomadas'),
-      ...(_ataDados.decisoes?.length?_ataDados.decisoes.map(bul):[para([run('—')])]),
-      new Paragraph({spacing:{after:120}}),
+      ...(_ataDados.decisoes?.length ? _ataDados.decisoes.map(bul) : [para([run('—')])]),
+      new Paragraph({spacing:{after:160}}),
+      // ── Seção 3 ──
       hd('3. Pendências e responsáveis'),
-      new Table({width:{size:9360,type:WidthType.DXA},columnWidths:[2340,2340,2340,2340],rows:pendRows}),
-      new Paragraph({spacing:{after:120}}),
+      new Table({width:{size:9360,type:WidthType.DXA},columnWidths:[3240,2160,1800,2160],rows:pendRows}),
+      new Paragraph({spacing:{after:160}}),
+      // ── Seção 4 ──
       hd('4. Riscos identificados'),
-      ...(_ataDados.riscos?.length?_ataDados.riscos.map(bul):[para([run('Nenhum identificado')])]),
-      new Paragraph({spacing:{after:120}}),
+      ...(_ataDados.riscos?.length ? _ataDados.riscos.map(bul) : [para([run('Nenhum identificado')])]),
+      new Paragraph({spacing:{after:160}}),
+      // ── Seção 5 ──
       hd('5. Próximos passos / ações da semana'),
-      ...(_ataDados.proximos_passos?.length?_ataDados.proximos_passos.map(bul):[para([run('—')])]),
+      ...(_ataDados.proximos_passos?.length ? _ataDados.proximos_passos.map(bul) : [para([run('—')])]),
     ]}]});
 
     btn.textContent='⏳ Salvando no card…';
