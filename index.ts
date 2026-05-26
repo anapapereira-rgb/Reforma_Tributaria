@@ -23,7 +23,7 @@ serve(async (req: Request) => {
 
   try {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada");
+    if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada nos secrets da Edge Function.");
 
     // Repassa o body inteiro para a API do Claude
     const body = await req.json();
@@ -33,6 +33,8 @@ serve(async (req: Request) => {
       headers: {
         "x-api-key":         apiKey,
         "anthropic-version": "2023-06-01",
+        // Necessário para uso de documentos PDF (type: "document")
+        "anthropic-beta":    "pdfs-2024-09-25",
         "Content-Type":      "application/json",
       },
       body: JSON.stringify(body),
@@ -40,13 +42,15 @@ serve(async (req: Request) => {
 
     const data = await res.json();
 
+    // Sempre repassa o status original da Anthropic (200, 400, 401, 529…)
     return new Response(JSON.stringify(data), {
       status: res.status,
       headers: { ...CORS, "Content-Type": "application/json" },
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
+    const message = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ type: "error", error: { type: "proxy_error", message } }), {
       status: 500,
       headers: { ...CORS, "Content-Type": "application/json" },
     });

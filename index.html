@@ -5197,19 +5197,45 @@ render();
 //  Proxy helper — chama claude-proxy Edge Function
 // ═══════════════════════════════════════
 async function _claudeProxy(payload) {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/claude-proxy`, {
-    method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'apikey':        SUPABASE_KEY,
-      'Authorization': 'Bearer ' + (CURRENT_USER?.access_token || SUPABASE_KEY),
-    },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || data?.message || JSON.stringify(data));
-  // Repassa erro de API do Claude (ex: model inválido, cota, etc.)
-  if (data?.error) throw new Error(data.error?.message || JSON.stringify(data.error));
+  // Garante token fresco — se não houver sessão ativa, aborta com mensagem clara
+  const token = CURRENT_USER?.access_token;
+  if (!token) throw new Error('Sessão expirada. Faça login novamente e tente outra vez.');
+
+  let res, data;
+  try {
+    res = await fetch(`${SUPABASE_URL}/functions/v1/claude-proxy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'apikey':        SUPABASE_KEY,
+        'Authorization': 'Bearer ' + token,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch(netErr) {
+    throw new Error('Sem conexão com o servidor. Verifique sua internet e tente novamente.');
+  }
+
+  try { data = await res.json(); }
+  catch(_) { throw new Error(`Resposta inválida do servidor (HTTP ${res.status}).`); }
+
+  // ── Erro HTTP da Edge Function (401, 403, 500…) ──────────────────
+  if (!res.ok) {
+    // Supabase devolve { message: "..." } ou { error: "..." }
+    const msg = data?.message || data?.error || `Erro HTTP ${res.status}`;
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+  }
+
+  // ── Erro da API Anthropic repassado pelo proxy ────────────────────
+  // Formato: { type:"error", error:{ type:"...", message:"..." } }
+  if (data?.type === 'error' || data?.error) {
+    const errObj = data?.error;
+    const msg = (typeof errObj === 'string')
+      ? errObj
+      : (errObj?.message || JSON.stringify(errObj) || 'Erro da API Claude.');
+    throw new Error(msg);
+  }
+
   return data;
 }
 
@@ -5218,8 +5244,7 @@ function _errMsg(e) {
   if (!e) return 'Erro desconhecido.';
   if (typeof e === 'string') return e;
   if (e instanceof Error) return e.message || String(e);
-  // ProgressEvent (FileReader), Event ou objeto genérico
-  if (e?.message) return e.message;
+  if (e?.message) return String(e.message);
   if (e?.type)    return `Erro de leitura: ${e.type}`;
   try { const s = JSON.stringify(e); return s !== '{}' ? s : 'Erro desconhecido.'; } catch(_) {}
   return String(e);
@@ -5333,7 +5358,7 @@ async function gerarAta() {
 
     // 2. Chama Claude via proxy (supabase edge function)
     const claudeRes = await _claudeProxy({
-      model:      'claude-sonnet-4-5',
+      model:      'claude-haiku-4-5-20251001',   // modelo rápido e barato — ideal para geração de ata
       max_tokens: 2000,
       messages: [{
         role: 'user',
