@@ -1028,6 +1028,18 @@
   }
 
   /* Add-task row */
+  /* Aviso exibido para consultores no lugar do campo de nova tarefa */
+  .task-no-add-msg {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #1e293b88;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: .02em;
+  }
   .task-add-row {
     display: flex;
     align-items: center;
@@ -1778,8 +1790,9 @@
            TABS DE NAVEGAÇÃO
       ══════════════════════════════════ -->
       <div class="modal-tabs-row">
-        <button class="modal-tab-btn active" id="mtab-info"    onclick="switchModalTab('info')">ℹ️ Informações</button>
-        <button class="modal-tab-btn"        id="mtab-projeto" onclick="switchModalTab('projeto')">📋 Projeto</button>
+        <button class="modal-tab-btn active" id="mtab-info"           onclick="switchModalTab('info')">ℹ️ Informações</button>
+        <button class="modal-tab-btn"        id="mtab-projeto"        onclick="switchModalTab('projeto')">📋 Projeto</button>
+        <button class="modal-tab-btn"        id="mtab-acompanhamento" onclick="switchModalTab('acompanhamento')">✅ Acompanhamento</button>
       </div>
 
       <!-- ══════════════════════════════════
@@ -2000,20 +2013,6 @@
           </div>
         </div>
 
-        <!-- 2.3 Check list de tarefas -->
-        <div class="card-subsect">
-          <div class="card-subsect-header" onclick="toggleSubsect(this)">
-            <span class="card-subsect-title">✅ Check list de Tarefas</span>
-            <span class="card-subsect-chevron">▼</span>
-          </div>
-          <div class="card-subsect-body">
-            <div id="viewActsObs">
-              <div class="modal-sect-title" id="mActsTitle">Progresso das Atividades</div>
-              <div class="acts-grid" id="mActs"></div>
-            </div>
-          </div>
-        </div>
-
         <!-- 2.3 Histórico de Tarefas Diárias -->
         <div class="card-subsect">
           <div class="card-subsect-header" onclick="toggleSubsect(this)">
@@ -2155,6 +2154,23 @@
         </div>
 
       </div><!-- /mpanel-projeto -->
+
+      <!-- ══════════════════════════════════
+           PAINEL 3 — ACOMPANHAMENTO (checklist de tarefas)
+      ══════════════════════════════════ -->
+      <div class="modal-tab-panel" id="mpanel-acompanhamento">
+
+        <!-- 3.1 Checklist de Tarefas -->
+        <div class="card-subsect" style="border:none;padding:0;">
+          <div class="card-subsect-body" style="padding:0;border:none;">
+            <div id="viewActsObs">
+              <div class="modal-sect-title" id="mActsTitle">Checklist de Tarefas</div>
+              <div class="acts-grid" id="mActs"></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /mpanel-acompanhamento -->
 
     </div>
   </div>
@@ -2969,6 +2985,16 @@ function onDocDrop(e) {
   _processDocFiles(e.dataTransfer.files);
 }
 
+// ── Helpers de permissão ──────────────────────────────────────────
+// Retorna true se o usuário logado tem perfil de gerente/gestor.
+// Consultores podem atualizar status/resp/data das tarefas, mas
+// NÃO podem criar nem deletar tarefas customizadas.
+function isGestor() {
+  if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER) return false;
+  const p = (CURRENT_USER.perfil || '').toLowerCase();
+  return p === 'gerente' || p === 'gestor' || p === 'admin';
+}
+
 function openModal(p) {
   // Reseta participantes da agenda ao abrir novo card
   if (typeof _meetParticipantes !== 'undefined') {
@@ -3253,7 +3279,7 @@ function renderModalView(p) {
               <span class="task-drag-handle" title="Arrastar para reordenar">⠿</span>
               <span class="task-num">${i+1}.</span>
               <span class="task-label">${label}</span>
-              ${isCustom ? `<button class="task-del-btn" title="Remover tarefa" onclick="event.stopPropagation();deleteCustomTask('${k}',false)">✕</button>` : ''}
+              ${isCustom ? (isGestor() ? `<button class="task-del-btn" title="Remover tarefa" onclick="event.stopPropagation();deleteCustomTask('${k}',false)">✕</button>` : '') : ''}
             </div>
             <div class="task-meta">
               <select class="task-st-sel ${stCfg.cls}" onchange="setTaskStatus(event,'${k}')" onclick="event.stopPropagation()">
@@ -3270,11 +3296,11 @@ function renderModalView(p) {
           </div>`;
         }).join('')}
       </div>
-      <div class="task-add-row">
+      ${isGestor() ? `<div class="task-add-row">
         <input type="text" class="task-add-inp" id="taskAddInp" placeholder="＋ Nova tarefa…"
           onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTask(false);}" />
         <button class="task-add-btn" onclick="addCustomTask(false)">Adicionar</button>
-      </div>`;
+      </div>` : '<div class="task-no-add-msg">🔒 Apenas gestores podem criar novas tarefas</div>'}`;
   } else if (phase === 3) {
     // F3: only custom tasks
     actsTitleEl.textContent = 'Checklist de Tarefas';
@@ -3322,7 +3348,7 @@ function renderModalView(p) {
               <span class="task-drag-handle" title="Arrastar para reordenar">⠿</span>
               <span class="task-num">${i+1}.</span>
               <span class="task-label">${label}</span>
-              <button class="task-del-btn" title="Remover tarefa" onclick="event.stopPropagation();deleteCustomTask('${ek}',3)">✕</button>
+              ${isGestor() ? `<button class="task-del-btn" title="Remover tarefa" onclick="event.stopPropagation();deleteCustomTask('${ek}',3)">✕</button>` : ''}
             </div>
             <div class="task-meta">
               <select class="task-st-sel ${stCfg.cls}" onchange="setTaskStatus3(event,'${ek}')" onclick="event.stopPropagation()">
@@ -3339,11 +3365,11 @@ function renderModalView(p) {
           </div>`;
         }).join('')}
       </div>
-      <div class="task-add-row">
+      ${isGestor() ? `<div class="task-add-row">
         <input type="text" class="task-add-inp" id="taskAddInp3" placeholder="＋ Nova tarefa…"
           onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTask(3);}" />
         <button class="task-add-btn" onclick="addCustomTask(3)">Adicionar</button>
-      </div>`;
+      </div>` : '<div class="task-no-add-msg">🔒 Apenas gestores podem criar novas tarefas</div>'}`;
   } else {
     // F2: task checklist (same model as F1)
     actsTitleEl.textContent = 'Checklist de Tarefas';
@@ -3390,7 +3416,7 @@ function renderModalView(p) {
               <span class="task-drag-handle" title="Arrastar para reordenar">⠿</span>
               <span class="task-num">${i+1}.</span>
               <span class="task-label">${label}</span>
-              ${isCustom2 ? `<button class="task-del-btn" title="Remover tarefa" onclick="event.stopPropagation();deleteCustomTask('${k}',true)">✕</button>` : ''}
+              ${isCustom2 ? (isGestor() ? `<button class="task-del-btn" title="Remover tarefa" onclick="event.stopPropagation();deleteCustomTask('${k}',true)">✕</button>` : '') : ''}
             </div>
             <div class="task-meta">
               <select class="task-st-sel ${stCfg.cls}" onchange="setTaskStatus2(event,'${k}')" onclick="event.stopPropagation()">
@@ -3407,11 +3433,11 @@ function renderModalView(p) {
           </div>`;
         }).join('')}
       </div>
-      <div class="task-add-row">
+      ${isGestor() ? `<div class="task-add-row">
         <input type="text" class="task-add-inp" id="taskAddInp2" placeholder="＋ Nova tarefa…"
           onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTask(true);}" />
         <button class="task-add-btn" onclick="addCustomTask(true)">Adicionar</button>
-      </div>`;
+      </div>` : '<div class="task-no-add-msg">🔒 Apenas gestores podem criar novas tarefas</div>'}`;
   }
 
 }
@@ -4479,10 +4505,14 @@ function normalizeAllAtv() {
 // MODAL TABS
 // ──────────────────────────────────────────────
 function switchModalTab(tab) {
-  ['info','projeto'].forEach(t => {
+  ['info','projeto','acompanhamento'].forEach(t => {
     document.getElementById('mtab-' + t).classList.toggle('active', t === tab);
     document.getElementById('mpanel-' + t).classList.toggle('active', t === tab);
   });
+  // Renderiza checklist sempre que abrir a aba Acompanhamento
+  if (tab === 'acompanhamento' && currentProject) {
+    renderModalView(currentProject);
+  }
 }
 
 function toggleSubsect(header) {
