@@ -5251,13 +5251,16 @@ function _errMsg(e) {
 }
 
 // ═══════════════════════════════════════
-//  PREENCHER ATA
 // ═══════════════════════════════════════
-let _ataStage = 'idle'; // idle | aguardando_paste | done
-let _ataDados = null;
-let _ataDocs  = [];
+//  PREENCHER ATA — upload PDF + Claude automático
+// ═══════════════════════════════════════
+let _ataDados  = null;
+let _ataPdfFile = null;
 
-function fecharAta() { document.getElementById('ataOverlay').style.display = 'none'; }
+function fecharAta() {
+  document.getElementById('ataOverlay').style.display = 'none';
+  _ataPdfFile = null; _ataDados = null;
+}
 
 function _ataBody(html) { document.getElementById('ataBody').innerHTML = html; }
 function _ataBtn(label, show, disabled) {
@@ -5266,21 +5269,220 @@ function _ataBtn(label, show, disabled) {
   b.disabled = !!disabled;
   b.textContent = label;
 }
-function ataAcao() {
-  if (_ataStage === 'aguardando_paste') _ataProcessarCola();
-  else if (_ataStage === 'done')        salvarAtaNoCard();
+function ataAcao() { salvarAtaNoCard(); }
+
+async function abrirModalAta() {
+  if (!currentProject) return;
+  _ataDados = null; _ataPdfFile = null;
+  document.getElementById('ataOverlay').style.display = 'flex';
+  _ataBtn('', false, true);
+  _renderUploadUI();
 }
 
-// ── Monta o prompt completo para o claude.ai ─────────────────────
-function _montarPromptAta() {
-  const hoje     = new Date();
-  const dataFmt  = String(hoje.getDate()).padStart(2,'0') + '/' +
-                   String(hoje.getMonth()+1).padStart(2,'0') + '/' +
-                   hoje.getFullYear();
+function _renderUploadUI() {
+  const hoje    = new Date();
+  const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' +
+                  String(hoje.getMonth()+1).padStart(2,'0') + '/' +
+                  hoje.getFullYear();
+  const cliente   = escapeHtml(currentProject?.c    || '');
+  const consultor = escapeHtml(currentProject?.cons || '');
+
+  _ataBody(`
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+                padding:10px 14px;margin-bottom:4px;font-size:12px;">
+      <div style="color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.04em;
+                  text-transform:uppercase;margin-bottom:3px;">Projeto</div>
+      <div style="color:var(--text);">📋 ${cliente} · ${consultor} · ${dataFmt}</div>
+    </div>
+
+    <div id="ataDropZone"
+         style="border:2px dashed var(--border2);border-radius:10px;padding:32px 20px;
+                text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);
+                position:relative;"
+         onclick="document.getElementById('ataPdfInput').click()"
+         ondragover="event.preventDefault();this.style.borderColor='var(--purple)';this.style.background='rgba(168,85,247,.07)'"
+         ondragleave="this.style.borderColor='var(--border2)';this.style.background='var(--surface2)'"
+         ondrop="_ataHandleDrop(event)">
+      <input type="file" id="ataPdfInput" accept=".pdf"
+             style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;"
+             onchange="_ataHandleFile(this.files[0])">
+      <div style="font-size:36px;margin-bottom:10px;">📂</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">
+        Arraste o PDF da transcrição ou clique para selecionar
+      </div>
+      <div style="font-size:11px;color:var(--muted);">
+        Transcrições automáticas (Gemini, Teams, Zoom…) · máx. 20 MB
+      </div>
+    </div>
+
+    <div id="ataFilePreview" style="display:none;align-items:center;gap:12px;
+         background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+         padding:10px 14px;margin-top:10px;">
+      <div style="width:36px;height:36px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);
+                  border-radius:7px;display:flex;align-items:center;justify-content:center;
+                  font-size:18px;flex-shrink:0;">📕</div>
+      <div style="flex:1;min-width:0;">
+        <div id="ataFileName" style="font-size:12px;font-weight:600;color:var(--text);
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
+        <div id="ataFileSize" style="font-size:11px;color:var(--muted);margin-top:1px;">—</div>
+      </div>
+      <button onclick="_ataRemoveFile()"
+              style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;
+                     padding:4px;transition:color .15s;"
+              onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
+    </div>
+
+    <div id="ataUploadError" style="display:none;background:var(--red-bg);border:1px solid rgba(239,68,68,.3);
+         border-radius:8px;padding:10px 14px;font-size:12px;color:#fca5a5;margin-top:8px;"></div>
+
+    <button id="ataGerarBtn" disabled onclick="_ataIniciarGeracao()"
+            style="width:100%;margin-top:14px;padding:11px;border-radius:8px;border:none;
+                   background:linear-gradient(135deg,var(--purple),#7c3aed);color:#fff;
+                   font-size:13px;font-weight:700;font-family:var(--font);
+                   opacity:.45;transition:opacity .2s;display:flex;align-items:center;
+                   justify-content:center;gap:8px;">
+      ✨ Gerar Ata com IA
+    </button>
+  `);
+}
+
+function _ataHandleDrop(e) {
+  e.preventDefault();
+  const dz = document.getElementById('ataDropZone');
+  if (dz) { dz.style.borderColor='var(--border2)'; dz.style.background='var(--surface2)'; }
+  const f = e.dataTransfer.files[0];
+  if (f) _ataHandleFile(f);
+}
+
+function _ataHandleFile(file) {
+  const errBox = document.getElementById('ataUploadError');
+  if (errBox) errBox.style.display = 'none';
+  if (!file) return;
+  if (file.type !== 'application/pdf') {
+    if (errBox) { errBox.textContent = '⚠️ Apenas arquivos PDF são aceitos.'; errBox.style.display = 'block'; }
+    return;
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    if (errBox) { errBox.textContent = '⚠️ O arquivo deve ter no máximo 20 MB.'; errBox.style.display = 'block'; }
+    return;
+  }
+  _ataPdfFile = file;
+  const prev = document.getElementById('ataFilePreview');
+  if (prev) prev.style.display = 'flex';
+  const fn = document.getElementById('ataFileName');
+  const fs = document.getElementById('ataFileSize');
+  if (fn) fn.textContent = file.name;
+  if (fs) fs.textContent = _ataFmtBytes(file.size);
+  const btn = document.getElementById('ataGerarBtn');
+  if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
+}
+
+function _ataRemoveFile() {
+  _ataPdfFile = null;
+  const inp = document.getElementById('ataPdfInput');
+  if (inp) inp.value = '';
+  const prev = document.getElementById('ataFilePreview');
+  if (prev) prev.style.display = 'none';
+  const btn = document.getElementById('ataGerarBtn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '.45'; }
+  const errBox = document.getElementById('ataUploadError');
+  if (errBox) errBox.style.display = 'none';
+}
+
+function _ataFmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/(1024*1024)).toFixed(1) + ' MB';
+}
+
+function _ataRenderProgress() {
+  _ataBtn('', false, true);
+  _ataBody(`
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${['ataStep1','ataStep2','ataStep3'].map((id,i) => `
+        <div id="${id}" style="display:flex;align-items:center;gap:14px;padding:13px 16px;
+             border-radius:9px;background:var(--surface2);border:1px solid var(--border);transition:all .3s;">
+          <div id="${id}Ind" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;
+               justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;
+               background:var(--surface3);border:2px solid var(--border2);color:var(--muted);transition:all .3s;">
+            ${i+1}
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);">
+              ${['Lendo o PDF','Analisando com Claude','Ata pronta para salvar'][i]}
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+              ${['Convertendo o arquivo para leitura','Identificando tópicos, decisões e pendências','Clique em Salvar no Card para finalizar'][i]}
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div id="ataProgressError" style="display:none;background:var(--red-bg);border:1px solid rgba(239,68,68,.3);
+         border-radius:8px;padding:10px 14px;font-size:12px;color:#fca5a5;margin-top:10px;"></div>
+  `);
+}
+
+function _ataSetStep(n, state) {
+  const el  = document.getElementById('ataStep'+n);
+  const ind = document.getElementById('ataStep'+n+'Ind');
+  if (!el || !ind) return;
+  el.style.borderColor = 'var(--border)';
+  el.style.background  = 'var(--surface2)';
+  ind.style.background = 'var(--surface3)';
+  ind.style.borderColor= 'var(--border2)';
+  ind.style.color      = 'var(--muted)';
+  if (state === 'active') {
+    el.style.borderColor = 'var(--purple)';
+    el.style.background  = 'rgba(168,85,247,.06)';
+    ind.style.background = 'var(--purple)';
+    ind.style.borderColor= 'var(--purple)';
+    ind.style.color      = '#fff';
+    ind.innerHTML = '<div style="width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:ata-spin .7s linear infinite;"></div>';
+  } else if (state === 'done') {
+    el.style.borderColor = 'var(--green)';
+    el.style.background  = 'rgba(34,197,94,.06)';
+    ind.style.background = 'var(--green)';
+    ind.style.borderColor= 'var(--green)';
+    ind.style.color      = '#fff';
+    ind.textContent      = '✓';
+  } else if (state === 'error') {
+    el.style.borderColor = 'var(--red)';
+    el.style.background  = 'var(--red-bg)';
+    ind.style.background = 'var(--red)';
+    ind.style.borderColor= 'var(--red)';
+    ind.style.color      = '#fff';
+    ind.textContent      = '✕';
+  }
+}
+
+async function _ataIniciarGeracao() {
+  if (!_ataPdfFile) return;
+  _ataRenderProgress();
+
+  const hoje    = new Date();
+  const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' +
+                  String(hoje.getMonth()+1).padStart(2,'0') + '/' +
+                  hoje.getFullYear();
   const cliente   = currentProject?.c    || '';
   const consultor = currentProject?.cons || '';
 
-  return `Você é um assistente especialista em projetos de Reforma Tributária TOTVS.
+  try {
+    // PASSO 1 — ler PDF como base64
+    _ataSetStep(1, 'active');
+    const b64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('Falha ao ler o arquivo.'));
+      r.readAsDataURL(_ataPdfFile);
+    });
+    _ataSetStep(1, 'done');
+
+    // PASSO 2 — Claude via proxy existente
+    _ataSetStep(2, 'active');
+    const resposta = await _claudeProxy({
+      model:      'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      system: `Você é um assistente especialista em projetos de Reforma Tributária TOTVS.
 Leia o documento PDF anexado (transcrição de reunião) e extraia as informações para preencher uma ata.
 Responda APENAS com JSON válido, sem markdown, sem explicações, sem texto antes ou depois.
 
@@ -5294,147 +5496,62 @@ Formato JSON esperado:
 {
   "participantes": "nomes separados por vírgula",
   "status_projeto": "descrição do status em 1-2 frases",
+  "topicos": ["tópico 1", "tópico 2"],
   "decisoes": ["decisão 1", "decisão 2"],
   "pendencias": [{"atividade":"...","responsavel":"...","prazo":"...","status":"..."}],
   "riscos": ["risco 1"],
   "proximos_passos": ["ação 1", "ação 2"]
 }
 
-Se não houver informação para algum campo, use string vazia "" ou array vazio [].`;
-}
+Se não houver informação para algum campo, use string vazia "" ou array vazio [].`,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+          { type: 'text',     text: 'Analise esta transcrição e retorne o JSON conforme instruído.' }
+        ]
+      }]
+    });
 
-async function abrirModalAta() {
-  if (!currentProject) return;
-  _ataStage = 'idle'; _ataDados = null; _ataDocs = [];
-  document.getElementById('ataOverlay').style.display = 'flex';
+    const textoRaw = (resposta?.content || []).map(b => b.type === 'text' ? b.text : '').join('').trim();
+    let dados;
+    try { dados = JSON.parse(textoRaw.replace(/```json|```/g, '').trim()); }
+    catch(_) { throw new Error('O Claude não retornou um JSON válido. Tente novamente.'); }
 
-  const hoje    = new Date();
-  const dataFmt = String(hoje.getDate()).padStart(2,'0') + '/' +
-                  String(hoje.getMonth()+1).padStart(2,'0') + '/' +
-                  hoje.getFullYear();
-  const cliente   = escapeHtml(currentProject?.c    || '');
-  const consultor = escapeHtml(currentProject?.cons || '');
-  const prompt    = _montarPromptAta();
+    _ataDados = { cliente, consultor, data: dataFmt, ...dados };
+    _ataSetStep(2, 'done');
 
-  _ataBody(`
-    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
-      Vamos gerar a ata usando o <strong style="color:var(--purple);">claude.ai</strong> — sem custo adicional.
-    </div>
+    // PASSO 3 — pronto
+    _ataSetStep(3, 'done');
+    _ataRenderPreview();
 
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;">
-      <div style="color:var(--muted);margin-bottom:4px;font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;">Projeto</div>
-      <div style="color:var(--text);">📋 ${cliente} · ${consultor} · ${dataFmt}</div>
-    </div>
-
-    <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;">Como usar:</div>
-    <ol style="font-size:12px;color:var(--muted);line-height:1.8;margin:0;padding-left:18px;">
-      <li>Clique em <strong style="color:var(--purple);">Abrir claude.ai</strong> — o prompt já vai copiado</li>
-      <li>No claude.ai, cole o prompt (<kbd>Ctrl+V</kbd>) e anexe o PDF da transcrição</li>
-      <li>Copie a resposta JSON que o Claude gerar</li>
-      <li>Volte aqui, cole o JSON e clique em <strong style="color:var(--purple);">Processar</strong></li>
-    </ol>
-
-    <div style="margin-top:12px;">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Cole o JSON aqui após receber do claude.ai:</div>
-      <textarea id="ataJsonPaste"
-        placeholder='{"participantes":"...","status_projeto":"...","decisoes":[...],...}'
-        style="width:100%;min-height:80px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;
-               padding:8px 10px;color:var(--text);font-size:11px;font-family:monospace;resize:vertical;box-sizing:border-box;
-               outline:none;line-height:1.5;">
-      </textarea>
-    </div>
-  `);
-
-  _ataStage = 'aguardando_paste';
-  _ataBtn('✅ Processar', true, false);
-
-  // Botão secundário para abrir claude.ai
-  const footer = document.querySelector('#ataOverlay .modal-footer');
-  if (footer && !document.getElementById('ataClaudeBtn')) {
-    const btn = document.createElement('button');
-    btn.id = 'ataClaudeBtn';
-    btn.className = 'btn-purple';
-    btn.style.cssText = 'margin-right:auto;order:-1;';
-    btn.textContent = '🤖 Abrir claude.ai';
-    btn.onclick = () => _abrirClaudeAI(prompt);
-    footer.prepend(btn);
-  }
-}
-
-async function _abrirClaudeAI(prompt) {
-  // Copia o prompt para a área de transferência
-  try {
-    await navigator.clipboard.writeText(prompt);
-    const btn = document.getElementById('ataClaudeBtn');
-    if (btn) { btn.textContent = '✓ Prompt copiado!'; setTimeout(() => { btn.textContent = '🤖 Abrir claude.ai'; }, 2000); }
   } catch(e) {
-    // fallback: textarea temporária
-    const ta = document.createElement('textarea');
-    ta.value = prompt; ta.style.position = 'fixed'; ta.style.opacity = '0';
-    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-    document.body.removeChild(ta);
+    [1,2,3].forEach(n => {
+      const el = document.getElementById('ataStep'+n);
+      if (el && el.style.borderColor.includes('purple')) _ataSetStep(n, 'error');
+    });
+    const errBox = document.getElementById('ataProgressError');
+    if (errBox) {
+      errBox.style.display = 'block';
+      errBox.innerHTML = '⚠️ ' + escapeHtml(_errMsg(e)) +
+        ' <button onclick="_renderUploadUI();_ataBtn(\'\',false,true)" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px;margin-left:8px;">↩ Tentar novamente</button>';
+    }
   }
-  window.open('https://claude.ai/new', '_blank');
 }
 
-// Processa o JSON colado pelo usuário
-function _ataProcessarCola() {
-  const raw = (document.getElementById('ataJsonPaste')?.value || '').trim();
-  if (!raw) { alert('Cole o JSON retornado pelo claude.ai antes de processar.'); return; }
-
-  let dados;
-  try { dados = JSON.parse(raw.replace(/```json|```/g, '').trim()); }
-  catch(e) {
-    _ataBody(`<div style="color:var(--red);font-size:13px;padding:8px 0;">
-      ❌ JSON inválido. Certifique-se de copiar apenas o bloco JSON retornado pelo claude.ai, sem texto extra.
-      <br><br><button onclick="abrirModalAta()" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;">↩ Tentar novamente</button>
-    </div>`);
-    return;
-  }
-
-  const hoje     = new Date();
-  const dataFmt  = String(hoje.getDate()).padStart(2,'0') + '/' +
-                   String(hoje.getMonth()+1).padStart(2,'0') + '/' +
-                   hoje.getFullYear();
-  _ataDados = {
-    cliente:    currentProject?.c    || '',
-    consultor:  currentProject?.cons || '',
-    data:       dataFmt,
-    ...dados
-  };
-
-  // Remove botão secundário
-  document.getElementById('ataClaudeBtn')?.remove();
-
-  const pendPreview = (_ataDados.pendencias || [])
+function _ataRenderPreview() {
+  const d = _ataDados || {};
+  const pendPreview = (d.pendencias || [])
     .map(p => `  • ${p.atividade||''} | ${p.responsavel||''} | ${p.prazo||''} | ${p.status||''}`).join('\n');
+  const topicosTxt = (d.topicos || []).map(t => '• ' + t).join('\n');
 
   _ataBody(`
-    <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:8px;">✅ Ata processada com sucesso!</div>
-    <div class="ata-preview">ATA DE ALINHAMENTO – REFORMA TRIBUTÁRIA
-
-Cliente: ${escapeHtml(_ataDados.cliente)}
-Consultor: ${escapeHtml(_ataDados.consultor)}
-GP: Ana Paula Colombo  |  Data: ${_ataDados.data}
-
-1. TÓPICOS DISCUTIDOS
-Participantes: ${escapeHtml(_ataDados.participantes||'')}
-Status: ${escapeHtml(_ataDados.status_projeto||'')}
-
-2. DECISÕES TOMADAS
-${(_ataDados.decisoes||[]).map(d=>'• '+escapeHtml(d)).join('\n')||'—'}
-
-3. PENDÊNCIAS E RESPONSÁVEIS
-${escapeHtml(pendPreview)||'—'}
-
-4. RISCOS IDENTIFICADOS
-${(_ataDados.riscos||[]).map(r=>'• '+escapeHtml(r)).join('\n')||'Nenhum identificado'}
-
-5. PRÓXIMOS PASSOS
-${(_ataDados.proximos_passos||[]).map(p=>'• '+escapeHtml(p)).join('\n')||'—'}</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px;">Clique em <strong style="color:var(--purple);">💾 Salvar no Card</strong> para gerar o .docx e adicionar à Documentação.</div>
+    <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:8px;">✅ Ata gerada com sucesso!</div>
+    <div class="ata-preview">ATA DE ALINHAMENTO – REFORMA TRIBUTÁRIA\n\nCliente: ${escapeHtml(d.cliente||'')}\nConsultor: ${escapeHtml(d.consultor||'')}\nGP: Ana Paula Colombo  |  Data: ${d.data||''}\n\n1. TÓPICOS DISCUTIDOS\nParticipantes: ${escapeHtml(d.participantes||'')}\nStatus: ${escapeHtml(d.status_projeto||'')}${topicosTxt ? '\n\nAssuntos:\n'+escapeHtml(topicosTxt) : ''}\n\n2. DECISÕES TOMADAS\n${(d.decisoes||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'—'}\n\n3. PENDÊNCIAS E RESPONSÁVEIS\n${escapeHtml(pendPreview)||'—'}\n\n4. RISCOS IDENTIFICADOS\n${(d.riscos||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'Nenhum identificado'}\n\n5. PRÓXIMOS PASSOS\n${(d.proximos_passos||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'—'}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px;">
+      Clique em <strong style="color:var(--purple);">💾 Salvar no Card</strong> para gerar o .docx e adicionar à Documentação.
+    </div>
   `);
-  _ataStage = 'done';
   _ataBtn('💾 Salvar no Card', true, false);
 }
 
@@ -5482,6 +5599,7 @@ async function salvarAtaNoCard() {
       hd('1. Tópicos discutidos'),
       para([run('Participantes:  ',{bold:true}),run(_ataDados.participantes||'')]),
       para([run('Status do projeto:  ',{bold:true}),run(_ataDados.status_projeto||'')]),
+      ...(_ataDados.topicos?.length?[new Paragraph({spacing:{after:60}}), ...(_ataDados.topicos.map(bul))]:[ ]),
       new Paragraph({spacing:{after:120}}),
       hd('2. Decisões tomadas'),
       ...(_ataDados.decisoes?.length?_ataDados.decisoes.map(bul):[para([run('—')])]),
