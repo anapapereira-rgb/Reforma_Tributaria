@@ -5189,6 +5189,17 @@ render();
       </div>
       <div class="mf"><label>Assunto</label><input type="text" id="emlSubject" /></div>
       <div class="mf"><label>Mensagem</label><textarea id="emlBody" style="min-height:120px;"></textarea></div>
+      <div class="mf">
+        <label>Anexo</label>
+        <div id="emlAnexoBox" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--muted);">
+          <div id="emlAnexoLoading" style="display:flex;align-items:center;gap:8px;">
+            <div style="width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:ata-spin .7s linear infinite;flex-shrink:0;"></div>
+            Buscando documentos do card…
+          </div>
+          <div id="emlAnexoLista" style="display:none;flex-direction:column;gap:6px;"></div>
+          <div id="emlAnexoNenhum" style="display:none;color:var(--muted);">Nenhum documento encontrado no card.</div>
+        </div>
+      </div>
     </div>
     <div class="modal-ft">
       <button class="btn-cancel" onclick="fecharEml()">Cancelar</button>
@@ -5739,17 +5750,93 @@ async function salvarAtaNoCard() {
 //  E-MAIL
 // ═══════════════════════════════════════
 let _emlTo=[];
-function abrirModalEmail(){
+let _emlAnexo = null; // { nome, b64, mime }
+
+async function abrirModalEmail(){
   if(!currentProject)return;
   const nome=CURRENT_USER?.nome||'',email=CURRENT_USER?.email||'';
   document.getElementById('emlFrom').value=nome?nome+' <'+email+'>':email;
   _emlTo=[];_emlDrawTags();
+  _emlAnexo=null;
   const h=new Date(),df=String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
   document.getElementById('emlSubject').value=(currentProject.c||'')+' || Reforma Tributária || '+df;
   document.getElementById('emlBody').value='Olá,\n\nSegue em anexo ata da nossa agenda de hoje, com principais assuntos discutidos e próximos passos.\n\nAt.\n'+nome;
   const btn=document.getElementById('emlSendBtn');btn.disabled=false;btn.textContent='📤 Enviar';
+  // Reset anexo UI
+  document.getElementById('emlAnexoLoading').style.display='flex';
+  document.getElementById('emlAnexoLista').style.display='none';
+  document.getElementById('emlAnexoNenhum').style.display='none';
   document.getElementById('emlOverlay').style.display='flex';
   setTimeout(()=>document.getElementById('emlTagInput').focus(),100);
+  // Carregar documentos do card
+  await _emlCarregarDocs();
+}
+
+async function _emlCarregarDocs() {
+  try {
+    const token = CURRENT_USER?.access_token;
+    const uuid  = currentProject?._uuid;
+    if (!token || !uuid) { _emlMostrarNenhum(); return; }
+
+    const res  = await fetch(`${SUPABASE_URL}/rest/v1/documents?project_id=eq.${uuid}&select=*&order=created_at.desc`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token }
+    });
+    const docs = res.ok ? await res.json() : [];
+    if (!docs || !docs.length) { _emlMostrarNenhum(); return; }
+
+    // Pré-seleciona o último gerado (primeiro da lista = mais recente)
+    const lista = document.getElementById('emlAnexoLista');
+    lista.innerHTML = '';
+    docs.forEach((d, i) => {
+      const isAta = (d.nome_arquivo||'').toLowerCase().includes('ata');
+      const isSelected = i === 0; // último gerado
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;cursor:pointer;border:1px solid '+(isSelected?'var(--purple)':'var(--border)')+';background:'+(isSelected?'rgba(168,85,247,.07)':'var(--surface2)')+';transition:all .15s;';
+      row.dataset.id   = d.id;
+      row.dataset.path = d.storage_path;
+      row.dataset.nome = d.nome_arquivo||'arquivo';
+      row.dataset.mime = d.mime_type||'application/octet-stream';
+      row.innerHTML = `
+        <div style="width:18px;height:18px;border-radius:50%;border:2px solid ${isSelected?'var(--purple)':'var(--border2)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${isSelected?'var(--purple)':'transparent'};">
+          ${isSelected?'<div style="width:6px;height:6px;border-radius:50%;background:#fff;"></div>':''}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(d.nome_arquivo||'')}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:1px;">${d.tamanho||''} · ${d.data_upload||''}</div>
+        </div>
+        ${isAta?'<span style="font-size:9px;background:rgba(168,85,247,.15);color:var(--purple);border:1px solid rgba(168,85,247,.3);border-radius:4px;padding:1px 6px;">ATA</span>':''}`;
+      row.onclick = () => _emlSelecionarAnexo(row, d);
+      lista.appendChild(row);
+      if (isSelected) _emlSelecionarAnexo(row, d);
+    });
+
+    document.getElementById('emlAnexoLoading').style.display='none';
+    lista.style.display='flex';
+  } catch(e) {
+    _emlMostrarNenhum();
+  }
+}
+
+function _emlMostrarNenhum() {
+  document.getElementById('emlAnexoLoading').style.display='none';
+  document.getElementById('emlAnexoNenhum').style.display='block';
+}
+
+function _emlSelecionarAnexo(row, doc) {
+  // Desseleciona todos
+  document.querySelectorAll('#emlAnexoLista > div').forEach(r => {
+    r.style.border = '1px solid var(--border)';
+    r.style.background = 'var(--surface2)';
+    const circle = r.querySelector('div');
+    if (circle) { circle.style.borderColor='var(--border2)'; circle.style.background='transparent'; circle.innerHTML=''; }
+  });
+  // Seleciona o clicado
+  row.style.border = '1px solid var(--purple)';
+  row.style.background = 'rgba(168,85,247,.07)';
+  const circle = row.querySelector('div');
+  if (circle) { circle.style.borderColor='var(--purple)'; circle.style.background='var(--purple)'; circle.innerHTML='<div style="width:6px;height:6px;border-radius:50%;background:#fff;"></div>'; }
+  // Guarda o anexo selecionado
+  _emlAnexo = { id: doc.id, nome: doc.nome_arquivo||'ata.docx', path: doc.storage_path, mime: doc.mime_type||'application/octet-stream' };
 }
 function fecharEml(){document.getElementById('emlOverlay').style.display='none';}
 function _emlDrawTags(){document.getElementById('emlTagsList').innerHTML=_emlTo.map((e,i)=>'<span class="eml-tag">'+escapeHtml(e)+'<button onclick="emlRemove('+i+')">✕</button></span>').join('');}
@@ -5762,13 +5849,42 @@ async function enviarEml(){
   if(!_emlTo.length){alert('Adicione pelo menos um destinatário.');return;}
   const subj=(document.getElementById('emlSubject').value||'').trim(),body=(document.getElementById('emlBody').value||'').trim();
   if(!subj||!body){alert('Preencha assunto e mensagem.');return;}
-  const btn=document.getElementById('emlSendBtn');btn.disabled=true;btn.textContent='⏳ Enviando…';
+  const btn=document.getElementById('emlSendBtn');btn.disabled=true;btn.textContent='⏳ Preparando…';
   const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const cl=esc(currentProject?.c||''),rm=esc(document.getElementById('emlFrom').value);
   const h=new Date(),dh=String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear()+' '+String(h.getHours()).padStart(2,'0')+':'+String(h.getMinutes()).padStart(2,'0');
-  const html='<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body bgcolor="#f0f4f8" style="margin:0;padding:0;font-family:Arial,sans-serif;"><table width="100%" bgcolor="#f0f4f8" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;"><table width="560" cellpadding="0" cellspacing="0" bgcolor="#0d1f30" style="border-radius:12px;overflow:hidden;"><tr><td bgcolor="#081420" style="padding:24px 28px;border-bottom:3px solid #00c4cc;"><p style="margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#00c4cc;">REFORMA TRIBUTÁRIA · TOTVS</p><p style="margin:0;font-size:18px;font-weight:800;color:#e8f4fd;">📋 '+cl+'</p></td></tr><tr><td style="padding:24px 28px;"><div style="font-size:14px;color:#c8dff0;line-height:1.8;">'+esc(body).replace(/\n/g,'<br>')+'</div><p style="margin:20px 0 0;font-size:11px;color:#7aadcc;">'+rm+' · '+dh+'</p></td></tr><tr><td bgcolor="#081420" style="padding:12px 28px;border-top:1px solid #1e3d5c;text-align:center;"><p style="margin:0;font-size:11px;color:#4a7a9b;">TOTVS S.A. · Gerenciamento de Projetos Reforma Tributária</p></td></tr></table></td></tr></table></body></html>';
+  const htmlBody='<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body bgcolor="#f0f4f8" style="margin:0;padding:0;font-family:Arial,sans-serif;"><table width="100%" bgcolor="#f0f4f8" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;"><table width="560" cellpadding="0" cellspacing="0" bgcolor="#0d1f30" style="border-radius:12px;overflow:hidden;"><tr><td bgcolor="#081420" style="padding:24px 28px;border-bottom:3px solid #00c4cc;"><p style="margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#00c4cc;">REFORMA TRIBUTÁRIA · TOTVS</p><p style="margin:0;font-size:18px;font-weight:800;color:#e8f4fd;">📋 '+cl+'</p></td></tr><tr><td style="padding:24px 28px;"><div style="font-size:14px;color:#c8dff0;line-height:1.8;">'+esc(body).replace(/\n/g,'<br>')+'</div><p style="margin:20px 0 0;font-size:11px;color:#7aadcc;">'+rm+' · '+dh+'</p></td></tr><tr><td bgcolor="#081420" style="padding:12px 28px;border-top:1px solid #1e3d5c;text-align:center;"><p style="margin:0;font-size:11px;color:#4a7a9b;">TOTVS S.A. · Gerenciamento de Projetos Reforma Tributária</p></td></tr></table></td></tr></table></body></html>';
+
   try{
-    const r=await fetch(SUPABASE_URL+'/functions/v1/resend-email',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+(CURRENT_USER?.access_token||SUPABASE_KEY)},body:JSON.stringify({to:_emlTo,subject:subj,html,from:'onboarding@resend.dev'})});
+    // Baixa o anexo selecionado e converte para base64
+    let attachments = [];
+    if (_emlAnexo?.path) {
+      btn.textContent = '⏳ Preparando anexo…';
+      const token = CURRENT_USER?.access_token || SUPABASE_KEY;
+      // Gera URL assinada
+      const signRes = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/kanban-documents/${_emlAnexo.path}`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiresIn: 60 })
+      });
+      const signData = signRes.ok ? await signRes.json() : null;
+      const fileUrl = signData?.signedURL
+        ? `${SUPABASE_URL}/storage/v1${signData.signedURL}`
+        : `${SUPABASE_URL}/storage/v1/object/public/kanban-documents/${_emlAnexo.path}`;
+
+      const fileRes = await fetch(fileUrl);
+      if (fileRes.ok) {
+        const ab  = await fileRes.arrayBuffer();
+        const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+        attachments = [{ filename: _emlAnexo.nome, content: b64, type: _emlAnexo.mime }];
+      }
+    }
+
+    btn.textContent = '⏳ Enviando…';
+    const payload = { to: _emlTo, subject: subj, html: htmlBody, from: 'onboarding@resend.dev' };
+    if (attachments.length) payload.attachments = attachments;
+
+    const r=await fetch(SUPABASE_URL+'/functions/v1/resend-email',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+(CURRENT_USER?.access_token||SUPABASE_KEY)},body:JSON.stringify(payload)});
     const d=await r.json();if(!r.ok||d.ok===false)throw new Error(d.error||'Falha');
     fecharEml();const t=document.getElementById('saveToast');
     if(t){t.textContent='📧 E-mail enviado!';t.style.background='var(--green)';t.classList.add('show');setTimeout(()=>{t.classList.remove('show');t.textContent='✓ Alterações salvas!';t.style.background='';},3500);}
