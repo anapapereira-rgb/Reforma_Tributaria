@@ -5207,8 +5207,22 @@ async function _claudeProxy(payload) {
     body: JSON.stringify(payload),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || JSON.stringify(data));
+  if (!res.ok) throw new Error(data?.error || data?.message || JSON.stringify(data));
+  // Repassa erro de API do Claude (ex: model inválido, cota, etc.)
+  if (data?.error) throw new Error(data.error?.message || JSON.stringify(data.error));
   return data;
+}
+
+// Normaliza qualquer tipo de erro para string legível
+function _errMsg(e) {
+  if (!e) return 'Erro desconhecido.';
+  if (typeof e === 'string') return e;
+  if (e instanceof Error) return e.message || String(e);
+  // ProgressEvent (FileReader), Event ou objeto genérico
+  if (e?.message) return e.message;
+  if (e?.type)    return `Erro de leitura: ${e.type}`;
+  try { const s = JSON.stringify(e); return s !== '{}' ? s : 'Erro desconhecido.'; } catch(_) {}
+  return String(e);
 }
 
 // ═══════════════════════════════════════
@@ -5308,7 +5322,7 @@ async function gerarAta() {
     const b64 = await new Promise((res, rej) => {
       const r = new FileReader();
       r.onload  = () => res(r.result.split(',')[1]);
-      r.onerror = rej;
+      r.onerror = (ev) => rej(new Error('Falha ao ler o arquivo PDF. Tente novamente.'));
       r.readAsDataURL(blob);
     });
 
@@ -5319,7 +5333,7 @@ async function gerarAta() {
 
     // 2. Chama Claude via proxy (supabase edge function)
     const claudeRes = await _claudeProxy({
-      model:      'claude-sonnet-4-20250514',
+      model:      'claude-sonnet-4-5',
       max_tokens: 2000,
       messages: [{
         role: 'user',
@@ -5398,7 +5412,9 @@ ${(_ataDados.proximos_passos||[]).map(p=>'• '+escapeHtml(p)).join('\n')||'—'
   } catch(err) {
     clearInterval(iv);
     _ataStage = 'ready';
-    _ataBody(`<div style="color:var(--red);font-size:13px;padding:8px 0;">❌ ${escapeHtml(err.message)}</div>`);
+    const msg = _errMsg(err);
+    console.error('[gerarAta] erro:', err);
+    _ataBody(`<div style="color:var(--red);font-size:13px;padding:8px 0;">❌ ${escapeHtml(msg)}</div>`);
     _ataBtn('✨ Tentar novamente', true, false);
   }
 }
@@ -5490,7 +5506,8 @@ async function salvarAtaNoCard() {
 
   } catch(err) {
     btn.disabled=false; btn.textContent='💾 Salvar no Card';
-    alert('Erro: '+err.message);
+    console.error('[salvarAtaNoCard] erro:', err);
+    alert('Erro ao salvar ata: ' + _errMsg(err));
   }
 }
 
