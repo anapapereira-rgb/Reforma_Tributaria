@@ -1683,6 +1683,19 @@
   <div class="sb-divider"></div>
 
   <div class="sidebar-section">
+    <div class="sidebar-title">Responsável pela Tarefa</div>
+    <button class="sb-btn active" id="sb-blk-all"        onclick="sbFilterBlk('all',this)">Todos</button>
+    <button class="sb-btn"        id="sb-blk-Consultor"  onclick="sbFilterBlk('Consultor',this)"><span class="sb-dot" style="background:#60a5fa"></span>Consultor</button>
+    <button class="sb-btn"        id="sb-blk-Cliente"    onclick="sbFilterBlk('Cliente',this)"><span class="sb-dot" style="background:var(--green)"></span>Cliente</button>
+    <button class="sb-btn"        id="sb-blk-Sustentacao" onclick="sbFilterBlk('Sustentação',this)"><span class="sb-dot" style="background:#c084fc"></span>Sustentação</button>
+    <button class="sb-btn"        id="sb-blk-Matriz"     onclick="sbFilterBlk('Suporte Matriz',this)"><span class="sb-dot" style="background:var(--teal)"></span>Suporte Matriz</button>
+    <button class="sb-btn"        id="sb-blk-Terceiros"  onclick="sbFilterBlk('Terceiros',this)"><span class="sb-dot" style="background:var(--amber)"></span>Terceiros</button>
+    <button class="sb-btn"        id="sb-blk-vazio"      onclick="sbFilterBlk('',this)"><span class="sb-dot" style="background:var(--border2)"></span>Não definido</button>
+  </div>
+
+  <div class="sb-divider"></div>
+
+  <div class="sidebar-section">
     <div class="sidebar-title">Prazo</div>
     <button class="sb-btn active" id="sb-prazo-all" onclick="sbFilterPrazo('all',this)">Todos</button>
     <button class="sb-btn" id="sb-prazo-AT" onclick="sbFilterPrazo('ATRASADO',this)"><span class="sb-dot" style="background:var(--red)"></span>Atrasado</button>
@@ -1817,10 +1830,12 @@
                 <div class="ci-field">
                   <div class="ci-label">📞 Contato Contábil/Fiscal</div>
                   <input type="text" class="ci-input" id="ci-contato-fiscal" placeholder="Nome e contato…" oninput="_ciAutoSave()" />
+                  <input type="email" class="ci-input" id="ci-email-fiscal" placeholder="E-mail…" oninput="_ciAutoSave()" style="margin-top:4px;" />
                 </div>
                 <div class="ci-field">
                   <div class="ci-label">💻 Contato TI</div>
                   <input type="text" class="ci-input" id="ci-contato-ti" placeholder="Nome e contato…" oninput="_ciAutoSave()" />
+                  <input type="email" class="ci-input" id="ci-email-ti" placeholder="E-mail…" oninput="_ciAutoSave()" style="margin-top:4px;" />
                 </div>
               </div>
               <div class="ci-field">
@@ -1943,6 +1958,14 @@
                   <input type="text" class="ci-input" id="ci-prd-pass" placeholder="Senha…" oninput="_ciAutoSave()" />
                 </div>
               </div>
+            </div>
+            <!-- Observações dos Acessos -->
+            <div class="ci-field" style="margin-top:4px;">
+              <div class="ci-label">📝 Observações</div>
+              <textarea class="ci-input" id="ci-acessos-obs" rows="3"
+                placeholder="Informações adicionais sobre os acessos…"
+                oninput="_ciAutoSave()"
+                style="resize:vertical;min-height:72px;line-height:1.5;font-family:var(--font);"></textarea>
             </div>
           </div>
         </div>
@@ -2382,7 +2405,8 @@ function filtered() {
       }
     }
     if (filterPrazo_ !== 'all' && (p.prazo || '') !== filterPrazo_) return false;
-    if (filterAtv_ !== 'all' && p.atv !== filterAtv_) return false;
+    if (filterAtv_   !== 'all' && p.atv !== filterAtv_) return false;
+    if (filterBlk_   !== 'all' && (p.blk || '') !== filterBlk_) return false;
     if (searchTerm && !p.c.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
@@ -4014,10 +4038,11 @@ function renderClientInfo(p) {
   const pid = projectId(p);
 
   // Limpa todos os campos enquanto carrega
-  ['ci-contato-fiscal','ci-contato-ti','ci-hmg-link','ci-hmg-user',
-   'ci-hmg-pass','ci-prd-link','ci-prd-user','ci-prd-pass'].forEach(id => {
+  ['ci-contato-fiscal','ci-email-fiscal','ci-contato-ti','ci-email-ti',
+   'ci-hmg-link','ci-hmg-user','ci-hmg-pass','ci-prd-link','ci-prd-user','ci-prd-pass'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = '';
   });
+  const obsEl = document.getElementById('ci-acessos-obs'); if(obsEl) obsEl.value = '';
   CI_VERSIONS.forEach(v => { const btn = document.getElementById('ci-v-'+v); if(btn) btn.classList.remove('selected'); });
   ['Local','Cloud'].forEach(ac => { const btn = document.getElementById('ci-ac-'+ac); if(btn) btn.classList.remove('selected'); });
 
@@ -4026,6 +4051,12 @@ function renderClientInfo(p) {
     // Contatos
     document.getElementById('ci-contato-fiscal').value = d.contatoFiscal || d.contato_nome     || '';
     document.getElementById('ci-contato-ti').value     = d.contatoTI     || d.contato_telefone || '';
+    const emailFiscalEl = document.getElementById('ci-email-fiscal');
+    if (emailFiscalEl) emailFiscalEl.value = d.emailFiscal || d.email_fiscal || '';
+    const emailTiEl = document.getElementById('ci-email-ti');
+    if (emailTiEl) emailTiEl.value = d.emailTI || d.email_ti || '';
+    const obsAcessosEl = document.getElementById('ci-acessos-obs');
+    if (obsAcessosEl) obsAcessosEl.value = d.acessosObs || d.acessos_obs || '';
 
     // Código Fluig e ESN — também popula campos comerciais
     const fluigEl2 = document.getElementById('mCodigoFluig');
@@ -4120,7 +4151,9 @@ function _ciRead() {
   const acBtn = ['Local','Cloud'].find(ac => document.getElementById('ci-ac-' + ac)?.classList.contains('selected'));
   return {
     contatoFiscal: document.getElementById('ci-contato-fiscal').value.trim(),
+    emailFiscal:   document.getElementById('ci-email-fiscal')?.value.trim() || '',
     contatoTI:     document.getElementById('ci-contato-ti').value.trim(),
+    emailTI:       document.getElementById('ci-email-ti')?.value.trim() || '',
     versoes,
     acesso:        acBtn || '',
     hmgLink:       document.getElementById('ci-hmg-link').value.trim(),
@@ -4129,6 +4162,7 @@ function _ciRead() {
     prdLink:       document.getElementById('ci-prd-link').value.trim(),
     prdUser:       document.getElementById('ci-prd-user').value.trim(),
     prdPass:       document.getElementById('ci-prd-pass').value.trim(),
+    acessosObs:    document.getElementById('ci-acessos-obs')?.value.trim() || '',
     dataInicio:    document.getElementById('ci-datainicio') ? document.getElementById('ci-datainicio').value.trim() : '',
   };
 }
@@ -4531,6 +4565,7 @@ function toggleSubsect(header) {
 // ──────────────────────────────────────────────
 let filterSt_    = 'all';
 let filterPrazo_ = 'all';
+let filterBlk_   = 'all';
 
 function _sbActivate(groupPrefix, btn) {
   document.querySelectorAll('[id^="' + groupPrefix + '"]').forEach(b => b.classList.remove('active'));
@@ -4542,10 +4577,11 @@ function sbSwitchPhase(p, btn) {
   _showBoard(p);
   document.getElementById('searchInput').value = '';
   searchTerm = '';
-  filterCons_ = 'all';
-  filterAtv_  = 'all';
-  filterSt_   = 'all';
+  filterCons_  = 'all';
+  filterAtv_   = 'all';
+  filterSt_    = 'all';
   filterPrazo_ = 'all';
+  filterBlk_   = 'all';
   render();
 }
 
@@ -4576,16 +4612,23 @@ function sbFilterPrazo(prazo, btn) {
   render();
 }
 
+function sbFilterBlk(blk, btn) {
+  _sbActivate('sb-blk-', btn);
+  filterBlk_ = blk;
+  render();
+}
+
 function sbClearAll() {
   filterCons_   = 'all';
   filterAtv_    = 'all';
   filterSt_     = 'all';
   filterPrazo_  = 'all';
+  filterBlk_    = 'all';
   document.getElementById('searchInput').value = '';
   searchTerm = '';
   // ensure board is visible if filters are being cleared
   _showBoard(phase);
-  ['sb-cons-all','sb-atv-all','sb-st-all','sb-prazo-all'].forEach(id => {
+  ['sb-cons-all','sb-atv-all','sb-st-all','sb-prazo-all','sb-blk-all'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       const prefix = id.replace(/-all$/,'-');
@@ -4863,12 +4906,16 @@ function switchPhase(p) {
   _showBoard(p);
   document.getElementById('searchInput').value = '';
   searchTerm = '';
-  filterCons_ = 'all';
-  filterAtv_  = 'all';
-  filterSt_   = 'all';
+  filterCons_  = 'all';
+  filterAtv_   = 'all';
+  filterSt_    = 'all';
   filterPrazo_ = 'all';
+  filterBlk_   = 'all';
   document.querySelectorAll('.cons-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
   document.querySelectorAll('.atv-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+  // reset sidebar blk buttons
+  const blkAll = document.getElementById('sb-blk-all');
+  if (blkAll) _sbActivate('sb-blk-', blkAll);
   render();
 }
 

@@ -171,6 +171,8 @@ async function salvarClienteInfoNoSupabase(proj, data) {
   const payload = {
     contato_nome:     data.contatoFiscal || '',
     contato_telefone: data.contatoTI     || '',
+    email_fiscal:     data.emailFiscal   || '',
+    email_ti:         data.emailTI       || '',
     versao_sistema:   (data.versoes || []).join(', '),
     tipo_acesso:      data.acesso        || '',
     data_inicio_f2:   data.dataInicio    || '',
@@ -182,6 +184,7 @@ async function salvarClienteInfoNoSupabase(proj, data) {
     prd_pass:         data.prdPass       || '',
     codigo_fluig:     data.codigoFluig   || '',
     esn:              data.esn           || '',
+    acessos_obs:      data.acessosObs    || '',
     updated_at:       new Date().toISOString()
   };
 
