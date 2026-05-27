@@ -6403,16 +6403,22 @@ async function salvarAtaNoCard() {
         }
 
       } catch(efErr) {
-        console.warn('[ata] Edge Function falhou, usando PDF padrão:', efErr.message);
-        fileBlob = _gerarPDFAta(_ataDados);
-        nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
-        MIME     = 'application/pdf';
+        console.warn('[ata] Edge Function falhou, tentando gerar .docx no browser:', efErr.message);
+        // Fallback: gera o .docx preenchido no browser via JSZip
+        try {
+          if (!cfg.templateB64) throw new Error('sem template');
+          const tplBytes = Uint8Array.from(atob(cfg.templateB64), ch => ch.charCodeAt(0));
+          const tplBlob2 = new Blob([tplBytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+          fileBlob = await _preencherTemplateDocx(tplBlob2, _ataDados, gpNome);
+          nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
+          MIME     = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } catch(_) {
+          throw new Error('Não foi possível gerar a ata. Verifique se o template está cadastrado nas Configurações.');
+        }
       }
     } else {
-      // Sem template cadastrado — PDF padrão
-      fileBlob = _gerarPDFAta(_ataDados);
-      nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
-      MIME     = 'application/pdf';
+      // Sem template cadastrado nas Configurações
+      throw new Error('Nenhum template cadastrado. Acesse ⚙️ Configurações e faça o upload do modelo .docx da ata.');
     }
 
     // ── Upload para o Storage ──────────────────────────────
