@@ -89,6 +89,16 @@ function toIso(str) {
 // ============================================================
 async function salvarProjetoNoSupabase(p) {
   if (!CURRENT_USER?.access_token) return;
+
+  // Guard de autorização: consultor só pode salvar projetos atribuídos a ele.
+  // Mesmo que alguém manipule o DOM, esta verificação bloqueia o PATCH.
+  if (CURRENT_USER.perfil === 'consultor' && CURRENT_USER.consultor) {
+    if (p.cons !== CURRENT_USER.consultor) {
+      console.warn(`[auth] Consultor "${CURRENT_USER.consultor}" tentou salvar projeto de "${p.cons}". Bloqueado.`);
+      return;
+    }
+  }
+
   showSyncIndicator();
   const token = CURRENT_USER.access_token;
   const fase  = RAW.f1.includes(p) ? 1 : RAW.f2.includes(p) ? 2 : 3;
@@ -137,6 +147,14 @@ async function salvarProjetoNoSupabase(p) {
 // ============================================================
 async function salvarHistoricoNoSupabase(h, projId, proj) {
   if (!CURRENT_USER?.access_token || !proj) return;
+
+  // Guard: consultor só registra histórico nos próprios projetos
+  if (CURRENT_USER.perfil === 'consultor' && CURRENT_USER.consultor) {
+    if (proj.cons !== CURRENT_USER.consultor) {
+      console.warn(`[auth] Histórico bloqueado: "${CURRENT_USER.consultor}" não é dono de "${proj.c}".`);
+      return;
+    }
+  }
   const token = CURRENT_USER.access_token;
   const fase  = RAW.f1.includes(proj) ? 1 : 2;
   const uuid  = proj._uuid || await getProjectUuid(proj.c, fase);
@@ -164,6 +182,14 @@ async function salvarHistoricoNoSupabase(h, projId, proj) {
 // ============================================================
 async function salvarClienteInfoNoSupabase(proj, data) {
   if (!CURRENT_USER?.access_token || !proj) return;
+
+  // Guard: consultor só edita client_info de seus próprios projetos
+  if (CURRENT_USER.perfil === 'consultor' && CURRENT_USER.consultor) {
+    if (proj.cons !== CURRENT_USER.consultor) {
+      console.warn(`[auth] client_info bloqueado: "${CURRENT_USER.consultor}" não é dono de "${proj.c}".`);
+      return;
+    }
+  }
   const token = CURRENT_USER.access_token;
 
   showSyncIndicator();
@@ -632,18 +658,33 @@ function atualizarTopbar() {
       cursor:pointer;font-size:16px;margin-left:6px;padding:0;line-height:1;transition:color .15s;"
       onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#7aadcc'">&#x23FB;</button>
   `;
-  if (CURRENT_USER.perfil==='consultor' && CURRENT_USER.consultor) {
-    setTimeout(() => {
-      document.querySelectorAll('.cons-btn').forEach(btn => {
-        const t = btn.textContent.trim();
-        if (t!=='Todos' && !t.includes(CURRENT_USER.consultor)) btn.style.display='none';
-      });
-      document.querySelectorAll('[id^="sb-cons-"]').forEach(btn => {
-        if (btn.id!=='sb-cons-all' && !btn.id.toLowerCase().includes(CURRENT_USER.consultor.toLowerCase()))
-          btn.style.display='none';
-      });
-    }, 500);
+  // Proteção de renderização: remove botões do DOM em vez de ocultar via CSS
+  if (CURRENT_USER.perfil === 'consultor' && CURRENT_USER.consultor) {
+    // Aguarda o DOM estabilizar após render() e aplica restrição
+    requestAnimationFrame(() => _aplicarRestricaoConsultor());
   }
+}
+
+// ── Remove elementos administrativos do DOM para consultores ──
+// Chamada após cada render() — impede ressurreição de elementos via DOM inspector.
+function _aplicarRestricaoConsultor() {
+  if (!CURRENT_USER || CURRENT_USER.perfil !== 'consultor') return;
+  const meuNome = CURRENT_USER.consultor.toLowerCase();
+
+  // Botões de filtro de consultor na sidebar (sb-cons-*)
+  document.querySelectorAll('[id^="sb-cons-"]').forEach(btn => {
+    if (btn.id === 'sb-cons-all') return;
+    if (!btn.id.toLowerCase().includes(meuNome)) btn.remove();
+  });
+
+  // Botões de filtro inline no board (cons-btn)
+  document.querySelectorAll('.cons-btn').forEach(btn => {
+    const t = btn.textContent.trim();
+    if (t !== 'Todos' && !t.toLowerCase().includes(meuNome)) btn.remove();
+  });
+
+  // Botões e ações exclusivas de gerentes
+  document.querySelectorAll('.btn-novo-projeto, .admin-action').forEach(el => el.remove());
 }
 
 // ============================================================
@@ -1377,6 +1418,8 @@ async function carregarDadosDoSupabase(silencioso = false) {
 
   if (!silencioso) showLoadingOverlay(false);
   render();
+  // Reaplica restrições de perfil após qualquer render (auto-refresh incluso)
+  if (CURRENT_USER?.perfil === 'consultor') requestAnimationFrame(() => _aplicarRestricaoConsultor());
 }
 
 // ============================================================
@@ -1384,6 +1427,11 @@ async function carregarDadosDoSupabase(silencioso = false) {
 // ============================================================
 async function criarProjetoNoSupabase(novo, fase) {
   if (!CURRENT_USER?.access_token) return;
+  // Criar projetos é ação exclusiva de gerentes
+  if (CURRENT_USER.perfil !== 'gerente') {
+    console.warn('[auth] Criação de projeto bloqueada: perfil insuficiente.');
+    return;
+  }
   const token = CURRENT_USER.access_token;
   const faseNum = parseInt(fase);
   const res = await sbPost('projects', {
@@ -1406,6 +1454,11 @@ async function criarProjetoNoSupabase(novo, fase) {
 // ============================================================
 async function excluirProjetoNoSupabase(proj, fase) {
   if (!CURRENT_USER?.access_token) return;
+  // Excluir projetos é ação exclusiva de gerentes
+  if (CURRENT_USER.perfil !== 'gerente') {
+    console.warn('[auth] Exclusão de projeto bloqueada: perfil insuficiente.');
+    return;
+  }
   const uuid = proj._uuid || await getProjectUuid(proj.c, fase);
   if (uuid) await sbPatch('projects', `id=eq.${uuid}`, { deleted_at: new Date().toISOString() }, CURRENT_USER.access_token);
 }
