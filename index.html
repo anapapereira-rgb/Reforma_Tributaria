@@ -5614,11 +5614,31 @@ function _ataBtn(label, show, disabled) {
 function ataAcao() { salvarAtaNoCard(); }
 
 async function abrirModalAta() {
-  if (!currentProject) return;
+  if (!currentProject) {
+    alert('Abra um card de projeto antes de preencher a ata.');
+    return;
+  }
   _ataDados = null; _ataPdfFile = null;
-  document.getElementById('ataOverlay').style.display = 'flex';
+
+  // Garante que o overlay existe e abre imediatamente
+  const overlay = document.getElementById('ataOverlay');
+  if (!overlay) { console.error('[ata] ataOverlay não encontrado'); return; }
+  overlay.style.display = 'flex';
   _ataBtn('', false, true);
-  await _renderSeletorDocs();
+
+  // Mostra estado de carregamento enquanto busca docs
+  _ataBody(`<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">
+    <div style="width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--purple);border-radius:50%;animation:ata-spin .7s linear infinite;margin:0 auto 10px;"></div>
+    Carregando…
+  </div>`);
+
+  try {
+    await _renderSeletorDocs();
+  } catch(err) {
+    console.error('[ata] Erro ao abrir modal:', err);
+    // Falhou buscar docs — vai direto para upload
+    _renderUploadUI();
+  }
 }
 
 // ── Lista docs do card para o usuário escolher ────────────────────
@@ -5639,17 +5659,17 @@ async function _renderSeletorDocs() {
       <div style="color:var(--text);">📋 ${cliente} · ${consultor} · ${dataFmt}</div>
     </div>`;
 
-  // Busca PDFs já anexados no card
+  // Busca PDFs já anexados no card (se usuário logado com uuid)
   let pdfDocs = [];
-  try {
-    if (CURRENT_USER?.access_token && currentProject?._uuid) {
+  if (CURRENT_USER?.access_token && currentProject?._uuid) {
+    try {
       const res  = await fetch(`${SUPABASE_URL}/rest/v1/documents?project_id=eq.${currentProject._uuid}&select=*&order=created_at.desc`, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
       });
       const rows = res.ok ? await res.json() : [];
       pdfDocs = rows.filter(r => (r.mime_type||'').includes('pdf') || (r.nome_arquivo||'').toLowerCase().endsWith('.pdf'));
-    }
-  } catch(_) {}
+    } catch(_) { /* sem conexão — vai para upload direto */ }
+  }
 
   if (pdfDocs.length > 0) {
     // Mostra seletor de docs existentes
@@ -6425,236 +6445,6 @@ function _gerarPDFAta(d) {
     doc.setDrawColor(0, 163, 173); doc.setLineWidth(0.3);
     doc.circle(W - 12, pageH - 4, 18, 'S');
     doc.circle(W - 8,  pageH - 1, 12, 'S');
-  }
-
-  return new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
-}
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-  const W       = 210;
-  const mL      = 18;   // margem esquerda
-  const mR      = 18;   // margem direita
-  const mT      = 18;   // margem topo
-  const textW   = W - mL - mR;
-  let   y       = mT;
-  const pageH   = 297;
-  const mBot    = 20;
-
-  // ── Helpers ────────────────────────────────────────────────
-  function checkPage(needed) {
-    if (y + needed > pageH - mBot) { doc.addPage(); y = mT; }
-  }
-
-  function drawLine(color) {
-    doc.setDrawColor(...color);
-    doc.setLineWidth(0.4);
-    doc.line(mL, y, W - mR, y);
-    y += 3;
-  }
-
-  function writeText(text, opts = {}) {
-    const { size = 10, style = 'normal', color = [30, 30, 30], indent = 0, lineH = 5.5 } = opts;
-    doc.setFontSize(size);
-    doc.setFont('helvetica', style);
-    doc.setTextColor(...color);
-    const lines = doc.splitTextToSize(text, textW - indent);
-    lines.forEach(ln => {
-      checkPage(lineH);
-      doc.text(ln, mL + indent, y);
-      y += lineH;
-    });
-  }
-
-  function sectionTitle(title) {
-    y += 3;
-    checkPage(10);
-    doc.setFillColor(15, 52, 96);
-    doc.roundedRect(mL, y - 4, textW, 8, 1.5, 1.5, 'F');
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 196, 204);
-    doc.text(title, mL + 4, y + 1.2);
-    y += 7;
-  }
-
-  function bullet(text) {
-    checkPage(6);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(30, 30, 30);
-    doc.setFillColor(0, 196, 204);
-    doc.circle(mL + 3, y - 1.5, 0.9, 'F');
-    const lines = doc.splitTextToSize(text, textW - 8);
-    lines.forEach((ln, i) => {
-      checkPage(5);
-      doc.text(ln, mL + 7, y);
-      y += 5;
-    });
-  }
-
-  // ── Cabeçalho ─────────────────────────────────────────────
-  // Faixa superior
-  doc.setFillColor(10, 26, 55);
-  doc.rect(0, 0, W, 28, 'F');
-
-  // Linha colorida lateral
-  doc.setFillColor(0, 196, 204);
-  doc.rect(0, 0, 4, 28, 'F');
-
-  // Título
-  doc.setFontSize(15);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 196, 204);
-  doc.text('ATA DE ALINHAMENTO', mL, 11);
-
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(160, 200, 220);
-  doc.text('REFORMA TRIBUTÁRIA · TOTVS', mL, 17);
-
-  // Data no canto direito
-  doc.setFontSize(9);
-  doc.setTextColor(160, 200, 220);
-  doc.text(d.data || '', W - mR, 11, { align: 'right' });
-
-  y = 34;
-
-  // ── Card de informações do projeto ────────────────────────
-  doc.setFillColor(18, 40, 75);
-  doc.roundedRect(mL, y, textW, 20, 2, 2, 'F');
-  doc.setDrawColor(0, 196, 204);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(mL, y, textW, 20, 2, 2, 'S');
-
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 196, 204);
-  doc.text('CLIENTE', mL + 5, y + 6);
-  doc.text('CONSULTOR', mL + 70, y + 6);
-  doc.text('GERENTE DE PROJETOS', mL + 135, y + 6);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(220, 235, 245);
-  doc.setFontSize(9);
-  const clientLines = doc.splitTextToSize(d.cliente || '', 58);
-  doc.text(clientLines[0] || '', mL + 5, y + 13);
-  doc.text(d.consultor || '', mL + 70, y + 13);
-  doc.text('Ana Paula Colombo', mL + 135, y + 13);
-
-  y += 26;
-
-  // ── Status do projeto ────────────────────────────────────
-  if (d.status_projeto) {
-    sectionTitle('STATUS DO PROJETO');
-    writeText(d.status_projeto, { size: 9, indent: 2 });
-    y += 2;
-  }
-
-  // ── Participantes ────────────────────────────────────────
-  if (d.participantes) {
-    sectionTitle('PARTICIPANTES');
-    writeText(d.participantes, { size: 9, indent: 2 });
-    y += 2;
-  }
-
-  // ── Tópicos discutidos ───────────────────────────────────
-  if ((d.topicos || []).length) {
-    sectionTitle('1. TÓPICOS DISCUTIDOS');
-    (d.topicos || []).forEach(t => bullet(t));
-    y += 2;
-  }
-
-  // ── Decisões ─────────────────────────────────────────────
-  if ((d.decisoes || []).length) {
-    sectionTitle('2. DECISÕES TOMADAS');
-    (d.decisoes || []).forEach(t => bullet(t));
-    y += 2;
-  }
-
-  // ── Pendências ───────────────────────────────────────────
-  if ((d.pendencias || []).length) {
-    sectionTitle('3. PENDÊNCIAS E RESPONSÁVEIS');
-    y += 1;
-
-    // Cabeçalho da tabela
-    const cols = [80, 45, 35, 28];
-    const colX = [mL, mL+cols[0], mL+cols[0]+cols[1], mL+cols[0]+cols[1]+cols[2]];
-    const rowH  = 7;
-
-    checkPage(rowH + 2);
-    doc.setFillColor(10, 26, 55);
-    doc.rect(mL, y, textW, rowH, 'F');
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 196, 204);
-    ['ATIVIDADE', 'RESPONSÁVEL', 'PRAZO', 'STATUS'].forEach((h, i) => {
-      doc.text(h, colX[i] + 2, y + 5);
-    });
-    y += rowH;
-
-    (d.pendencias || []).forEach((p, idx) => {
-      checkPage(rowH + 1);
-      const bg = idx % 2 === 0 ? [18, 40, 75] : [22, 48, 88];
-      doc.setFillColor(...bg);
-      doc.rect(mL, y, textW, rowH, 'F');
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(210, 228, 242);
-
-      const cells = [p.atividade||'', p.responsavel||'', p.prazo||'', p.status||''];
-      const widths = [cols[0]-2, cols[1]-2, cols[2]-2, cols[3]-2];
-      cells.forEach((cell, i) => {
-        const txt = doc.splitTextToSize(cell, widths[i])[0] || '';
-        doc.text(txt, colX[i] + 2, y + 5);
-      });
-      y += rowH;
-    });
-    y += 3;
-  }
-
-  // ── Riscos ───────────────────────────────────────────────
-  if ((d.riscos || []).length) {
-    sectionTitle('4. RISCOS IDENTIFICADOS');
-    (d.riscos || []).forEach(t => bullet(t));
-    y += 2;
-  }
-
-  // ── Próximos passos ──────────────────────────────────────
-  if ((d.proximos_passos || []).length) {
-    sectionTitle('5. PRÓXIMOS PASSOS');
-    (d.proximos_passos || []).forEach(t => bullet(t));
-    y += 2;
-  }
-
-  // ── Se houver texto livre editado, usa como fallback ─────
-  // (caso o usuário tenha editado o texto de forma não estruturada)
-  if (d.textoEditado && (!d.topicos?.length && !d.decisoes?.length)) {
-    sectionTitle('CONTEÚDO DA ATA');
-    const linhas = d.textoEditado.split('\n');
-    linhas.forEach(ln => {
-      if (!ln.trim()) { y += 2; return; }
-      if (/^\d+\./.test(ln.trim()) || ln.trim().toUpperCase() === ln.trim()) {
-        writeText(ln, { size: 9, style: 'bold', color: [0, 196, 204] });
-      } else {
-        writeText(ln, { size: 9 });
-      }
-    });
-  }
-
-  // ── Rodapé em todas as páginas ───────────────────────────
-  const totalPages = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFillColor(10, 26, 55);
-    doc.rect(0, pageH - 12, W, 12, 'F');
-    doc.setFillColor(0, 196, 204);
-    doc.rect(0, pageH - 12, 4, 12, 'F');
-    doc.setFontSize(7.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 150, 180);
-    doc.text('TOTVS · Reforma Tributária · Documento gerado automaticamente', mL, pageH - 5);
-    doc.text(`Página ${i} de ${totalPages}`, W - mR, pageH - 5, { align: 'right' });
   }
 
   return new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
