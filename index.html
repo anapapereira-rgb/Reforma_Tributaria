@@ -1271,6 +1271,35 @@
   .ata-doc-row { display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer; }
   .ata-doc-row:hover { border-color:var(--purple); }
   .ata-preview { background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;color:var(--text);line-height:1.7;max-height:300px;overflow-y:auto;white-space:pre-wrap;font-family:monospace; }
+  .ata-editor  { background:var(--surface2);border:1px solid var(--purple);border-radius:8px;padding:14px;font-size:12px;color:var(--text);line-height:1.7;min-height:280px;max-height:420px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;resize:none;width:100%;box-sizing:border-box;outline:none;transition:border-color .2s; }
+  .ata-editor:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(0,196,204,.12); }
+  .ata-editor-toolbar { display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface3);border:1px solid var(--purple);border-bottom:none;border-radius:8px 8px 0 0; }
+  .ata-editor-toolbar .atb-btn { background:none;border:1px solid var(--border2);color:var(--muted);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:var(--font);transition:all .15s; }
+  .ata-editor-toolbar .atb-btn:hover { border-color:var(--purple);color:var(--purple); }
+  .ata-editor-hint { font-size:10px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:5px; }
+
+  /* ── Modal Configurações ── */
+  .cfg-overlay { position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:3000;display:none;align-items:center;justify-content:center; }
+  .cfg-modal   { background:var(--surface);border:1px solid var(--border);border-radius:14px;width:540px;max-width:95vw;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.5); }
+  .cfg-header  { display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface2); }
+  .cfg-header-icon { width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#00c4cc22,#00c4cc44);border:1px solid #00c4cc44;display:flex;align-items:center;justify-content:center;font-size:18px; }
+  .cfg-title   { font-size:14px;font-weight:800;color:var(--text);flex:1; }
+  .cfg-body    { flex:1;overflow-y:auto;padding:20px; }
+  .cfg-section { margin-bottom:22px; }
+  .cfg-section-title { font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border); }
+  .cfg-field   { margin-bottom:14px; }
+  .cfg-label   { font-size:11px;font-weight:600;color:var(--text);margin-bottom:5px;display:block; }
+  .cfg-sublabel{ font-size:10px;color:var(--muted);margin-bottom:6px;display:block;line-height:1.4; }
+  .cfg-input   { width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:8px 10px;font-size:12px;color:var(--text);font-family:var(--font);box-sizing:border-box;transition:border-color .15s; }
+  .cfg-input:focus { outline:none;border-color:var(--accent); }
+  .cfg-upload-zone { border:2px dashed var(--border2);border-radius:9px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);position:relative; }
+  .cfg-upload-zone:hover,.cfg-upload-zone.drag { border-color:var(--accent);background:rgba(0,196,204,.06); }
+  .cfg-upload-zone input { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+  .cfg-file-preview { display:none;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:8px; }
+  .cfg-save-btn { width:100%;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),#0088ff);color:#fff;font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;transition:opacity .2s; }
+  .cfg-save-btn:hover { opacity:.88; }
+  .topbar-cfg-btn { background:var(--surface2);border:1px solid var(--border2);color:var(--muted);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:var(--font);transition:all .15s;display:flex;align-items:center;gap:6px; }
+  .topbar-cfg-btn:hover { border-color:var(--accent);color:var(--accent); }
   .doc-empty { font-size: 11px; color: var(--muted); text-align: center; padding: 6px 0; }
 
   .doc-size-warning { font-size: 10px; color: var(--amber); margin-top: 4px; }
@@ -1608,6 +1637,7 @@
   </div>
   <div class="topbar-spacer"></div>
   <button class="new-btn" onclick="openNewModal()">＋ Novo Projeto</button>
+  <button class="topbar-cfg-btn" id="btnConfiguracoes" onclick="abrirConfiguracoes()" style="display:none;" title="Configurações do sistema">⚙️ Configurações</button>
   <div class="manager-badge">
     <div class="avatar" style="background:linear-gradient(135deg,#00c4cc,#0088ff);font-size:11px;">AP</div>
     <span>Ana Paula · Gerente de Projetos</span>
@@ -1678,6 +1708,19 @@
     <button class="sb-btn" id="sb-atv-PR" onclick="sbFilterAtv('EM PRODUÇÃO',this)"><span class="sb-dot" style="background:var(--green)"></span>Em produção</button>
     <button class="sb-btn" id="sb-atv-DP" onclick="sbFilterAtv('DEPLOY PROD',this)"><span class="sb-dot" style="background:#38bdf8"></span>Deploy Prod 🚀</button>
     <button class="sb-btn" id="sb-atv-PA" onclick="sbFilterAtv('PARALISADO',this)"><span class="sb-dot" style="background:#94a3b8"></span>Paralisado ⏹</button>
+  </div>
+
+  <div class="sb-divider"></div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-title">Responsável pela Tarefa</div>
+    <button class="sb-btn active" id="sb-blk-all"        onclick="sbFilterBlk('all',this)">Todos</button>
+    <button class="sb-btn"        id="sb-blk-Consultor"  onclick="sbFilterBlk('Consultor',this)"><span class="sb-dot" style="background:#60a5fa"></span>Consultor</button>
+    <button class="sb-btn"        id="sb-blk-Cliente"    onclick="sbFilterBlk('Cliente',this)"><span class="sb-dot" style="background:var(--green)"></span>Cliente</button>
+    <button class="sb-btn"        id="sb-blk-Sustentacao" onclick="sbFilterBlk('Sustentação',this)"><span class="sb-dot" style="background:#c084fc"></span>Sustentação</button>
+    <button class="sb-btn"        id="sb-blk-Matriz"     onclick="sbFilterBlk('Suporte Matriz',this)"><span class="sb-dot" style="background:var(--teal)"></span>Suporte Matriz</button>
+    <button class="sb-btn"        id="sb-blk-Terceiros"  onclick="sbFilterBlk('Terceiros',this)"><span class="sb-dot" style="background:var(--amber)"></span>Terceiros</button>
+    <button class="sb-btn"        id="sb-blk-vazio"      onclick="sbFilterBlk('',this)"><span class="sb-dot" style="background:var(--border2)"></span>Não definido</button>
   </div>
 
   <div class="sb-divider"></div>
@@ -1817,10 +1860,12 @@
                 <div class="ci-field">
                   <div class="ci-label">📞 Contato Contábil/Fiscal</div>
                   <input type="text" class="ci-input" id="ci-contato-fiscal" placeholder="Nome e contato…" oninput="_ciAutoSave()" />
+                  <input type="email" class="ci-input" id="ci-email-fiscal" placeholder="E-mail…" oninput="_ciAutoSave()" style="margin-top:4px;" />
                 </div>
                 <div class="ci-field">
                   <div class="ci-label">💻 Contato TI</div>
                   <input type="text" class="ci-input" id="ci-contato-ti" placeholder="Nome e contato…" oninput="_ciAutoSave()" />
+                  <input type="email" class="ci-input" id="ci-email-ti" placeholder="E-mail…" oninput="_ciAutoSave()" style="margin-top:4px;" />
                 </div>
               </div>
               <div class="ci-field">
@@ -1943,6 +1988,14 @@
                   <input type="text" class="ci-input" id="ci-prd-pass" placeholder="Senha…" oninput="_ciAutoSave()" />
                 </div>
               </div>
+            </div>
+            <!-- Observações dos Acessos -->
+            <div class="ci-field" style="margin-top:4px;">
+              <div class="ci-label">📝 Observações</div>
+              <textarea class="ci-input" id="ci-acessos-obs" rows="3"
+                placeholder="Informações adicionais sobre os acessos…"
+                oninput="_ciAutoSave()"
+                style="resize:vertical;min-height:72px;line-height:1.5;font-family:var(--font);"></textarea>
             </div>
           </div>
         </div>
@@ -2382,7 +2435,8 @@ function filtered() {
       }
     }
     if (filterPrazo_ !== 'all' && (p.prazo || '') !== filterPrazo_) return false;
-    if (filterAtv_ !== 'all' && p.atv !== filterAtv_) return false;
+    if (filterAtv_   !== 'all' && p.atv !== filterAtv_) return false;
+    if (filterBlk_   !== 'all' && (p.blk || '') !== filterBlk_) return false;
     if (searchTerm && !p.c.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
@@ -2695,12 +2749,34 @@ async function renderDocs(pid) {
   const list = document.getElementById('docList');
   if (!list) return;
 
+  // Converte "DD/MM/AAAA" → número comparável (AAAAMMDD); datas inválidas ficam em 0
+  function _dateVal(d) {
+    const raw = d.date || d.data_upload || '';
+    const parts = raw.split('/');
+    if (parts.length === 3) {
+      const [dd, mm, aaaa] = parts;
+      const n = parseInt(aaaa + mm.padStart(2,'0') + dd.padStart(2,'0'), 10);
+      return isNaN(n) ? 0 : n;
+    }
+    // Aceita também formato ISO AAAA-MM-DD (IndexedDB legado)
+    if (raw.includes('-')) {
+      const n = parseInt(raw.replace(/-/g,''), 10);
+      return isNaN(n) ? 0 : n;
+    }
+    return 0;
+  }
+
+  function _sortDocs(docs) {
+    return docs.slice().sort((a, b) => _dateVal(b) - _dateVal(a));
+  }
+
   function mostrarDocs(docs) {
-    if (!docs.length) {
+    const sorted = _sortDocs(docs);
+    if (!sorted.length) {
       list.innerHTML = '<div class="doc-empty">Nenhum documento vinculado ainda.</div>';
       return;
     }
-    list.innerHTML = docs.map((d, i) => {
+    list.innerHTML = sorted.map((d, i) => {
       const nome    = escapeHtml(d.name || d.nome_arquivo || '');
       const tamanho = d.size || d.tamanho || '';
       const data    = d.date || d.data_upload || '';
@@ -2728,7 +2804,7 @@ async function renderDocs(pid) {
 
   // ── Prioridade 1: Supabase (usuário logado com projeto sincronizado) ──
   if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER?.access_token && currentProject?._uuid) {
-    fetch(`${SUPABASE_URL}/rest/v1/documents?project_id=eq.${currentProject._uuid}&select=*&order=created_at.asc`, {
+    fetch(`${SUPABASE_URL}/rest/v1/documents?project_id=eq.${currentProject._uuid}&select=*`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
     })
     .then(r => r.ok ? r.json() : [])
@@ -4014,10 +4090,11 @@ function renderClientInfo(p) {
   const pid = projectId(p);
 
   // Limpa todos os campos enquanto carrega
-  ['ci-contato-fiscal','ci-contato-ti','ci-hmg-link','ci-hmg-user',
-   'ci-hmg-pass','ci-prd-link','ci-prd-user','ci-prd-pass'].forEach(id => {
+  ['ci-contato-fiscal','ci-email-fiscal','ci-contato-ti','ci-email-ti',
+   'ci-hmg-link','ci-hmg-user','ci-hmg-pass','ci-prd-link','ci-prd-user','ci-prd-pass'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = '';
   });
+  const obsEl = document.getElementById('ci-acessos-obs'); if(obsEl) obsEl.value = '';
   CI_VERSIONS.forEach(v => { const btn = document.getElementById('ci-v-'+v); if(btn) btn.classList.remove('selected'); });
   ['Local','Cloud'].forEach(ac => { const btn = document.getElementById('ci-ac-'+ac); if(btn) btn.classList.remove('selected'); });
 
@@ -4026,6 +4103,12 @@ function renderClientInfo(p) {
     // Contatos
     document.getElementById('ci-contato-fiscal').value = d.contatoFiscal || d.contato_nome     || '';
     document.getElementById('ci-contato-ti').value     = d.contatoTI     || d.contato_telefone || '';
+    const emailFiscalEl = document.getElementById('ci-email-fiscal');
+    if (emailFiscalEl) emailFiscalEl.value = d.emailFiscal || d.email_fiscal || '';
+    const emailTiEl = document.getElementById('ci-email-ti');
+    if (emailTiEl) emailTiEl.value = d.emailTI || d.email_ti || '';
+    const obsAcessosEl = document.getElementById('ci-acessos-obs');
+    if (obsAcessosEl) obsAcessosEl.value = d.acessosObs || d.acessos_obs || '';
 
     // Código Fluig e ESN — também popula campos comerciais
     const fluigEl2 = document.getElementById('mCodigoFluig');
@@ -4120,7 +4203,9 @@ function _ciRead() {
   const acBtn = ['Local','Cloud'].find(ac => document.getElementById('ci-ac-' + ac)?.classList.contains('selected'));
   return {
     contatoFiscal: document.getElementById('ci-contato-fiscal').value.trim(),
+    emailFiscal:   document.getElementById('ci-email-fiscal')?.value.trim() || '',
     contatoTI:     document.getElementById('ci-contato-ti').value.trim(),
+    emailTI:       document.getElementById('ci-email-ti')?.value.trim() || '',
     versoes,
     acesso:        acBtn || '',
     hmgLink:       document.getElementById('ci-hmg-link').value.trim(),
@@ -4129,6 +4214,7 @@ function _ciRead() {
     prdLink:       document.getElementById('ci-prd-link').value.trim(),
     prdUser:       document.getElementById('ci-prd-user').value.trim(),
     prdPass:       document.getElementById('ci-prd-pass').value.trim(),
+    acessosObs:    document.getElementById('ci-acessos-obs')?.value.trim() || '',
     dataInicio:    document.getElementById('ci-datainicio') ? document.getElementById('ci-datainicio').value.trim() : '',
   };
 }
@@ -4531,6 +4617,7 @@ function toggleSubsect(header) {
 // ──────────────────────────────────────────────
 let filterSt_    = 'all';
 let filterPrazo_ = 'all';
+let filterBlk_   = 'all';
 
 function _sbActivate(groupPrefix, btn) {
   document.querySelectorAll('[id^="' + groupPrefix + '"]').forEach(b => b.classList.remove('active'));
@@ -4542,10 +4629,11 @@ function sbSwitchPhase(p, btn) {
   _showBoard(p);
   document.getElementById('searchInput').value = '';
   searchTerm = '';
-  filterCons_ = 'all';
-  filterAtv_  = 'all';
-  filterSt_   = 'all';
+  filterCons_  = 'all';
+  filterAtv_   = 'all';
+  filterSt_    = 'all';
   filterPrazo_ = 'all';
+  filterBlk_   = 'all';
   render();
 }
 
@@ -4576,16 +4664,23 @@ function sbFilterPrazo(prazo, btn) {
   render();
 }
 
+function sbFilterBlk(blk, btn) {
+  _sbActivate('sb-blk-', btn);
+  filterBlk_ = blk;
+  render();
+}
+
 function sbClearAll() {
   filterCons_   = 'all';
   filterAtv_    = 'all';
   filterSt_     = 'all';
   filterPrazo_  = 'all';
+  filterBlk_    = 'all';
   document.getElementById('searchInput').value = '';
   searchTerm = '';
   // ensure board is visible if filters are being cleared
   _showBoard(phase);
-  ['sb-cons-all','sb-atv-all','sb-st-all','sb-prazo-all'].forEach(id => {
+  ['sb-cons-all','sb-atv-all','sb-st-all','sb-prazo-all','sb-blk-all'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       const prefix = id.replace(/-all$/,'-');
@@ -4853,9 +4948,236 @@ function renderDashboard() {
         ${phaseCard(F2, s2, c2, 'FASE 2 — ENTRADAS IBS/CBS',  '#a855f7',       '📥')}
         ${phaseCard(F3, s3, c3, 'FASE 3 — IMPOSTOS LEGADOS',  '#f59e0b',       '⚙️')}
       </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- MÉTRICAS ÁGEIS                                     -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div id="dash-metricas" style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start"></div>
     </div>`;
+
+  // Renderiza métricas ágeis em função separada (evita erros dentro do template literal)
+  _renderMetricasAgeis(F1, F2);
 }
 
+function _renderMetricasAgeis(F1, F2) {
+  const el = document.getElementById('dash-metricas');
+  if (!el) return;
+
+  try {
+    const allProjs = [...(F1||[]), ...(F2||[])];
+
+    // ── Helpers ──────────────────────────────────────────
+    function _diffDays(a, b) {
+      if (!a || !b) return null;
+      const da = new Date(a), db = new Date(b);
+      if (isNaN(da) || isNaN(db)) return null;
+      return Math.round((db - da) / 86400000);
+    }
+    function _toIsoDate(s) {
+      if (!s) return null;
+      if (s.includes('/')) { const [d,m,y]=s.split('/'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+      return s.slice(0,10);
+    }
+    function _weekKey(s) {
+      const iso = _toIsoDate(s);
+      if (!iso) return null;
+      const d = new Date(iso);
+      if (isNaN(d)) return null;
+      const jan4 = new Date(d.getFullYear(),0,4);
+      const wk = Math.ceil(((d-jan4)/86400000 + jan4.getDay()+1)/7);
+      return `${d.getFullYear()}-W${String(wk).padStart(2,'0')}`;
+    }
+
+    // ── LEAD TIME ─────────────────────────────────────────
+    const hoje = new Date().toISOString().slice(0,10);
+    const concluidos = allProjs.filter(p => p.st==='CONCLUÍDO' && p.data_inicio && p.data_conclusao);
+    const emAndamento = allProjs.filter(p => p.st==='EM ANDAMENTO' && p.data_inicio);
+
+    const leadTimes = concluidos.map(p => ({
+      nome: p.c, cons: p.cons, pkg: p.pkg||'P',
+      dias: _diffDays(_toIsoDate(p.data_inicio), _toIsoDate(p.data_conclusao))
+    })).filter(x=>x.dias!==null).sort((a,b)=>a.dias-b.dias);
+
+    const cycleParcial = emAndamento.map(p => ({
+      nome: p.c, cons: p.cons,
+      dias: _diffDays(_toIsoDate(p.data_inicio), hoje)
+    })).filter(x=>x.dias!==null).sort((a,b)=>b.dias-a.dias);
+
+    const avg = leadTimes.length ? Math.round(leadTimes.reduce((s,x)=>s+x.dias,0)/leadTimes.length) : null;
+    const med = leadTimes.length ? leadTimes[Math.floor(leadTimes.length/2)].dias : null;
+    const min = leadTimes.length ? leadTimes[0].dias : null;
+    const max = leadTimes.length ? leadTimes[leadTimes.length-1].dias : null;
+
+    // Por pacote
+    const pkgGroups = {};
+    leadTimes.forEach(x => { if(!pkgGroups[x.pkg]) pkgGroups[x.pkg]=[]; pkgGroups[x.pkg].push(x.dias); });
+    const maxPkgAvg = Math.max(...Object.values(pkgGroups).map(d=>Math.round(d.reduce((a,b)=>a+b,0)/d.length)), 1);
+    const pkgRowsHtml = Object.entries(pkgGroups).sort().map(([pkg,dias]) => {
+      const m = Math.round(dias.reduce((a,b)=>a+b,0)/dias.length);
+      const bar = Math.round(m/maxPkgAvg*100);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e3d5c">
+        <div style="width:28px;height:28px;border-radius:6px;background:#00c4cc22;border:1px solid #00c4cc44;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#00c4cc;flex-shrink:0">${pkg}</div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--text);font-weight:600">${m} dias em média</div>
+          <div style="font-size:10px;color:var(--muted)">${dias.length} projeto${dias.length>1?'s':''} concluído${dias.length>1?'s':''}</div>
+        </div>
+        <div style="height:6px;width:80px;background:#1e3d5c;border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${bar}%;background:#00c4cc;border-radius:3px"></div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const topAndamentoHtml = cycleParcial.slice(0,5).map(x => {
+      const col = x.dias>60?'#ef4444':x.dias>30?'#f59e0b':'#60a5fa';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e3d5c22">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${x.nome}">${x.nome}</div>
+          <div style="font-size:10px;color:var(--muted)">${x.cons}</div>
+        </div>
+        <div style="font-size:13px;font-weight:800;color:${col};flex-shrink:0">${x.dias}d</div>
+      </div>`;
+    }).join('');
+
+    const semDados = leadTimes.length === 0;
+    const kpiHtml = semDados ? '' : `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)">
+        ${[{v:avg+'d',l:'Média geral',c:'#00c4cc'},{v:med+'d',l:'Mediana',c:'#a855f7'},{v:min+'d',l:'Mais rápido',c:'#22c55e'},{v:max+'d',l:'Mais lento',c:'#f59e0b'}]
+          .map(k=>`<div style="background:var(--surface2);padding:12px 8px;text-align:center">
+            <div style="font-size:20px;font-weight:800;color:${k.c};line-height:1">${k.v}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">${k.l}</div>
+          </div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)">
+        <div style="background:var(--surface);padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Média por Pacote</div>
+          ${pkgRowsHtml||'<div style="color:var(--muted);font-size:11px">—</div>'}
+        </div>
+        <div style="background:var(--surface2);padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">🔄 Em andamento há mais tempo</div>
+          ${topAndamentoHtml||'<div style="color:var(--muted);font-size:11px">Nenhum em andamento</div>'}
+        </div>
+      </div>`;
+
+    const semDadosHtml = `<div style="padding:32px;text-align:center;color:var(--muted);font-size:12px;line-height:1.7">
+      <div style="font-size:28px;margin-bottom:8px">📈</div>
+      Dados serão preenchidos automaticamente<br>conforme os projetos mudarem de status.<br>
+      <span style="font-size:10px;color:#4a7a99;margin-top:6px;display:block">O sistema captura a data ao entrar em "Em Andamento" e ao "Concluir".</span>
+    </div>`;
+
+    // ── CFD ───────────────────────────────────────────────
+    const niAtual = allProjs.filter(p=>p.st==='NÃO INICIADO').length;
+    const eaAtual = allProjs.filter(p=>p.st==='EM ANDAMENTO').length;
+    const coAtual = allProjs.filter(p=>p.st==='CONCLUÍDO').length;
+    const caAtual = allProjs.filter(p=>p.st==='CANCELADO').length;
+    const totalAtual = allProjs.length;
+
+    // Monta weekMap com semanas encontradas nos dados
+    const weekMap = {};
+    allProjs.forEach(p => {
+      [p.data_inicio, p.data_conclusao, p.upd].filter(Boolean).forEach(ds => {
+        const wk = _weekKey(ds);
+        if (wk && !weekMap[wk]) weekMap[wk] = null;
+      });
+    });
+    const sortedWeeks = Object.keys(weekMap).sort();
+    if (sortedWeeks.length === 0) {
+      weekMap['Atual'] = {NI:niAtual, EA:eaAtual, CO:coAtual, CA:caAtual};
+    } else {
+      sortedWeeks.forEach(wk => {
+        weekMap[wk] = {
+          NI: allProjs.filter(p=>p.st==='NÃO INICIADO').length,
+          EA: allProjs.filter(p=>p.st==='EM ANDAMENTO').length,
+          CO: allProjs.filter(p=>p.st==='CONCLUÍDO').length,
+          CA: allProjs.filter(p=>p.st==='CANCELADO').length,
+        };
+      });
+    }
+
+    const labels = Object.keys(weekMap);
+    const niV = labels.map(w=>weekMap[w].NI);
+    const eaV = labels.map(w=>weekMap[w].EA);
+    const coV = labels.map(w=>weekMap[w].CO);
+    const caV = labels.map(w=>weekMap[w].CA);
+
+    // SVG stacked area
+    const SW=480,SH=160,pL=32,pR=12,pT=12,pB=28;
+    const iW=SW-pL-pR, iH=SH-pT-pB, n=labels.length;
+    const maxTot = Math.max(...labels.map((_,i)=>niV[i]+eaV[i]+coV[i]+caV[i]),1);
+    const xOf = i => pL + (n===1 ? iW/2 : i/(n-1)*iW);
+    const yOf = v => pT + iH - (v/maxTot*iH);
+
+    const coS = labels.map((_,i)=>coV[i]);
+    const eaS = labels.map((_,i)=>coV[i]+eaV[i]);
+    const niS = labels.map((_,i)=>coV[i]+eaV[i]+niV[i]);
+    const caS = labels.map((_,i)=>coV[i]+eaV[i]+niV[i]+caV[i]);
+
+    const coTop = coS.map((_,i)=>[xOf(i),yOf(coS[i])]);
+    const eaTop = eaS.map((_,i)=>[xOf(i),yOf(eaS[i])]);
+    const niTop = niS.map((_,i)=>[xOf(i),yOf(niS[i])]);
+    const caTop = caS.map((_,i)=>[xOf(i),yOf(caS[i])]);
+    const baseP = labels.map((_,i)=>[xOf(i),yOf(0)]);
+
+    const ap = (top,bot) => {
+      const pts=[...top,...[...bot].reverse()];
+      return 'M'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L')+'Z';
+    };
+
+    const yTicks = [0,Math.round(maxTot/2),maxTot];
+    const xStep = Math.max(1,Math.ceil(n/5));
+    const xLbls = labels.filter((_,i)=>i%xStep===0||i===n-1);
+
+    const svgHtml = `<svg viewBox="0 0 ${SW} ${SH}" width="100%" style="overflow:visible;display:block">
+      <defs>
+        <linearGradient id="gCO" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22c55e" stop-opacity=".8"/><stop offset="100%" stop-color="#22c55e" stop-opacity=".4"/></linearGradient>
+        <linearGradient id="gEA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#60a5fa" stop-opacity=".8"/><stop offset="100%" stop-color="#60a5fa" stop-opacity=".4"/></linearGradient>
+        <linearGradient id="gNI" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#64748b" stop-opacity=".7"/><stop offset="100%" stop-color="#64748b" stop-opacity=".3"/></linearGradient>
+        <linearGradient id="gCA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ef4444" stop-opacity=".7"/><stop offset="100%" stop-color="#ef4444" stop-opacity=".3"/></linearGradient>
+      </defs>
+      ${yTicks.map(v=>{const y=yOf(v).toFixed(1);return`<line x1="${pL}" y1="${y}" x2="${SW-pR}" y2="${y}" stroke="#1e3d5c" stroke-width="1" stroke-dasharray="3,3"/><text x="${pL-4}" y="${parseFloat(y)+4}" text-anchor="end" fill="#4a7a99" font-size="9" font-family="Inter,sans-serif">${v}</text>`;}).join('')}
+      <path d="${ap(coTop,baseP)}" fill="url(#gCO)" stroke="#22c55e" stroke-width="1.5"/>
+      <path d="${ap(eaTop,coTop)}" fill="url(#gEA)" stroke="#60a5fa" stroke-width="1.5"/>
+      <path d="${ap(niTop,eaTop)}" fill="url(#gNI)" stroke="#64748b" stroke-width="1.5"/>
+      <path d="${ap(caTop,niTop)}" fill="url(#gCA)" stroke="#ef4444" stroke-width="1.5"/>
+      ${xLbls.map(lbl=>{const i=labels.indexOf(lbl);return`<text x="${xOf(i).toFixed(1)}" y="${SH-4}" text-anchor="middle" fill="#4a7a99" font-size="8.5" font-family="Inter,sans-serif">${lbl}</text>`;}).join('')}
+    </svg>`;
+
+    // ── Montar HTML final ─────────────────────────────────
+    el.innerHTML = `
+      <!-- Lead Time -->
+      <div style="background:var(--surface);border:1px solid #00c4cc33;border-radius:12px;overflow:hidden">
+        <div style="background:linear-gradient(135deg,#00c4cc22,#00c4cc08);border-bottom:1px solid #00c4cc33;padding:10px 16px;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:12px;font-weight:800;color:#00c4cc;letter-spacing:.06em">⏱ LEAD TIME / CYCLE TIME</div>
+          <div style="font-size:10px;color:var(--muted)">${leadTimes.length} projetos com dados completos</div>
+        </div>
+        ${semDados ? semDadosHtml : kpiHtml}
+      </div>
+
+      <!-- CFD -->
+      <div style="background:var(--surface);border:1px solid #a855f733;border-radius:12px;overflow:hidden">
+        <div style="background:linear-gradient(135deg,#a855f722,#a855f708);border-bottom:1px solid #a855f733;padding:10px 16px;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:12px;font-weight:800;color:#a855f7;letter-spacing:.06em">📊 CUMULATIVE FLOW DIAGRAM</div>
+          <div style="font-size:10px;color:var(--muted)">F1 + F2 · ${totalAtual} projetos</div>
+        </div>
+        <div style="display:flex;gap:14px;padding:10px 16px 0;flex-wrap:wrap">
+          ${[{c:'#22c55e',l:'Concluído',v:coAtual},{c:'#60a5fa',l:'Em Andamento',v:eaAtual},{c:'#64748b',l:'Não Iniciado',v:niAtual},{c:'#ef4444',l:'Cancelado',v:caAtual}]
+            .map(x=>`<div style="display:flex;align-items:center;gap:5px">
+              <div style="width:10px;height:10px;border-radius:2px;background:${x.c};flex-shrink:0"></div>
+              <span style="font-size:11px;color:var(--muted)">${x.l}</span>
+              <span style="font-size:11px;font-weight:700;color:${x.c}">${x.v}</span>
+            </div>`).join('')}
+        </div>
+        <div style="padding:12px 16px">${svgHtml}</div>
+        <div style="padding:0 16px 14px;font-size:10px;color:var(--muted);line-height:1.5">
+          💡 O CFD reflete o estado atual (F1+F2). Com o passar das semanas, o gráfico acumulará o histórico de mudanças de status.
+        </div>
+      </div>`;
+
+  } catch(err) {
+    console.error('[metricas] Erro ao renderizar métricas ágeis:', err);
+    const el2 = document.getElementById('dash-metricas');
+    if (el2) el2.innerHTML = '';
+  }
+}
 
 
 function switchPhase(p) {
@@ -4863,12 +5185,16 @@ function switchPhase(p) {
   _showBoard(p);
   document.getElementById('searchInput').value = '';
   searchTerm = '';
-  filterCons_ = 'all';
-  filterAtv_  = 'all';
-  filterSt_   = 'all';
+  filterCons_  = 'all';
+  filterAtv_   = 'all';
+  filterSt_    = 'all';
   filterPrazo_ = 'all';
+  filterBlk_   = 'all';
   document.querySelectorAll('.cons-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
   document.querySelectorAll('.atv-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+  // reset sidebar blk buttons
+  const blkAll = document.getElementById('sb-blk-all');
+  if (blkAll) _sbActivate('sb-blk-', blkAll);
   render();
 }
 
@@ -5288,11 +5614,31 @@ function _ataBtn(label, show, disabled) {
 function ataAcao() { salvarAtaNoCard(); }
 
 async function abrirModalAta() {
-  if (!currentProject) return;
+  if (!currentProject) {
+    alert('Abra um card de projeto antes de preencher a ata.');
+    return;
+  }
   _ataDados = null; _ataPdfFile = null;
-  document.getElementById('ataOverlay').style.display = 'flex';
+
+  // Garante que o overlay existe e abre imediatamente
+  const overlay = document.getElementById('ataOverlay');
+  if (!overlay) { console.error('[ata] ataOverlay não encontrado'); return; }
+  overlay.style.display = 'flex';
   _ataBtn('', false, true);
-  await _renderSeletorDocs();
+
+  // Mostra estado de carregamento enquanto busca docs
+  _ataBody(`<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">
+    <div style="width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--purple);border-radius:50%;animation:ata-spin .7s linear infinite;margin:0 auto 10px;"></div>
+    Carregando…
+  </div>`);
+
+  try {
+    await _renderSeletorDocs();
+  } catch(err) {
+    console.error('[ata] Erro ao abrir modal:', err);
+    // Falhou buscar docs — vai direto para upload
+    _renderUploadUI();
+  }
 }
 
 // ── Lista docs do card para o usuário escolher ────────────────────
@@ -5313,17 +5659,17 @@ async function _renderSeletorDocs() {
       <div style="color:var(--text);">📋 ${cliente} · ${consultor} · ${dataFmt}</div>
     </div>`;
 
-  // Busca PDFs já anexados no card
+  // Busca PDFs já anexados no card (se usuário logado com uuid)
   let pdfDocs = [];
-  try {
-    if (CURRENT_USER?.access_token && currentProject?._uuid) {
+  if (CURRENT_USER?.access_token && currentProject?._uuid) {
+    try {
       const res  = await fetch(`${SUPABASE_URL}/rest/v1/documents?project_id=eq.${currentProject._uuid}&select=*&order=created_at.desc`, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
       });
       const rows = res.ok ? await res.json() : [];
       pdfDocs = rows.filter(r => (r.mime_type||'').includes('pdf') || (r.nome_arquivo||'').toLowerCase().endsWith('.pdf'));
-    }
-  } catch(_) {}
+    } catch(_) { /* sem conexão — vai para upload direto */ }
+  }
 
   if (pdfDocs.length > 0) {
     // Mostra seletor de docs existentes
@@ -5676,69 +6022,184 @@ function _ataRenderPreview() {
     .map(p => `  • ${p.atividade||''} | ${p.responsavel||''} | ${p.prazo||''} | ${p.status||''}`).join('\n');
   const topicosTxt = (d.topicos || []).map(t => '• ' + t).join('\n');
 
+  // Monta o texto completo da ata para edição
+  const ataTexto = [
+    'ATA DE ALINHAMENTO – REFORMA TRIBUTÁRIA',
+    '',
+    `Cliente: ${d.cliente||''}`,
+    `Consultor: ${d.consultor||''}`,
+    `GP: Ana Paula Colombo  |  Data: ${d.data||''}`,
+    '',
+    '1. TÓPICOS DISCUTIDOS',
+    `Participantes: ${d.participantes||''}`,
+    `Status: ${d.status_projeto||''}`,
+    ...(topicosTxt ? ['\nAssuntos:', topicosTxt] : []),
+    '',
+    '2. DECISÕES TOMADAS',
+    (d.decisoes||[]).map(x=>'• '+x).join('\n') || '—',
+    '',
+    '3. PENDÊNCIAS E RESPONSÁVEIS',
+    pendPreview || '—',
+    '',
+    '4. RISCOS IDENTIFICADOS',
+    (d.riscos||[]).map(x=>'• '+x).join('\n') || 'Nenhum identificado',
+    '',
+    '5. PRÓXIMOS PASSOS',
+    (d.proximos_passos||[]).map(x=>'• '+x).join('\n') || '—',
+  ].join('\n');
+
+  // Guarda o texto original para poder restaurar
+  _ataTextoOriginal = ataTexto;
+
   _ataBody(`
-    <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:8px;">✅ Ata gerada com sucesso!</div>
-    <div class="ata-preview">ATA DE ALINHAMENTO – REFORMA TRIBUTÁRIA\n\nCliente: ${escapeHtml(d.cliente||'')}\nConsultor: ${escapeHtml(d.consultor||'')}\nGP: Ana Paula Colombo  |  Data: ${d.data||''}\n\n1. TÓPICOS DISCUTIDOS\nParticipantes: ${escapeHtml(d.participantes||'')}\nStatus: ${escapeHtml(d.status_projeto||'')}${topicosTxt ? '\n\nAssuntos:\n'+escapeHtml(topicosTxt) : ''}\n\n2. DECISÕES TOMADAS\n${(d.decisoes||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'—'}\n\n3. PENDÊNCIAS E RESPONSÁVEIS\n${escapeHtml(pendPreview)||'—'}\n\n4. RISCOS IDENTIFICADOS\n${(d.riscos||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'Nenhum identificado'}\n\n5. PRÓXIMOS PASSOS\n${(d.proximos_passos||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'—'}</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px;">
-      Clique em <strong style="color:var(--purple);">💾 Salvar no Card</strong> para gerar o PDF no modelo padrão.
+    <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+      ✅ Ata gerada com sucesso! <span style="font-size:11px;color:var(--muted);font-weight:400;">Edite o texto abaixo antes de salvar.</span>
+    </div>
+
+    <!-- Toolbar do editor -->
+    <div class="ata-editor-toolbar">
+      <span style="font-size:10px;color:var(--muted);font-weight:600;margin-right:4px;">✏️ EDITOR</span>
+      <button class="atb-btn" onclick="_ataEditorRestaurar()" title="Restaurar texto original gerado pela IA">↩ Restaurar original</button>
+      <button class="atb-btn" onclick="_ataEditorLimparLinha()" title="Remove a linha onde o cursor está">✕ Limpar linha</button>
+      <button class="atb-btn" onclick="_ataEditorAddPendencia()" title="Adiciona linha de pendência formatada">+ Pendência</button>
+      <div style="flex:1"></div>
+      <span id="ataEditorContador" style="font-size:10px;color:var(--muted);">— chars</span>
+    </div>
+
+    <!-- Textarea editável -->
+    <textarea id="ataEditorTextarea" class="ata-editor"
+      spellcheck="false"
+      oninput="_ataEditorAtualizar()"
+      onkeydown="_ataEditorKeydown(event)"
+    ></textarea>
+
+    <div class="ata-editor-hint">
+      <span>💡 Edite livremente. O PDF será gerado com o texto final acima.</span>
     </div>
   `);
+
+  // Preenche o textarea após o DOM ser criado
+  requestAnimationFrame(() => {
+    const ta = document.getElementById('ataEditorTextarea');
+    if (ta) {
+      ta.value = ataTexto;
+      _ataEditorAtualizar();
+      ta.focus();
+      ta.setSelectionRange(0, 0);
+      ta.scrollTop = 0;
+    }
+  });
+
   _ataBtn('💾 Salvar no Card', true, false);
+}
+
+// ── Helpers do editor ─────────────────────────────────────────
+let _ataTextoOriginal = '';
+
+function _ataEditorAtualizar() {
+  const ta = document.getElementById('ataEditorTextarea');
+  const ct = document.getElementById('ataEditorContador');
+  if (!ta || !ct) return;
+  const n = ta.value.length;
+  ct.textContent = n.toLocaleString('pt-BR') + ' chars';
+  // Sincroniza _ataDados.textoEditado para uso no salvarAtaNoCard
+  if (_ataDados) _ataDados.textoEditado = ta.value;
+}
+
+function _ataEditorRestaurar() {
+  const ta = document.getElementById('ataEditorTextarea');
+  if (!ta) return;
+  if (!confirm('Restaurar o texto original gerado pela IA? Suas edições serão perdidas.')) return;
+  ta.value = _ataTextoOriginal;
+  if (_ataDados) _ataDados.textoEditado = _ataTextoOriginal;
+  _ataEditorAtualizar();
+}
+
+function _ataEditorLimparLinha() {
+  const ta = document.getElementById('ataEditorTextarea');
+  if (!ta) return;
+  const start = ta.selectionStart;
+  const val   = ta.value;
+  const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+  const lineEnd   = val.indexOf('\n', start);
+  const end = lineEnd === -1 ? val.length : lineEnd + 1;
+  ta.value = val.slice(0, lineStart) + val.slice(end);
+  ta.selectionStart = ta.selectionEnd = lineStart;
+  if (_ataDados) _ataDados.textoEditado = ta.value;
+  _ataEditorAtualizar();
+  ta.focus();
+}
+
+function _ataEditorAddPendencia() {
+  const ta = document.getElementById('ataEditorTextarea');
+  if (!ta) return;
+  const linha = '  • [Atividade] | [Responsável] | [Prazo] | Pendente';
+  const pos   = ta.selectionStart;
+  const val   = ta.value;
+  const ins   = (val[pos-1] === '\n' || pos === 0 ? '' : '\n') + linha + '\n';
+  ta.value = val.slice(0, pos) + ins + val.slice(pos);
+  ta.selectionStart = ta.selectionEnd = pos + ins.length - 1;
+  if (_ataDados) _ataDados.textoEditado = ta.value;
+  _ataEditorAtualizar();
+  ta.focus();
+}
+
+function _ataEditorKeydown(e) {
+  // Tab → insere 2 espaços em vez de trocar o foco
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const ta  = e.target;
+    const pos = ta.selectionStart;
+    ta.value  = ta.value.slice(0, pos) + '  ' + ta.value.slice(ta.selectionEnd);
+    ta.selectionStart = ta.selectionEnd = pos + 2;
+    if (_ataDados) _ataDados.textoEditado = ta.value;
+    _ataEditorAtualizar();
+  }
 }
 
 async function salvarAtaNoCard() {
   if (!_ataDados) return;
+
+  // Captura o texto final do editor
+  const ta = document.getElementById('ataEditorTextarea');
+  if (ta) _ataDados.textoEditado = ta.value;
+
   const btn = document.getElementById('ataPrimaryBtn');
-  btn.disabled = true; btn.textContent = '⏳ Gerando ata…';
+  btn.disabled = true; btn.textContent = '⏳ Gerando PDF…';
 
   try {
     const token = CURRENT_USER.access_token;
-
-    // Chama a Edge Function que preenche o template .docx original
-    btn.textContent = '⏳ Preenchendo template…';
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/gerar-ata-docx`, {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'apikey':        SUPABASE_KEY,
-        'Authorization': 'Bearer ' + token,
-      },
-      body: JSON.stringify({ dados: _ataDados })
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Erro HTTP ${res.status} ao gerar .docx`);
-    }
-
-    const docxBlob = await res.blob();
-
-    // Upload para o Storage
-    btn.textContent = '⏳ Salvando no card…';
     const uuid  = currentProject._uuid;
     const h     = new Date();
     const df    = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
+
+    // ── Gera o PDF com jsPDF ────────────────────────────────
+    btn.textContent = '⏳ Montando PDF…';
+    const pdfBlob = _gerarPDFAta(_ataDados);
+
+    // ── Upload para o Storage ───────────────────────────────
+    btn.textContent = '⏳ Salvando no card…';
     const nomeArq     = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
     const storagePath = uuid+'/'+Date.now()+'_'+nomeArq;
-    const MIME = 'application/pdf';
+    const MIME        = 'application/pdf';
 
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/kanban-documents/${storagePath}`, {
       method:  'POST',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+token, 'Content-Type': MIME, 'x-upsert': 'true' },
-      body:    docxBlob
+      body:    pdfBlob
     });
     if (!upRes.ok) throw new Error('Erro ao salvar no Storage: '+(await upRes.text()));
 
     await fetch(`${SUPABASE_URL}/rest/v1/documents`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+token, 'Prefer': 'return=representation' },
-      body:    JSON.stringify({ project_id: uuid, nome_arquivo: nomeArq, tamanho: _fmtSize(docxBlob.size), tamanho_bytes: docxBlob.size, data_upload: df, storage_path: storagePath, mime_type: MIME, uploaded_by: CURRENT_USER.nome||'' })
+      body:    JSON.stringify({ project_id: uuid, nome_arquivo: nomeArq, tamanho: _fmtSize(pdfBlob.size), tamanho_bytes: pdfBlob.size, data_upload: df, storage_path: storagePath, mime_type: MIME, uploaded_by: CURRENT_USER.nome||'' })
     });
 
     renderDocs(currentProjectId);
     fecharAta();
     const t = document.getElementById('saveToast');
-    if (t) { t.textContent='📝 Ata salva na Documentação!'; t.style.background='var(--purple)'; t.classList.add('show'); setTimeout(()=>{ t.classList.remove('show'); t.textContent='✓ Alterações salvas!'; t.style.background=''; }, 3500); }
+    if (t) { t.textContent='📝 Ata PDF salva na Documentação!'; t.style.background='var(--purple)'; t.classList.add('show'); setTimeout(()=>{ t.classList.remove('show'); t.textContent='✓ Alterações salvas!'; t.style.background=''; }, 3500); }
 
   } catch(err) {
     btn.disabled = false; btn.textContent = '💾 Salvar no Card';
@@ -5746,8 +6207,298 @@ async function salvarAtaNoCard() {
     alert('Erro ao salvar ata: ' + _errMsg(err));
   }
 }
-// ═══════════════════════════════════════
-//  E-MAIL
+
+// ── Geração do PDF com jsPDF ────────────────────────────────────
+function _gerarPDFAta(d) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  // ── Configurações lidas do sistema ─────────────────────────
+  const cfg     = (typeof SYS_CONFIG !== 'undefined') ? SYS_CONFIG : {};
+  const gpNome  = cfg.gpNome      || 'Ana Paula Colombo';
+  const empresa = cfg.empresaNome || 'TOTVS';
+  const site    = cfg.empresaSite || 'totvs.com';
+
+  // ── Paleta fiel ao template ─────────────────────────────────
+  // Azul escuro TOTVS:  #003D7D  → rgb(0, 61, 125)
+  // Laranja/Amber card: #F5A623  → rgb(245, 166, 35)   (borda do card)
+  // Azul seção título:  #0052A3  → rgb(0, 82, 163)
+  // Cinza claro tabela: #E8E8E8  → rgb(232, 232, 232)
+  // Ciano rodapé:       #00B4BE  → rgb(0, 180, 190)
+  // Texto padrão:       #333333  → rgb(51, 51, 51)
+  const CL_AZUL_TITLE  = [0, 61, 125];
+  const CL_AZUL_SEC    = [0, 82, 163];
+  const CL_AMBER       = [245, 166, 35];
+  const CL_CINZA_TBL   = [232, 232, 232];
+  const CL_CINZA_TBL2  = [245, 245, 245];
+  const CL_CIANO       = [0, 180, 190];
+  const CL_TEXTO       = [51, 51, 51];
+  const CL_MUTED       = [120, 120, 120];
+  const CL_WHITE       = [255, 255, 255];
+
+  const W    = 210, pageH = 297;
+  const mL   = 16, mR = 16, mT = 8, mBot = 22;
+  const txtW = W - mL - mR;
+  let   y    = mT;
+
+  // ── Helpers ────────────────────────────────────────────────
+  function newPage() { doc.addPage(); y = mT + 10; }
+  function checkPage(needed) { if (y + needed > pageH - mBot) newPage(); }
+
+  function txt(text, x, yy, opts = {}) {
+    const { size=10, style='normal', color=CL_TEXTO, align='left' } = opts;
+    doc.setFontSize(size);
+    doc.setFont('helvetica', style);
+    doc.setTextColor(...color);
+    doc.text(String(text), x, yy, { align });
+  }
+
+  function wrappedTxt(text, x, yy, maxW, opts = {}) {
+    const { size=9.5, style='normal', color=CL_TEXTO, lineH=5.5 } = opts;
+    doc.setFontSize(size); doc.setFont('helvetica', style); doc.setTextColor(...color);
+    const lines = doc.splitTextToSize(String(text || ''), maxW);
+    lines.forEach(ln => { checkPage(lineH); doc.text(ln, x, y === yy ? yy : y); y += lineH; });
+    if (lines.length === 0) y += lineH;
+  }
+
+  function sectionHeader(label) {
+    y += 5; checkPage(10);
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_AZUL_SEC);
+    doc.text(label, mL, y);
+    y += 2;
+    // linha divisória fina azul
+    doc.setDrawColor(...CL_AZUL_SEC); doc.setLineWidth(0.4);
+    doc.line(mL, y, W - mR, y);
+    y += 4;
+  }
+
+  function bullet(text, indent = 0) {
+    checkPage(7);
+    const bx = mL + 4 + indent;
+    // bullet circular sólido pequeno
+    doc.setFillColor(...CL_AZUL_SEC);
+    doc.circle(bx, y - 1.2, 0.9, 'F');
+    doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_TEXTO);
+    const lines = doc.splitTextToSize(String(text || ''), txtW - 8 - indent);
+    lines.forEach((ln, i) => {
+      checkPage(5.5);
+      doc.text(ln, bx + 3.5, y);
+      y += 5.5;
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // PÁGINA 1 — CABEÇALHO
+  // ══════════════════════════════════════════════════════════
+  y = 12;
+
+  // Símbolo \ (barra invertida laranja antes do título — igual ao template)
+  doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_AMBER);
+  doc.text('\\', mL, y);
+
+  // Título principal
+  doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_AZUL_TITLE);
+  doc.text('ATA DE ALINHAMENTO DE PROJETO – REFORMA TRIBUTÁRIA', mL + 8, y);
+
+  y += 6;
+
+  // ── Logo TOTVS (hexágono + texto) ──────────────────────────
+  // Hexágono simplificado desenhado com polígono
+  const hx = mL, hy = y, hr = 7;
+  const hexPts = [];
+  for (let a = 0; a < 6; a++) {
+    const ang = (Math.PI / 180) * (60 * a - 30);
+    hexPts.push([hx + hr * Math.cos(ang), hy + hr * Math.sin(ang)]);
+  }
+  // Preenchimento azul escuro — usa lines() do jsPDF
+  doc.setFillColor(...CL_AZUL_TITLE);
+  doc.setDrawColor(...CL_AZUL_TITLE);
+  doc.lines(
+    hexPts.slice(1).map((p,i) => [p[0]-hexPts[i][0], p[1]-hexPts[i][1]]).concat([[hexPts[0][0]-hexPts[5][0], hexPts[0][1]-hexPts[5][1]]]),
+    hexPts[0][0], hexPts[0][1], [1,1], 'F', true
+  );
+
+  // Hexágono interno ciano
+  const hr2 = 4.5;
+  const hexPts2 = [];
+  for (let a = 0; a < 6; a++) {
+    const ang = (Math.PI / 180) * (60 * a - 30);
+    hexPts2.push([hx + hr2 * Math.cos(ang), hy + hr2 * Math.sin(ang)]);
+  }
+  doc.setFillColor(...CL_CIANO);
+  doc.lines(
+    hexPts2.slice(1).map((p,i) => [p[0]-hexPts2[i][0], p[1]-hexPts2[i][1]]).concat([[hexPts2[0][0]-hexPts2[5][0], hexPts2[0][1]-hexPts2[5][1]]]),
+    hexPts2[0][0], hexPts2[0][1], [1,1], 'F', true
+  );
+
+  // Texto TOTVS ao lado do hexágono
+  doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_AZUL_TITLE);
+  doc.text(empresa, mL + hr * 2 + 2, hy + 2);
+
+  y = hy + hr + 8;
+
+  // ══════════════════════════════════════════════════════════
+  // CARD DO PROJETO — fiel ao template (bordas âmbar)
+  // ══════════════════════════════════════════════════════════
+  const cardY = y;
+  const cardH = 22;
+
+  // Fundo branco com borda âmbar
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(...CL_AMBER);
+  doc.setLineWidth(0.8);
+  doc.rect(mL, cardY, txtW, cardH / 2, 'FD');
+  doc.rect(mL, cardY + cardH / 2, txtW, cardH / 2, 'FD');
+
+  // Linha divisória vertical (split Consultor | GP | Data)
+  const c1 = txtW * 0.42, c2 = txtW * 0.30;
+  doc.setDrawColor(...CL_AMBER); doc.setLineWidth(0.5);
+  doc.line(mL + c1, cardY + cardH / 2, mL + c1, cardY + cardH);
+  doc.line(mL + c1 + c2, cardY + cardH / 2, mL + c1 + c2, cardY + cardH);
+
+  // Labels (negrito âmbar)
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_AMBER);
+  doc.text('Projeto /Cliente:', mL + 2, cardY + 5.5);
+  doc.text('Consultor :', mL + 2, cardY + cardH / 2 + 5.5);
+  doc.text('GP:', mL + c1 + 2, cardY + cardH / 2 + 5.5);
+  doc.text('Data:', mL + c1 + c2 + 2, cardY + cardH / 2 + 5.5);
+
+  // Valores (normal escuro)
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_TEXTO);
+  const clienteTxt = doc.splitTextToSize(d.cliente || '', c1 - 5)[0] || '';
+  doc.text(clienteTxt, mL + 36, cardY + 5.5);
+  doc.text(d.consultor || '', mL + 22, cardY + cardH / 2 + 5.5);
+  doc.text(gpNome, mL + c1 + 8, cardY + cardH / 2 + 5.5);
+  doc.text(d.data || '', mL + c1 + c2 + 12, cardY + cardH / 2 + 5.5);
+
+  y = cardY + cardH + 6;
+
+  // ══════════════════════════════════════════════════════════
+  // 1. TÓPICOS DISCUTIDOS
+  // ══════════════════════════════════════════════════════════
+  sectionHeader('1. Tópicos discutidos');
+
+  if (d.participantes) {
+    checkPage(7);
+    bullet('Participantes: ' + d.participantes);
+  }
+  if (d.status_projeto) {
+    checkPage(7);
+    bullet('Status do projeto: ' + d.status_projeto);
+  }
+  (d.topicos || []).forEach(t => bullet(t, 4));
+
+  // ══════════════════════════════════════════════════════════
+  // 2. DECISÕES TOMADAS
+  // ══════════════════════════════════════════════════════════
+  sectionHeader('2. Decisões tomadas');
+  if ((d.decisoes || []).length) {
+    (d.decisoes || []).forEach(t => bullet(t));
+  } else {
+    checkPage(6);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_MUTED);
+    doc.text('—', mL + 8, y); y += 6;
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // 3. PENDÊNCIAS E RESPONSÁVEIS
+  // ══════════════════════════════════════════════════════════
+  sectionHeader('3. Pendências e responsáveis');
+
+  // Colunas fiel ao template: Pendência/Atividade | Responsável | Prazo | Status
+  const tC = [mL, 0, 0, 0];
+  const tW = [85, 42, 30, txtW - 85 - 42 - 30];
+  tC[1] = tC[0] + tW[0]; tC[2] = tC[1] + tW[1]; tC[3] = tC[2] + tW[2];
+  const rH = 7.5;
+
+  // Cabeçalho da tabela (cinza escuro, texto branco)
+  checkPage(rH + 2);
+  doc.setFillColor(100, 100, 100);
+  doc.rect(mL, y, txtW, rH, 'F');
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_WHITE);
+  ['Pendência / Atividade', 'Responsável', 'Prazo', 'Status'].forEach((h, i) => {
+    doc.text(h, tC[i] + 2, y + 5);
+  });
+  y += rH;
+
+  if ((d.pendencias || []).length) {
+    (d.pendencias || []).forEach((p, idx) => {
+      checkPage(rH + 1);
+      doc.setFillColor(...(idx % 2 === 0 ? CL_CINZA_TBL2 : CL_CINZA_TBL));
+      doc.rect(mL, y, txtW, rH, 'F');
+      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2);
+      doc.rect(mL, y, txtW, rH, 'S');
+      doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_TEXTO);
+      const cells = [p.atividade||'', p.responsavel||'', p.prazo||'', p.status||''];
+      cells.forEach((cell, i) => {
+        const t = doc.splitTextToSize(cell, tW[i] - 3)[0] || '';
+        doc.text(t, tC[i] + 2, y + 5);
+      });
+      y += rH;
+    });
+  } else {
+    // Linha vazia (como no template)
+    doc.setFillColor(...CL_CINZA_TBL2);
+    doc.rect(mL, y, txtW, rH, 'F');
+    doc.setDrawColor(200,200,200); doc.setLineWidth(0.2);
+    doc.rect(mL, y, txtW, rH, 'S');
+    y += rH;
+  }
+  y += 4;
+
+  // ══════════════════════════════════════════════════════════
+  // 4. RISCOS IDENTIFICADOS
+  // ══════════════════════════════════════════════════════════
+  sectionHeader('4. Riscos identificados');
+  if ((d.riscos || []).length) {
+    (d.riscos || []).forEach(t => bullet(t));
+  } else {
+    checkPage(6);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_MUTED);
+    doc.text('—', mL + 8, y); y += 6;
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // 5. PRÓXIMOS PASSOS / AÇÕES DA SEMANA
+  // ══════════════════════════════════════════════════════════
+  sectionHeader('5. Próximos passos / ações da semana');
+  if ((d.proximos_passos || []).length) {
+    (d.proximos_passos || []).forEach(t => bullet(t));
+  } else {
+    checkPage(6);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_MUTED);
+    doc.text('—', mL + 8, y); y += 6;
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // RODAPÉ — igual ao template (totvs.com + círculos ciano)
+  // ══════════════════════════════════════════════════════════
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let pg = 1; pg <= totalPages; pg++) {
+    doc.setPage(pg);
+
+    // Linha divisória no rodapé
+    doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
+    doc.line(mL, pageH - mBot + 2, W - mR, pageH - mBot + 2);
+
+    // Site (azul, canto esquerdo)
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_AZUL_SEC);
+    doc.text(site, mL, pageH - mBot + 8);
+
+    // Paginação (canto direito)
+    doc.setTextColor(...CL_MUTED);
+    doc.text(`${pg} / ${totalPages}`, W - mR, pageH - mBot + 8, { align: 'right' });
+
+    // Círculos decorativos ciano no canto inferior direito (fiel ao template)
+    doc.setDrawColor(...CL_CIANO); doc.setLineWidth(0.6);
+    doc.circle(W + 2,  pageH + 2,  22, 'S');
+    doc.circle(W - 2,  pageH + 6,  14, 'S');
+    doc.circle(W + 5,  pageH - 2,  30, 'S');
+  }
+
+  return new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+}
+
 // ═══════════════════════════════════════
 let _emlTo=[];
 let _emlAnexo = null; // { nome, b64, mime }
@@ -5875,14 +6626,7 @@ async function enviarEml(){
       const fileRes = await fetch(fileUrl);
       if (fileRes.ok) {
         const ab  = await fileRes.arrayBuffer();
-        // Converte ArrayBuffer para base64 em chunks (evita stack overflow em arquivos grandes)
-        const bytes = new Uint8Array(ab);
-        let binary = '';
-        const chunkSize = 8192;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-        }
-        const b64 = btoa(binary);
+        const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
         attachments = [{ filename: _emlAnexo.nome, content: b64, type: _emlAnexo.mime }];
       }
     }
@@ -5899,11 +6643,298 @@ async function enviarEml(){
 }
 </script>
 
+<!-- ═══════════════════════════════════════════════════
+     MODAL CONFIGURAÇÕES (somente gerente)
+════════════════════════════════════════════════════ -->
+<div class="cfg-overlay" id="cfgOverlay" onclick="if(event.target===this)fecharConfiguracoes()">
+  <div class="cfg-modal">
+    <div class="cfg-header">
+      <div class="cfg-header-icon">⚙️</div>
+      <div class="cfg-title">Configurações do Sistema</div>
+      <button class="modal-x" onclick="fecharConfiguracoes()">✕</button>
+    </div>
+    <div class="cfg-body">
+
+      <!-- Template da Ata -->
+      <div class="cfg-section">
+        <div class="cfg-section-title">📄 Template da Ata de Reunião</div>
+
+        <div class="cfg-field">
+          <label class="cfg-label">Template ativo</label>
+          <span class="cfg-sublabel">O PDF gerado ao clicar em "Gerar Ata" seguirá o layout deste template. Se nenhum for cadastrado, o sistema usa o layout padrão.</span>
+          <div id="cfgTemplateAtual" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:12px;">
+            <div style="color:var(--muted);font-size:11px;">Nenhum template cadastrado — usando layout padrão do sistema.</div>
+          </div>
+
+          <label class="cfg-label">Carregar novo template (PDF)</label>
+          <span class="cfg-sublabel">Faça upload do PDF modelo. O sistema usará as cores, logotipo e estrutura dele como referência para gerar as atas.</span>
+
+          <div class="cfg-upload-zone" id="cfgDropZone"
+               ondragover="event.preventDefault();this.classList.add('drag')"
+               ondragleave="this.classList.remove('drag')"
+               ondrop="_cfgHandleDrop(event)">
+            <input type="file" accept=".pdf" id="cfgTemplateInput" onchange="_cfgHandleFile(this.files[0])">
+            <div style="font-size:28px;margin-bottom:6px;">📂</div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px;">Arraste o PDF do template ou clique para selecionar</div>
+            <div style="font-size:10px;color:var(--muted);">Máx. 10 MB · somente PDF</div>
+          </div>
+
+          <div class="cfg-file-preview" id="cfgFilePreview">
+            <div style="width:34px;height:34px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">📕</div>
+            <div style="flex:1;min-width:0;">
+              <div id="cfgFileName" style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
+              <div id="cfgFileSize" style="font-size:10px;color:var(--muted);margin-top:2px;">—</div>
+            </div>
+            <button onclick="_cfgRemoverArquivo()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:4px;" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
+          </div>
+          <div id="cfgUploadError" style="display:none;background:var(--red-bg);border:1px solid rgba(239,68,68,.3);border-radius:7px;padding:9px 12px;font-size:11px;color:#fca5a5;margin-top:8px;"></div>
+        </div>
+
+        <div class="cfg-field">
+          <label class="cfg-label">Nome do GP padrão nas atas</label>
+          <input type="text" class="cfg-input" id="cfgGpNome" placeholder="Ex: Ana Paula Colombo" value="Ana Paula Colombo">
+        </div>
+      </div>
+
+      <!-- Identidade -->
+      <div class="cfg-section">
+        <div class="cfg-section-title">🏢 Identidade Visual</div>
+        <div class="cfg-field">
+          <label class="cfg-label">Nome da empresa</label>
+          <input type="text" class="cfg-input" id="cfgEmpresaNome" placeholder="Ex: TOTVS" value="TOTVS">
+        </div>
+        <div class="cfg-field">
+          <label class="cfg-label">Site no rodapé das atas</label>
+          <input type="text" class="cfg-input" id="cfgEmpresaSite" placeholder="Ex: totvs.com" value="totvs.com">
+        </div>
+      </div>
+
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);background:var(--surface2);display:flex;gap:10px;">
+      <button class="cfg-save-btn" onclick="salvarConfiguracoes()">💾 Salvar Configurações</button>
+      <button onclick="fecharConfiguracoes()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--border2);background:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:var(--font);">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
 
 <script>
-// Função do botão "Salvar Informações no Banco" — aba Informações
+// ═══════════════════════════════════════════════════════════
+//  CONFIGURAÇÕES DO SISTEMA (somente gerente)
+// ═══════════════════════════════════════════════════════════
+
+// Estado em memória das configurações (persistido no Supabase → tabela system_config)
+let SYS_CONFIG = {
+  gpNome:        'Ana Paula Colombo',
+  empresaNome:   'TOTVS',
+  empresaSite:   'totvs.com',
+  templateNome:  null,   // nome do arquivo PDF do template
+  templatePath:  null,   // storage_path no bucket
+  templateB64:   null,   // base64 em cache (carregado na abertura do modal de ata)
+};
+
+let _cfgArquivo = null; // File selecionado no modal
+
+// ── Exibe/oculta botão de configurações conforme perfil ──────
+function _cfgAtualizarBotao() {
+  const btn = document.getElementById('btnConfiguracoes');
+  if (!btn) return;
+  const ehGerente = !CURRENT_USER || CURRENT_USER.perfil === 'gerente';
+  btn.style.display = ehGerente ? 'flex' : 'none';
+}
+
+// ── Abre o modal ─────────────────────────────────────────────
+async function abrirConfiguracoes() {
+  document.getElementById('cfgOverlay').style.display = 'flex';
+  _cfgArquivo = null;
+  document.getElementById('cfgFilePreview').style.display = 'none';
+  document.getElementById('cfgUploadError').style.display = 'none';
+  const inp = document.getElementById('cfgTemplateInput');
+  if (inp) inp.value = '';
+
+  // Preenche campos com valores atuais
+  document.getElementById('cfgGpNome').value       = SYS_CONFIG.gpNome      || '';
+  document.getElementById('cfgEmpresaNome').value  = SYS_CONFIG.empresaNome || '';
+  document.getElementById('cfgEmpresaSite').value  = SYS_CONFIG.empresaSite || '';
+
+  // Exibe template atual
+  const box = document.getElementById('cfgTemplateAtual');
+  if (SYS_CONFIG.templateNome) {
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:22px;">📕</div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);">${SYS_CONFIG.templateNome}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">Template ativo · será usado na próxima geração de ata</div>
+        </div>
+        <button onclick="_cfgRemoverTemplate()" style="margin-left:auto;background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;">Remover</button>
+      </div>`;
+  } else {
+    box.innerHTML = '<div style="color:var(--muted);font-size:11px;">Nenhum template cadastrado — usando layout padrão do sistema.</div>';
+  }
+}
+
+function fecharConfiguracoes() {
+  document.getElementById('cfgOverlay').style.display = 'none';
+}
+
+// ── Upload de arquivo ────────────────────────────────────────
+function _cfgHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('cfgDropZone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) _cfgHandleFile(f);
+}
+
+function _cfgHandleFile(file) {
+  const errBox = document.getElementById('cfgUploadError');
+  errBox.style.display = 'none';
+  if (!file) return;
+  if (file.type !== 'application/pdf') {
+    errBox.textContent = '⚠️ Apenas arquivos PDF são aceitos.';
+    errBox.style.display = 'block'; return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    errBox.textContent = '⚠️ O arquivo deve ter no máximo 10 MB.';
+    errBox.style.display = 'block'; return;
+  }
+  _cfgArquivo = file;
+  document.getElementById('cfgFileName').textContent = file.name;
+  document.getElementById('cfgFileSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+  document.getElementById('cfgFilePreview').style.display = 'flex';
+}
+
+function _cfgRemoverArquivo() {
+  _cfgArquivo = null;
+  document.getElementById('cfgFilePreview').style.display = 'none';
+  const inp = document.getElementById('cfgTemplateInput');
+  if (inp) inp.value = '';
+}
+
+async function _cfgRemoverTemplate() {
+  if (!confirm('Remover o template ativo? As próximas atas usarão o layout padrão do sistema.')) return;
+  SYS_CONFIG.templateNome  = null;
+  SYS_CONFIG.templatePath  = null;
+  SYS_CONFIG.templateB64   = null;
+  await _cfgSalvarNoSupabase();
+  await abrirConfiguracoes();
+}
+
+// ── Salvar configurações ─────────────────────────────────────
+async function salvarConfiguracoes() {
+  SYS_CONFIG.gpNome      = document.getElementById('cfgGpNome').value.trim()      || 'Ana Paula Colombo';
+  SYS_CONFIG.empresaNome = document.getElementById('cfgEmpresaNome').value.trim() || 'TOTVS';
+  SYS_CONFIG.empresaSite = document.getElementById('cfgEmpresaSite').value.trim() || 'totvs.com';
+
+  const btn = document.querySelector('.cfg-save-btn');
+  btn.textContent = '⏳ Salvando…'; btn.disabled = true;
+
+  try {
+    // Upload do template PDF se selecionado
+    if (_cfgArquivo && CURRENT_USER?.access_token) {
+      const token = CURRENT_USER.access_token;
+      const path  = 'templates/ata_template_' + Date.now() + '.pdf';
+
+      const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/kanban-documents/${path}`, {
+        method:  'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token,
+                   'Content-Type': 'application/pdf', 'x-upsert': 'true' },
+        body:    _cfgArquivo
+      });
+      if (!upRes.ok) throw new Error('Erro ao salvar template no Storage.');
+
+      // Converte para base64 e guarda em cache
+      SYS_CONFIG.templateB64  = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload  = () => res(r.result.split(',')[1]);
+        r.onerror = () => rej();
+        r.readAsDataURL(_cfgArquivo);
+      });
+      SYS_CONFIG.templateNome = _cfgArquivo.name;
+      SYS_CONFIG.templatePath = path;
+    }
+
+    await _cfgSalvarNoSupabase();
+    fecharConfiguracoes();
+
+    const t = document.getElementById('saveToast');
+    if (t) { t.textContent='⚙️ Configurações salvas!'; t.classList.add('show');
+      setTimeout(()=>{ t.classList.remove('show'); t.textContent='✓ Alterações salvas!'; }, 2500); }
+
+  } catch(err) {
+    alert('Erro ao salvar configurações: ' + err.message);
+  } finally {
+    btn.textContent = '💾 Salvar Configurações'; btn.disabled = false;
+  }
+}
+
+// ── Persiste no Supabase (tabela system_config) ──────────────
+async function _cfgSalvarNoSupabase() {
+  if (!CURRENT_USER?.access_token) return;
+  const payload = {
+    chave:  'ata_config',
+    valor:  JSON.stringify({
+      gpNome:       SYS_CONFIG.gpNome,
+      empresaNome:  SYS_CONFIG.empresaNome,
+      empresaSite:  SYS_CONFIG.empresaSite,
+      templateNome: SYS_CONFIG.templateNome,
+      templatePath: SYS_CONFIG.templatePath,
+    }),
+    updated_at: new Date().toISOString()
+  };
+  await fetch(`${SUPABASE_URL}/rest/v1/system_config?chave=eq.ata_config`, {
+    method:  'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
+  });
+  await fetch(`${SUPABASE_URL}/rest/v1/system_config`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY,
+               'Authorization': 'Bearer ' + CURRENT_USER.access_token, 'Prefer': 'return=minimal' },
+    body:    JSON.stringify(payload)
+  });
+}
+
+// ── Carrega configurações ao iniciar ─────────────────────────
+async function _cfgCarregar() {
+  if (!CURRENT_USER?.access_token) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/system_config?chave=eq.ata_config&select=valor`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (rows[0]?.valor) {
+      const cfg = JSON.parse(rows[0].valor);
+      Object.assign(SYS_CONFIG, cfg);
+
+      // Pré-carrega o template em base64 se houver path
+      if (cfg.templatePath && !SYS_CONFIG.templateB64) {
+        try {
+          const signRes = await fetch(
+            `${SUPABASE_URL}/storage/v1/object/sign/kanban-documents/${cfg.templatePath}`,
+            { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token,
+              'Content-Type': 'application/json' }, body: JSON.stringify({ expiresIn: 3600 }) }
+          );
+          const signData = signRes.ok ? await signRes.json() : null;
+          const url = signData?.signedURL
+            ? `${SUPABASE_URL}/storage/v1${signData.signedURL}`
+            : `${SUPABASE_URL}/storage/v1/object/public/kanban-documents/${cfg.templatePath}`;
+          const blob = await (await fetch(url)).blob();
+          SYS_CONFIG.templateB64 = await new Promise((res,rej) => {
+            const r = new FileReader();
+            r.onload  = () => res(r.result.split(',')[1]);
+            r.onerror = rej;
+            r.readAsDataURL(blob);
+          });
+        } catch(_) { /* template não carregado — usa padrão */ }
+      }
+    }
+  } catch(_) {}
+  _cfgAtualizarBotao();
+}
+</script>
 async function salvarInfoNoSupabase() {
   if (!currentProject) { alert('Nenhum projeto aberto.'); return; }
   const btn = document.getElementById('btn-salvar-info');
