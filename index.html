@@ -6116,67 +6116,285 @@ function _ataEditorKeydown(e) {
 async function salvarAtaNoCard() {
   if (!_ataDados) return;
 
-  // Captura o texto final do editor (pode ter sido editado pelo usuário)
+  // Captura o texto final do editor
   const ta = document.getElementById('ataEditorTextarea');
   if (ta) _ataDados.textoEditado = ta.value;
 
   const btn = document.getElementById('ataPrimaryBtn');
-  btn.disabled = true; btn.textContent = '⏳ Gerando ata…';
+  btn.disabled = true; btn.textContent = '⏳ Gerando PDF…';
 
   try {
     const token = CURRENT_USER.access_token;
-
-    // Chama a Edge Function que preenche o template .docx original
-    btn.textContent = '⏳ Preenchendo template…';
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/gerar-ata-docx`, {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'apikey':        SUPABASE_KEY,
-        'Authorization': 'Bearer ' + token,
-      },
-      body: JSON.stringify({ dados: _ataDados })
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Erro HTTP ${res.status} ao gerar .docx`);
-    }
-
-    const docxBlob = await res.blob();
-
-    // Upload para o Storage
-    btn.textContent = '⏳ Salvando no card…';
     const uuid  = currentProject._uuid;
     const h     = new Date();
     const df    = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
-    const nomeArq     = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
+
+    // ── Gera o PDF com jsPDF ────────────────────────────────
+    btn.textContent = '⏳ Montando PDF…';
+    const pdfBlob = _gerarPDFAta(_ataDados);
+
+    // ── Upload para o Storage ───────────────────────────────
+    btn.textContent = '⏳ Salvando no card…';
+    const nomeArq     = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
     const storagePath = uuid+'/'+Date.now()+'_'+nomeArq;
-    const MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const MIME        = 'application/pdf';
 
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/kanban-documents/${storagePath}`, {
       method:  'POST',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+token, 'Content-Type': MIME, 'x-upsert': 'true' },
-      body:    docxBlob
+      body:    pdfBlob
     });
     if (!upRes.ok) throw new Error('Erro ao salvar no Storage: '+(await upRes.text()));
 
     await fetch(`${SUPABASE_URL}/rest/v1/documents`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+token, 'Prefer': 'return=representation' },
-      body:    JSON.stringify({ project_id: uuid, nome_arquivo: nomeArq, tamanho: _fmtSize(docxBlob.size), tamanho_bytes: docxBlob.size, data_upload: df, storage_path: storagePath, mime_type: MIME, uploaded_by: CURRENT_USER.nome||'' })
+      body:    JSON.stringify({ project_id: uuid, nome_arquivo: nomeArq, tamanho: _fmtSize(pdfBlob.size), tamanho_bytes: pdfBlob.size, data_upload: df, storage_path: storagePath, mime_type: MIME, uploaded_by: CURRENT_USER.nome||'' })
     });
 
     renderDocs(currentProjectId);
     fecharAta();
     const t = document.getElementById('saveToast');
-    if (t) { t.textContent='📝 Ata salva na Documentação!'; t.style.background='var(--purple)'; t.classList.add('show'); setTimeout(()=>{ t.classList.remove('show'); t.textContent='✓ Alterações salvas!'; t.style.background=''; }, 3500); }
+    if (t) { t.textContent='📝 Ata PDF salva na Documentação!'; t.style.background='var(--purple)'; t.classList.add('show'); setTimeout(()=>{ t.classList.remove('show'); t.textContent='✓ Alterações salvas!'; t.style.background=''; }, 3500); }
 
   } catch(err) {
     btn.disabled = false; btn.textContent = '💾 Salvar no Card';
     console.error('[salvarAtaNoCard] erro:', err);
     alert('Erro ao salvar ata: ' + _errMsg(err));
   }
+}
+
+// ── Geração do PDF com jsPDF ────────────────────────────────────
+function _gerarPDFAta(d) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const W       = 210;
+  const mL      = 18;   // margem esquerda
+  const mR      = 18;   // margem direita
+  const mT      = 18;   // margem topo
+  const textW   = W - mL - mR;
+  let   y       = mT;
+  const pageH   = 297;
+  const mBot    = 20;
+
+  // ── Helpers ────────────────────────────────────────────────
+  function checkPage(needed) {
+    if (y + needed > pageH - mBot) { doc.addPage(); y = mT; }
+  }
+
+  function drawLine(color) {
+    doc.setDrawColor(...color);
+    doc.setLineWidth(0.4);
+    doc.line(mL, y, W - mR, y);
+    y += 3;
+  }
+
+  function writeText(text, opts = {}) {
+    const { size = 10, style = 'normal', color = [30, 30, 30], indent = 0, lineH = 5.5 } = opts;
+    doc.setFontSize(size);
+    doc.setFont('helvetica', style);
+    doc.setTextColor(...color);
+    const lines = doc.splitTextToSize(text, textW - indent);
+    lines.forEach(ln => {
+      checkPage(lineH);
+      doc.text(ln, mL + indent, y);
+      y += lineH;
+    });
+  }
+
+  function sectionTitle(title) {
+    y += 3;
+    checkPage(10);
+    doc.setFillColor(15, 52, 96);
+    doc.roundedRect(mL, y - 4, textW, 8, 1.5, 1.5, 'F');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 196, 204);
+    doc.text(title, mL + 4, y + 1.2);
+    y += 7;
+  }
+
+  function bullet(text) {
+    checkPage(6);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 30, 30);
+    doc.setFillColor(0, 196, 204);
+    doc.circle(mL + 3, y - 1.5, 0.9, 'F');
+    const lines = doc.splitTextToSize(text, textW - 8);
+    lines.forEach((ln, i) => {
+      checkPage(5);
+      doc.text(ln, mL + 7, y);
+      y += 5;
+    });
+  }
+
+  // ── Cabeçalho ─────────────────────────────────────────────
+  // Faixa superior
+  doc.setFillColor(10, 26, 55);
+  doc.rect(0, 0, W, 28, 'F');
+
+  // Linha colorida lateral
+  doc.setFillColor(0, 196, 204);
+  doc.rect(0, 0, 4, 28, 'F');
+
+  // Título
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 196, 204);
+  doc.text('ATA DE ALINHAMENTO', mL, 11);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(160, 200, 220);
+  doc.text('REFORMA TRIBUTÁRIA · TOTVS', mL, 17);
+
+  // Data no canto direito
+  doc.setFontSize(9);
+  doc.setTextColor(160, 200, 220);
+  doc.text(d.data || '', W - mR, 11, { align: 'right' });
+
+  y = 34;
+
+  // ── Card de informações do projeto ────────────────────────
+  doc.setFillColor(18, 40, 75);
+  doc.roundedRect(mL, y, textW, 20, 2, 2, 'F');
+  doc.setDrawColor(0, 196, 204);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(mL, y, textW, 20, 2, 2, 'S');
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 196, 204);
+  doc.text('CLIENTE', mL + 5, y + 6);
+  doc.text('CONSULTOR', mL + 70, y + 6);
+  doc.text('GERENTE DE PROJETOS', mL + 135, y + 6);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(220, 235, 245);
+  doc.setFontSize(9);
+  const clientLines = doc.splitTextToSize(d.cliente || '', 58);
+  doc.text(clientLines[0] || '', mL + 5, y + 13);
+  doc.text(d.consultor || '', mL + 70, y + 13);
+  doc.text('Ana Paula Colombo', mL + 135, y + 13);
+
+  y += 26;
+
+  // ── Status do projeto ────────────────────────────────────
+  if (d.status_projeto) {
+    sectionTitle('STATUS DO PROJETO');
+    writeText(d.status_projeto, { size: 9, indent: 2 });
+    y += 2;
+  }
+
+  // ── Participantes ────────────────────────────────────────
+  if (d.participantes) {
+    sectionTitle('PARTICIPANTES');
+    writeText(d.participantes, { size: 9, indent: 2 });
+    y += 2;
+  }
+
+  // ── Tópicos discutidos ───────────────────────────────────
+  if ((d.topicos || []).length) {
+    sectionTitle('1. TÓPICOS DISCUTIDOS');
+    (d.topicos || []).forEach(t => bullet(t));
+    y += 2;
+  }
+
+  // ── Decisões ─────────────────────────────────────────────
+  if ((d.decisoes || []).length) {
+    sectionTitle('2. DECISÕES TOMADAS');
+    (d.decisoes || []).forEach(t => bullet(t));
+    y += 2;
+  }
+
+  // ── Pendências ───────────────────────────────────────────
+  if ((d.pendencias || []).length) {
+    sectionTitle('3. PENDÊNCIAS E RESPONSÁVEIS');
+    y += 1;
+
+    // Cabeçalho da tabela
+    const cols = [80, 45, 35, 28];
+    const colX = [mL, mL+cols[0], mL+cols[0]+cols[1], mL+cols[0]+cols[1]+cols[2]];
+    const rowH  = 7;
+
+    checkPage(rowH + 2);
+    doc.setFillColor(10, 26, 55);
+    doc.rect(mL, y, textW, rowH, 'F');
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 196, 204);
+    ['ATIVIDADE', 'RESPONSÁVEL', 'PRAZO', 'STATUS'].forEach((h, i) => {
+      doc.text(h, colX[i] + 2, y + 5);
+    });
+    y += rowH;
+
+    (d.pendencias || []).forEach((p, idx) => {
+      checkPage(rowH + 1);
+      const bg = idx % 2 === 0 ? [18, 40, 75] : [22, 48, 88];
+      doc.setFillColor(...bg);
+      doc.rect(mL, y, textW, rowH, 'F');
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(210, 228, 242);
+
+      const cells = [p.atividade||'', p.responsavel||'', p.prazo||'', p.status||''];
+      const widths = [cols[0]-2, cols[1]-2, cols[2]-2, cols[3]-2];
+      cells.forEach((cell, i) => {
+        const txt = doc.splitTextToSize(cell, widths[i])[0] || '';
+        doc.text(txt, colX[i] + 2, y + 5);
+      });
+      y += rowH;
+    });
+    y += 3;
+  }
+
+  // ── Riscos ───────────────────────────────────────────────
+  if ((d.riscos || []).length) {
+    sectionTitle('4. RISCOS IDENTIFICADOS');
+    (d.riscos || []).forEach(t => bullet(t));
+    y += 2;
+  }
+
+  // ── Próximos passos ──────────────────────────────────────
+  if ((d.proximos_passos || []).length) {
+    sectionTitle('5. PRÓXIMOS PASSOS');
+    (d.proximos_passos || []).forEach(t => bullet(t));
+    y += 2;
+  }
+
+  // ── Se houver texto livre editado, usa como fallback ─────
+  // (caso o usuário tenha editado o texto de forma não estruturada)
+  if (d.textoEditado && (!d.topicos?.length && !d.decisoes?.length)) {
+    sectionTitle('CONTEÚDO DA ATA');
+    const linhas = d.textoEditado.split('\n');
+    linhas.forEach(ln => {
+      if (!ln.trim()) { y += 2; return; }
+      if (/^\d+\./.test(ln.trim()) || ln.trim().toUpperCase() === ln.trim()) {
+        writeText(ln, { size: 9, style: 'bold', color: [0, 196, 204] });
+      } else {
+        writeText(ln, { size: 9 });
+      }
+    });
+  }
+
+  // ── Rodapé em todas as páginas ───────────────────────────
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFillColor(10, 26, 55);
+    doc.rect(0, pageH - 12, W, 12, 'F');
+    doc.setFillColor(0, 196, 204);
+    doc.rect(0, pageH - 12, 4, 12, 'F');
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 150, 180);
+    doc.text('TOTVS · Reforma Tributária · Documento gerado automaticamente', mL, pageH - 5);
+    doc.text(`Página ${i} de ${totalPages}`, W - mR, pageH - 5, { align: 'right' });
+  }
+
+  return new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
 }
 // ═══════════════════════════════════════
 //  E-MAIL
