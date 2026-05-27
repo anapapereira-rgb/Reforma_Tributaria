@@ -6515,17 +6515,17 @@ async function enviarEml(){
             <div style="color:var(--muted);font-size:11px;">Nenhum template cadastrado — usando layout padrão do sistema.</div>
           </div>
 
-          <label class="cfg-label">Carregar novo template (PDF)</label>
-          <span class="cfg-sublabel">Faça upload do PDF modelo. O sistema usará as cores, logotipo e estrutura dele como referência para gerar as atas.</span>
+          <label class="cfg-label">Carregar novo template (.docx)</label>
+          <span class="cfg-sublabel">Faça upload do arquivo <strong>.docx</strong> do modelo. O sistema preencherá os dados da ata mantendo exatamente a fonte, o logo e o layout do seu documento.</span>
 
           <div class="cfg-upload-zone" id="cfgDropZone"
                ondragover="event.preventDefault();this.classList.add('drag')"
                ondragleave="this.classList.remove('drag')"
                ondrop="_cfgHandleDrop(event)">
-            <input type="file" accept=".pdf" id="cfgTemplateInput" onchange="_cfgHandleFile(this.files[0])">
+            <input type="file" accept=".docx,.pdf" id="cfgTemplateInput" onchange="_cfgHandleFile(this.files[0])">
             <div style="font-size:28px;margin-bottom:6px;">📂</div>
-            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px;">Arraste o PDF do template ou clique para selecionar</div>
-            <div style="font-size:10px;color:var(--muted);">Máx. 10 MB · somente PDF</div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px;">Arraste o arquivo .docx do template ou clique para selecionar</div>
+            <div style="font-size:10px;color:var(--muted);">Máx. 10 MB · .docx ou .pdf</div>
           </div>
 
           <div class="cfg-file-preview" id="cfgFilePreview">
@@ -6641,8 +6641,13 @@ function _cfgHandleFile(file) {
   const errBox = document.getElementById('cfgUploadError');
   errBox.style.display = 'none';
   if (!file) return;
-  if (file.type !== 'application/pdf') {
-    errBox.textContent = '⚠️ Apenas arquivos PDF são aceitos.';
+  const tiposAceitos = [
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/pdf',
+  ];
+  const extAceita = file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.pdf');
+  if (!tiposAceitos.includes(file.type) && !extAceita) {
+    errBox.textContent = '⚠️ Apenas arquivos .docx ou .pdf são aceitos.';
     errBox.style.display = 'block'; return;
   }
   if (file.size > 10 * 1024 * 1024) {
