@@ -1610,6 +1610,7 @@
   .pkg-count { font-size: 11px; color: var(--muted); min-width: 25px; text-align: right; }
 </style>
 <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -6157,347 +6158,183 @@ function _ataEditorKeydown(e) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+//  GERAÇÃO DA ATA — usa o template .docx via JSZip
+//  Fluxo: baixa o template do Storage → abre com JSZip →
+//  substitui marcadores no XML → gera novo .docx/.pdf
+// ═══════════════════════════════════════════════════════════
+
 async function salvarAtaNoCard() {
   if (!_ataDados) return;
 
-  // Captura o texto final do editor
+  // Captura o texto final do editor (pode ter sido editado)
   const ta = document.getElementById('ataEditorTextarea');
   if (ta) _ataDados.textoEditado = ta.value;
 
   const btn = document.getElementById('ataPrimaryBtn');
-  btn.disabled = true; btn.textContent = '⏳ Gerando PDF…';
+  btn.disabled = true; btn.textContent = '⏳ Gerando ata…';
 
   try {
     const token = CURRENT_USER.access_token;
     const uuid  = currentProject._uuid;
     const h     = new Date();
     const df    = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
+    const cfg   = (typeof SYS_CONFIG !== 'undefined') ? SYS_CONFIG : {};
+    const gpNome = cfg.gpNome || 'Ana Paula Colombo';
 
-    // ── Gera o PDF com jsPDF ────────────────────────────────
-    btn.textContent = '⏳ Montando PDF…';
-    const pdfBlob = _gerarPDFAta(_ataDados);
+    let fileBlob, nomeArq, MIME;
 
-    // ── Upload para o Storage ───────────────────────────────
+    // ── Tenta usar o template .docx se existir no Storage ──
+    if (cfg.templatePath && token) {
+      try {
+        btn.textContent = '⏳ Baixando template…';
+        const signRes = await fetch(
+          `${SUPABASE_URL}/storage/v1/object/sign/kanban-documents/${cfg.templatePath}`,
+          { method:'POST', headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+            body: JSON.stringify({expiresIn:120}) }
+        );
+        const signData = signRes.ok ? await signRes.json() : null;
+        const tplUrl  = signData?.signedURL
+          ? `${SUPABASE_URL}/storage/v1${signData.signedURL}`
+          : `${SUPABASE_URL}/storage/v1/object/public/kanban-documents/${cfg.templatePath}`;
+
+        const tplRes  = await fetch(tplUrl);
+        if (!tplRes.ok) throw new Error('Template não encontrado');
+        const tplBlob = await tplRes.blob();
+
+        btn.textContent = '⏳ Preenchendo template…';
+        fileBlob = await _preencherTemplateDocx(tplBlob, _ataDados, gpNome);
+        nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
+        MIME     = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } catch(tplErr) {
+        console.warn('[ata] Erro ao usar template, usando PDF padrão:', tplErr.message);
+        // Fallback para PDF
+        fileBlob = _gerarPDFAta(_ataDados);
+        nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
+        MIME     = 'application/pdf';
+      }
+    } else {
+      // Sem template — gera PDF padrão
+      fileBlob = _gerarPDFAta(_ataDados);
+      nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
+      MIME     = 'application/pdf';
+    }
+
+    // ── Upload para o Storage ──────────────────────────────
     btn.textContent = '⏳ Salvando no card…';
-    const nomeArq     = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
     const storagePath = uuid+'/'+Date.now()+'_'+nomeArq;
-    const MIME        = 'application/pdf';
 
     const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/kanban-documents/${storagePath}`, {
-      method:  'POST',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+token, 'Content-Type': MIME, 'x-upsert': 'true' },
-      body:    pdfBlob
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':MIME,'x-upsert':'true'},
+      body: fileBlob
     });
     if (!upRes.ok) throw new Error('Erro ao salvar no Storage: '+(await upRes.text()));
 
     await fetch(`${SUPABASE_URL}/rest/v1/documents`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+token, 'Prefer': 'return=representation' },
-      body:    JSON.stringify({ project_id: uuid, nome_arquivo: nomeArq, tamanho: _fmtSize(pdfBlob.size), tamanho_bytes: pdfBlob.size, data_upload: df, storage_path: storagePath, mime_type: MIME, uploaded_by: CURRENT_USER.nome||'' })
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Prefer':'return=representation'},
+      body: JSON.stringify({project_id:uuid,nome_arquivo:nomeArq,tamanho:_fmtSize(fileBlob.size),
+                            tamanho_bytes:fileBlob.size,data_upload:df,storage_path:storagePath,
+                            mime_type:MIME,uploaded_by:CURRENT_USER.nome||''})
     });
 
     renderDocs(currentProjectId);
     fecharAta();
     const t = document.getElementById('saveToast');
-    if (t) { t.textContent='📝 Ata PDF salva na Documentação!'; t.style.background='var(--purple)'; t.classList.add('show'); setTimeout(()=>{ t.classList.remove('show'); t.textContent='✓ Alterações salvas!'; t.style.background=''; }, 3500); }
+    if (t) { t.textContent='📝 Ata salva na Documentação!'; t.style.background='var(--purple)';
+             t.classList.add('show'); setTimeout(()=>{ t.classList.remove('show'); t.textContent='✓ Alterações salvas!'; t.style.background=''; }, 3500); }
 
   } catch(err) {
     btn.disabled = false; btn.textContent = '💾 Salvar no Card';
-    console.error('[salvarAtaNoCard] erro:', err);
+    console.error('[salvarAtaNoCard]', err);
     alert('Erro ao salvar ata: ' + _errMsg(err));
   }
 }
 
-// ── Geração do PDF com jsPDF ────────────────────────────────────
-function _gerarPDFAta(d) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+// ── Preenche o template .docx substituindo os marcadores via JSZip ──
+async function _preencherTemplateDocx(tplBlob, d, gpNome) {
+  if (typeof JSZip === 'undefined') throw new Error('JSZip não carregado');
 
-  // ── Configurações lidas do sistema ─────────────────────────
-  const cfg     = (typeof SYS_CONFIG !== 'undefined') ? SYS_CONFIG : {};
-  const gpNome  = cfg.gpNome      || 'Ana Paula Colombo';
-  const empresa = cfg.empresaNome || 'TOTVS';
-  const site    = cfg.empresaSite || 'totvs.com';
+  const zip     = await JSZip.loadAsync(tplBlob);
+  const docXml  = await zip.file('word/document.xml').async('string');
 
-  // ── Paleta fiel ao template ─────────────────────────────────
-  // Azul escuro TOTVS:  #003D7D  → rgb(0, 61, 125)
-  // Laranja/Amber card: #F5A623  → rgb(245, 166, 35)   (borda do card)
-  // Azul seção título:  #0052A3  → rgb(0, 82, 163)
-  // Cinza claro tabela: #E8E8E8  → rgb(232, 232, 232)
-  // Ciano rodapé:       #00B4BE  → rgb(0, 180, 190)
-  // Texto padrão:       #333333  → rgb(51, 51, 51)
-  const CL_AZUL_TITLE  = [0, 61, 125];
-  const CL_AZUL_SEC    = [0, 82, 163];
-  const CL_AMBER       = [245, 166, 35];
-  const CL_CINZA_TBL   = [232, 232, 232];
-  const CL_CINZA_TBL2  = [245, 245, 245];
-  const CL_CIANO       = [0, 180, 190];
-  const CL_TEXTO       = [51, 51, 51];
-  const CL_MUTED       = [120, 120, 120];
-  const CL_WHITE       = [255, 255, 255];
-
-  const W    = 210, pageH = 297;
-  const mL   = 16, mR = 16, mT = 8, mBot = 22;
-  const txtW = W - mL - mR;
-  let   y    = mT;
-
-  // ── Helpers ────────────────────────────────────────────────
-  function newPage() { doc.addPage(); y = mT + 10; }
-  function checkPage(needed) { if (y + needed > pageH - mBot) newPage(); }
-
-  function txt(text, x, yy, opts = {}) {
-    const { size=10, style='normal', color=CL_TEXTO, align='left' } = opts;
-    doc.setFontSize(size);
-    doc.setFont('helvetica', style);
-    doc.setTextColor(...color);
-    doc.text(String(text), x, yy, { align });
+  // Constrói os blocos de conteúdo para cada seção
+  function xmlTxt(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  function wrappedTxt(text, x, yy, maxW, opts = {}) {
-    const { size=9.5, style='normal', color=CL_TEXTO, lineH=5.5 } = opts;
-    doc.setFontSize(size); doc.setFont('helvetica', style); doc.setTextColor(...color);
-    const lines = doc.splitTextToSize(String(text || ''), maxW);
-    lines.forEach(ln => { checkPage(lineH); doc.text(ln, x, y === yy ? yy : y); y += lineH; });
-    if (lines.length === 0) y += lineH;
+  function paraBlue(text, bold) {
+    const b = bold ? '<w:b/><w:bCs/>' : '';
+    return `<w:p><w:pPr><w:spacing w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>${b}<w:color w:val="4f81bd"/><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">${xmlTxt(text)}</w:t></w:r></w:p>`;
   }
 
-  function sectionHeader(label) {
-    y += 5; checkPage(10);
-    doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_AZUL_SEC);
-    doc.text(label, mL, y);
-    y += 2;
-    // linha divisória fina azul
-    doc.setDrawColor(...CL_AZUL_SEC); doc.setLineWidth(0.4);
-    doc.line(mL, y, W - mR, y);
-    y += 4;
+  function paraNormal(text) {
+    return `<w:p><w:pPr><w:spacing w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">${xmlTxt(text)}</w:t></w:r></w:p>`;
   }
 
-  function bullet(text, indent = 0) {
-    checkPage(7);
-    const bx = mL + 4 + indent;
-    // bullet circular sólido pequeno
-    doc.setFillColor(...CL_AZUL_SEC);
-    doc.circle(bx, y - 1.2, 0.9, 'F');
-    doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_TEXTO);
-    const lines = doc.splitTextToSize(String(text || ''), txtW - 8 - indent);
-    lines.forEach((ln, i) => {
-      checkPage(5.5);
-      doc.text(ln, bx + 3.5, y);
-      y += 5.5;
-    });
+  function bullet(text) {
+    return `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr><w:spacing w:after="60"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">${xmlTxt(text)}</w:t></w:r></w:p>`;
   }
 
-  // ══════════════════════════════════════════════════════════
-  // PÁGINA 1 — CABEÇALHO
-  // ══════════════════════════════════════════════════════════
-  y = 12;
+  // Substituições simples de texto (marcadores do template)
+  let xml = docXml
+    .replace(/\[nome do cliente\]/gi, xmlTxt(d.cliente || ''))
+    .replace(/\[nome do consultor\]/gi, xmlTxt(d.consultor || ''))
+    .replace(/Ana Paula Colombo/g, xmlTxt(gpNome))
+    .replace(/dd\/mm\/yy/gi, xmlTxt(d.data || ''));
 
-  // Símbolo \ (barra invertida laranja antes do título — igual ao template)
-  doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_AMBER);
-  doc.text('\\', mL, y);
+  // Participantes (após "Participantes:")
+  const partic = d.participantes || '';
+  xml = xml.replace(/(Participantes:<\/w:t>.*?<\/w:r>)/s, '$1');
+  // Injeta participantes na linha seguinte aos "Participantes:"
+  const participantesTag = `<w:t xml:space="preserve">Participantes: ${xmlTxt(partic)}</w:t>`;
+  xml = xml.replace(/<w:t xml:space="preserve">Participantes: <\/w:t>/, participantesTag);
+  xml = xml.replace(/<w:t xml:space="preserve">Participantes:<\/w:t>/, `<w:t xml:space="preserve">Participantes: ${xmlTxt(partic)}</w:t>`);
 
-  // Título principal
-  doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_AZUL_TITLE);
-  doc.text('ATA DE ALINHAMENTO DE PROJETO – REFORMA TRIBUTÁRIA', mL + 8, y);
+  // Status do projeto
+  xml = xml.replace(/<w:t xml:space="preserve">Status do projeto:<\/w:t>/, `<w:t xml:space="preserve">Status do projeto: ${xmlTxt(d.status_projeto||'')}</w:t>`);
 
-  y += 6;
+  // Para as seções com bullets, substitui os placeholders ○
+  // O template tem parágrafos com ○ para Tópicos, Decisões, Riscos, Próximos Passos
+  // Vamos injetar o conteúdo real substituindo as bolinhas vazias
 
-  // ── Logo TOTVS (hexágono + texto) ──────────────────────────
-  // Hexágono simplificado desenhado com polígono
-  const hx = mL, hy = y, hr = 7;
-  const hexPts = [];
-  for (let a = 0; a < 6; a++) {
-    const ang = (Math.PI / 180) * (60 * a - 30);
-    hexPts.push([hx + hr * Math.cos(ang), hy + hr * Math.sin(ang)]);
-  }
-  // Preenchimento azul escuro — usa lines() do jsPDF
-  doc.setFillColor(...CL_AZUL_TITLE);
-  doc.setDrawColor(...CL_AZUL_TITLE);
-  doc.lines(
-    hexPts.slice(1).map((p,i) => [p[0]-hexPts[i][0], p[1]-hexPts[i][1]]).concat([[hexPts[0][0]-hexPts[5][0], hexPts[0][1]-hexPts[5][1]]]),
-    hexPts[0][0], hexPts[0][1], [1,1], 'F', true
-  );
-
-  // Hexágono interno ciano
-  const hr2 = 4.5;
-  const hexPts2 = [];
-  for (let a = 0; a < 6; a++) {
-    const ang = (Math.PI / 180) * (60 * a - 30);
-    hexPts2.push([hx + hr2 * Math.cos(ang), hy + hr2 * Math.sin(ang)]);
-  }
-  doc.setFillColor(...CL_CIANO);
-  doc.lines(
-    hexPts2.slice(1).map((p,i) => [p[0]-hexPts2[i][0], p[1]-hexPts2[i][1]]).concat([[hexPts2[0][0]-hexPts2[5][0], hexPts2[0][1]-hexPts2[5][1]]]),
-    hexPts2[0][0], hexPts2[0][1], [1,1], 'F', true
-  );
-
-  // Texto TOTVS ao lado do hexágono
-  doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_AZUL_TITLE);
-  doc.text(empresa, mL + hr * 2 + 2, hy + 2);
-
-  y = hy + hr + 8;
-
-  // ══════════════════════════════════════════════════════════
-  // CARD DO PROJETO — fiel ao template (bordas âmbar)
-  // ══════════════════════════════════════════════════════════
-  const cardY = y;
-  const cardH = 22;
-
-  // Fundo branco com borda âmbar
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(...CL_AMBER);
-  doc.setLineWidth(0.8);
-  doc.rect(mL, cardY, txtW, cardH / 2, 'FD');
-  doc.rect(mL, cardY + cardH / 2, txtW, cardH / 2, 'FD');
-
-  // Linha divisória vertical (split Consultor | GP | Data)
-  const c1 = txtW * 0.42, c2 = txtW * 0.30;
-  doc.setDrawColor(...CL_AMBER); doc.setLineWidth(0.5);
-  doc.line(mL + c1, cardY + cardH / 2, mL + c1, cardY + cardH);
-  doc.line(mL + c1 + c2, cardY + cardH / 2, mL + c1 + c2, cardY + cardH);
-
-  // Labels (negrito âmbar)
-  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_AMBER);
-  doc.text('Projeto /Cliente:', mL + 2, cardY + 5.5);
-  doc.text('Consultor :', mL + 2, cardY + cardH / 2 + 5.5);
-  doc.text('GP:', mL + c1 + 2, cardY + cardH / 2 + 5.5);
-  doc.text('Data:', mL + c1 + c2 + 2, cardY + cardH / 2 + 5.5);
-
-  // Valores (normal escuro)
-  doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_TEXTO);
-  const clienteTxt = doc.splitTextToSize(d.cliente || '', c1 - 5)[0] || '';
-  doc.text(clienteTxt, mL + 36, cardY + 5.5);
-  doc.text(d.consultor || '', mL + 22, cardY + cardH / 2 + 5.5);
-  doc.text(gpNome, mL + c1 + 8, cardY + cardH / 2 + 5.5);
-  doc.text(d.data || '', mL + c1 + c2 + 12, cardY + cardH / 2 + 5.5);
-
-  y = cardY + cardH + 6;
-
-  // ══════════════════════════════════════════════════════════
-  // 1. TÓPICOS DISCUTIDOS
-  // ══════════════════════════════════════════════════════════
-  sectionHeader('1. Tópicos discutidos');
-
-  if (d.participantes) {
-    checkPage(7);
-    bullet('Participantes: ' + d.participantes);
-  }
-  if (d.status_projeto) {
-    checkPage(7);
-    bullet('Status do projeto: ' + d.status_projeto);
-  }
-  (d.topicos || []).forEach(t => bullet(t, 4));
-
-  // ══════════════════════════════════════════════════════════
-  // 2. DECISÕES TOMADAS
-  // ══════════════════════════════════════════════════════════
-  sectionHeader('2. Decisões tomadas');
-  if ((d.decisoes || []).length) {
-    (d.decisoes || []).forEach(t => bullet(t));
-  } else {
-    checkPage(6);
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_MUTED);
-    doc.text('—', mL + 8, y); y += 6;
+  function replaceFirstEmpty(xmlStr, items) {
+    // Localiza a primeira ocorrência de parágrafo vazio com ○ e substitui pela lista
+    const placeholder = /<w:p[^>]*>(?:<w:pPr>[^<]*(?:<[^<]*>)*[^<]*<\/w:pPr>)?<w:r[^>]*>(?:<w:rPr>[^<]*(?:<[^<]*>)*[^<]*<\/w:rPr>)?<w:t[^>]*>○<\/w:t><\/w:r><\/w:p>/;
+    const replacement = items.length
+      ? items.map(t => bullet(t)).join('')
+      : paraNormal('—');
+    return xmlStr.replace(placeholder, replacement);
   }
 
-  // ══════════════════════════════════════════════════════════
-  // 3. PENDÊNCIAS E RESPONSÁVEIS
-  // ══════════════════════════════════════════════════════════
-  sectionHeader('3. Pendências e responsáveis');
+  // Tópicos (primeiro ○ no doc após "1. Tópicos")
+  xml = replaceFirstEmpty(xml, d.topicos || []);
+  // Decisões
+  xml = replaceFirstEmpty(xml, d.decisoes || []);
+  // Riscos
+  xml = replaceFirstEmpty(xml, d.riscos || []);
+  // Próximos passos
+  xml = replaceFirstEmpty(xml, d.proximos_passos || []);
 
-  // Colunas fiel ao template: Pendência/Atividade | Responsável | Prazo | Status
-  const tC = [mL, 0, 0, 0];
-  const tW = [85, 42, 30, txtW - 85 - 42 - 30];
-  tC[1] = tC[0] + tW[0]; tC[2] = tC[1] + tW[1]; tC[3] = tC[2] + tW[2];
-  const rH = 7.5;
-
-  // Cabeçalho da tabela (cinza escuro, texto branco)
-  checkPage(rH + 2);
-  doc.setFillColor(100, 100, 100);
-  doc.rect(mL, y, txtW, rH, 'F');
-  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CL_WHITE);
-  ['Pendência / Atividade', 'Responsável', 'Prazo', 'Status'].forEach((h, i) => {
-    doc.text(h, tC[i] + 2, y + 5);
-  });
-  y += rH;
-
-  if ((d.pendencias || []).length) {
-    (d.pendencias || []).forEach((p, idx) => {
-      checkPage(rH + 1);
-      doc.setFillColor(...(idx % 2 === 0 ? CL_CINZA_TBL2 : CL_CINZA_TBL));
-      doc.rect(mL, y, txtW, rH, 'F');
-      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2);
-      doc.rect(mL, y, txtW, rH, 'S');
-      doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_TEXTO);
-      const cells = [p.atividade||'', p.responsavel||'', p.prazo||'', p.status||''];
-      cells.forEach((cell, i) => {
-        const t = doc.splitTextToSize(cell, tW[i] - 3)[0] || '';
-        doc.text(t, tC[i] + 2, y + 5);
-      });
-      y += rH;
-    });
-  } else {
-    // Linha vazia (como no template)
-    doc.setFillColor(...CL_CINZA_TBL2);
-    doc.rect(mL, y, txtW, rH, 'F');
-    doc.setDrawColor(200,200,200); doc.setLineWidth(0.2);
-    doc.rect(mL, y, txtW, rH, 'S');
-    y += rH;
-  }
-  y += 4;
-
-  // ══════════════════════════════════════════════════════════
-  // 4. RISCOS IDENTIFICADOS
-  // ══════════════════════════════════════════════════════════
-  sectionHeader('4. Riscos identificados');
-  if ((d.riscos || []).length) {
-    (d.riscos || []).forEach(t => bullet(t));
-  } else {
-    checkPage(6);
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_MUTED);
-    doc.text('—', mL + 8, y); y += 6;
+  // Pendências — substitui a linha vazia da tabela
+  if ((d.pendencias||[]).length > 0) {
+    // Injeta linhas de pendência antes do fechamento da tabela (</w:tbl>)
+    const linhasPend = (d.pendencias||[]).map(p => {
+      const cols = [p.atividade||'', p.responsavel||'', p.prazo||'', p.status||''];
+      const cels = cols.map(v =>
+        `<w:tc><w:tcPr><w:shd w:fill="auto" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${xmlTxt(v)}</w:t></w:r></w:p></w:tc>`
+      ).join('');
+      return `<w:tr>${cels}</w:tr>`;
+    }).join('');
+    xml = xml.replace(/<\/w:tbl>/, linhasPend + '</w:tbl>');
   }
 
-  // ══════════════════════════════════════════════════════════
-  // 5. PRÓXIMOS PASSOS / AÇÕES DA SEMANA
-  // ══════════════════════════════════════════════════════════
-  sectionHeader('5. Próximos passos / ações da semana');
-  if ((d.proximos_passos || []).length) {
-    (d.proximos_passos || []).forEach(t => bullet(t));
-  } else {
-    checkPage(6);
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_MUTED);
-    doc.text('—', mL + 8, y); y += 6;
-  }
-
-  // ══════════════════════════════════════════════════════════
-  // RODAPÉ — igual ao template (totvs.com + círculos ciano)
-  // ══════════════════════════════════════════════════════════
-  const totalPages = doc.internal.getNumberOfPages();
-  for (let pg = 1; pg <= totalPages; pg++) {
-    doc.setPage(pg);
-
-    // Linha divisória no rodapé
-    doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
-    doc.line(mL, pageH - mBot + 2, W - mR, pageH - mBot + 2);
-
-    // Site (azul, canto esquerdo)
-    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...CL_AZUL_SEC);
-    doc.text(site, mL, pageH - mBot + 8);
-
-    // Paginação (canto direito)
-    doc.setTextColor(...CL_MUTED);
-    doc.text(`${pg} / ${totalPages}`, W - mR, pageH - mBot + 8, { align: 'right' });
-
-    // Círculos decorativos ciano no canto inferior direito (fiel ao template)
-    doc.setDrawColor(...CL_CIANO); doc.setLineWidth(0.6);
-    doc.circle(W + 2,  pageH + 2,  22, 'S');
-    doc.circle(W - 2,  pageH + 6,  14, 'S');
-    doc.circle(W + 5,  pageH - 2,  30, 'S');
-  }
-
-  return new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+  zip.file('word/document.xml', xml);
+  const blob = await zip.generateAsync({ type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  return blob;
 }
+
 
 // ═══════════════════════════════════════
 let _emlTo=[];
