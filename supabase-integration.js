@@ -463,6 +463,8 @@ async function iniciarApp() {
   sincronizarDocsPendentes();
   iniciarAutoRefresh();
   adicionarBotaoRefresh();
+  // Carrega configurações do sistema (template de ata, GP, identidade)
+  if (typeof _cfgCarregar === 'function') _cfgCarregar();
 }
 
 // ============================================================

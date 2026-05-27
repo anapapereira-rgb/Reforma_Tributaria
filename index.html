@@ -1277,6 +1277,29 @@
   .ata-editor-toolbar .atb-btn { background:none;border:1px solid var(--border2);color:var(--muted);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:var(--font);transition:all .15s; }
   .ata-editor-toolbar .atb-btn:hover { border-color:var(--purple);color:var(--purple); }
   .ata-editor-hint { font-size:10px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:5px; }
+
+  /* ── Modal Configurações ── */
+  .cfg-overlay { position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:3000;display:none;align-items:center;justify-content:center; }
+  .cfg-modal   { background:var(--surface);border:1px solid var(--border);border-radius:14px;width:540px;max-width:95vw;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.5); }
+  .cfg-header  { display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface2); }
+  .cfg-header-icon { width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#00c4cc22,#00c4cc44);border:1px solid #00c4cc44;display:flex;align-items:center;justify-content:center;font-size:18px; }
+  .cfg-title   { font-size:14px;font-weight:800;color:var(--text);flex:1; }
+  .cfg-body    { flex:1;overflow-y:auto;padding:20px; }
+  .cfg-section { margin-bottom:22px; }
+  .cfg-section-title { font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border); }
+  .cfg-field   { margin-bottom:14px; }
+  .cfg-label   { font-size:11px;font-weight:600;color:var(--text);margin-bottom:5px;display:block; }
+  .cfg-sublabel{ font-size:10px;color:var(--muted);margin-bottom:6px;display:block;line-height:1.4; }
+  .cfg-input   { width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:8px 10px;font-size:12px;color:var(--text);font-family:var(--font);box-sizing:border-box;transition:border-color .15s; }
+  .cfg-input:focus { outline:none;border-color:var(--accent); }
+  .cfg-upload-zone { border:2px dashed var(--border2);border-radius:9px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);position:relative; }
+  .cfg-upload-zone:hover,.cfg-upload-zone.drag { border-color:var(--accent);background:rgba(0,196,204,.06); }
+  .cfg-upload-zone input { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+  .cfg-file-preview { display:none;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:8px; }
+  .cfg-save-btn { width:100%;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),#0088ff);color:#fff;font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;transition:opacity .2s; }
+  .cfg-save-btn:hover { opacity:.88; }
+  .topbar-cfg-btn { background:var(--surface2);border:1px solid var(--border2);color:var(--muted);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:var(--font);transition:all .15s;display:flex;align-items:center;gap:6px; }
+  .topbar-cfg-btn:hover { border-color:var(--accent);color:var(--accent); }
   .doc-empty { font-size: 11px; color: var(--muted); text-align: center; padding: 6px 0; }
 
   .doc-size-warning { font-size: 10px; color: var(--amber); margin-top: 4px; }
@@ -1614,6 +1637,7 @@
   </div>
   <div class="topbar-spacer"></div>
   <button class="new-btn" onclick="openNewModal()">＋ Novo Projeto</button>
+  <button class="topbar-cfg-btn" id="btnConfiguracoes" onclick="abrirConfiguracoes()" style="display:none;" title="Configurações do sistema">⚙️ Configurações</button>
   <div class="manager-badge">
     <div class="avatar" style="background:linear-gradient(135deg,#00c4cc,#0088ff);font-size:11px;">AP</div>
     <span>Ana Paula · Gerente de Projetos</span>
@@ -6169,6 +6193,245 @@ function _gerarPDFAta(d) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
+  // Lê configurações do sistema (com fallback)
+  const cfg       = (typeof SYS_CONFIG !== 'undefined') ? SYS_CONFIG : {};
+  const gpNome    = cfg.gpNome      || 'Ana Paula Colombo';
+  const empresa   = cfg.empresaNome || 'TOTVS';
+  const site      = cfg.empresaSite || 'totvs.com';
+
+  const W    = 210, pageH = 297;
+  const mL   = 18, mR = 18, mT = 22, mBot = 18;
+  const txtW = W - mL - mR;
+  let   y    = mT;
+
+  // ── Helpers ────────────────────────────────────────────────
+  function checkPage(needed) {
+    if (y + needed > pageH - mBot) { doc.addPage(); y = mT; }
+  }
+
+  function writeText(text, opts = {}) {
+    const { size=10, style='normal', color=[30,30,30], indent=0, lineH=5.5 } = opts;
+    doc.setFontSize(size); doc.setFont('helvetica', style); doc.setTextColor(...color);
+    doc.splitTextToSize(String(text), txtW - indent).forEach(ln => {
+      checkPage(lineH); doc.text(ln, mL + indent, y); y += lineH;
+    });
+  }
+
+  function sectionTitle(num, title) {
+    y += 4; checkPage(12);
+    // Linha colorida lateral
+    doc.setFillColor(0, 163, 173);
+    doc.rect(mL, y - 4, 2.5, 9, 'F');
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 163, 173);
+    doc.text(`${num}. ${title}`, mL + 5, y + 1.5);
+    y += 8;
+    // Linha separadora fina
+    doc.setDrawColor(200, 230, 235); doc.setLineWidth(0.3);
+    doc.line(mL, y - 1, W - mR, y - 1);
+    y += 2;
+  }
+
+  function bullet(text, level = 0) {
+    const indent = 5 + level * 4;
+    checkPage(6);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50);
+    // Bullet colorido
+    doc.setFillColor(0, 163, 173);
+    doc.circle(mL + indent + 1.5, y - 1.5, 1, 'F');
+    doc.splitTextToSize(String(text), txtW - indent - 5).forEach((ln, i) => {
+      checkPage(5.5);
+      doc.text(ln, mL + indent + 5, y);
+      y += 5.5;
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // CABEÇALHO — fiel ao template TOTVS
+  // ══════════════════════════════════════════════════════════
+
+  // Barra azul escuro no topo
+  doc.setFillColor(0, 82, 147);
+  doc.rect(0, 0, W, 22, 'F');
+
+  // Barra accent (ciano TOTVS) fina abaixo
+  doc.setFillColor(0, 163, 173);
+  doc.rect(0, 22, W, 1.5, 'F');
+
+  // Símbolo \ antes do título (como no template)
+  doc.setFontSize(22); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 163, 173);
+  doc.text('\\', mL - 4, 15);
+
+  // Título
+  doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+  doc.text('ATA DE ALINHAMENTO DE PROJETO', mL + 4, 11);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(180, 220, 230);
+  doc.text('REFORMA TRIBUTÁRIA', mL + 4, 17);
+
+  // Logo TOTVS (texto estilizado no canto direito)
+  doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+  doc.text(empresa, W - mR, 14, { align: 'right' });
+
+  y = 30;
+
+  // ══════════════════════════════════════════════════════════
+  // CARD DE INFORMAÇÕES DO PROJETO (fiel ao template)
+  // ══════════════════════════════════════════════════════════
+  const cardH = 24;
+  doc.setFillColor(245, 250, 252);
+  doc.setDrawColor(0, 163, 173);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(mL, y, txtW, cardH, 1.5, 1.5, 'FD');
+
+  // Linha divisória interna horizontal
+  doc.setDrawColor(200, 230, 235); doc.setLineWidth(0.3);
+  doc.line(mL, y + cardH / 2, mL + txtW, y + cardH / 2);
+
+  // Linha divisória interna vertical (split consultor / GP / data)
+  const col1 = txtW * 0.45, col2 = txtW * 0.30;
+  doc.line(mL + col1, y + cardH / 2, mL + col1, y + cardH);
+  doc.line(mL + col1 + col2, y + cardH / 2, mL + col1 + col2, y + cardH);
+
+  // Labels
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 163, 173);
+  doc.text('Projeto / Cliente:', mL + 3, y + 6);
+
+  doc.text('Consultor:', mL + 3, y + cardH/2 + 5);
+  doc.text('GP:', mL + col1 + 3, y + cardH/2 + 5);
+  doc.text('Data:', mL + col1 + col2 + 3, y + cardH/2 + 5);
+
+  // Valores
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
+  const clienteTxt = doc.splitTextToSize(d.cliente || '', txtW - 6)[0] || '';
+  doc.text(clienteTxt, mL + 3, y + 12);
+
+  doc.setFont('helvetica', 'normal');
+  doc.text(d.consultor || '', mL + 3, y + cardH/2 + 10);
+  doc.text(gpNome, mL + col1 + 3, y + cardH/2 + 10);
+  doc.text(d.data || '', mL + col1 + col2 + 3, y + cardH/2 + 10);
+
+  y += cardH + 6;
+
+  // ══════════════════════════════════════════════════════════
+  // SEÇÕES
+  // ══════════════════════════════════════════════════════════
+
+  // 1. TÓPICOS DISCUTIDOS
+  sectionTitle('1', 'Tópicos discutidos');
+
+  if (d.participantes) {
+    checkPage(7);
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(50,50,50);
+    doc.text('Participantes:', mL + 5, y); y += 5.5;
+    writeText(d.participantes, { size:9, indent:8 });
+  }
+
+  if (d.status_projeto) {
+    checkPage(7);
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(50,50,50);
+    doc.text('Status do projeto:', mL + 5, y); y += 5.5;
+    writeText(d.status_projeto, { size:9, indent:8 });
+  }
+
+  if ((d.topicos || []).length) {
+    y += 2;
+    (d.topicos || []).forEach(t => bullet(t, 1));
+  }
+
+  // 2. DECISÕES TOMADAS
+  sectionTitle('2', 'Decisões tomadas');
+  if ((d.decisoes || []).length) {
+    (d.decisoes || []).forEach(t => bullet(t, 1));
+  } else {
+    writeText('—', { size:9, indent:5, color:[150,150,150] });
+  }
+
+  // 3. PENDÊNCIAS E RESPONSÁVEIS
+  sectionTitle('3', 'Pendências e responsáveis');
+  if ((d.pendencias || []).length) {
+    // Cabeçalho da tabela (fiel ao template)
+    const tCols = [85, 42, 30, 0]; // larguras (último preenche o resto)
+    tCols[3] = txtW - tCols[0] - tCols[1] - tCols[2];
+    const tX  = [mL, mL+tCols[0], mL+tCols[0]+tCols[1], mL+tCols[0]+tCols[1]+tCols[2]];
+    const rH  = 7.5;
+
+    checkPage(rH + 2);
+    doc.setFillColor(0, 82, 147);
+    doc.rect(mL, y, txtW, rH, 'F');
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255,255,255);
+    ['Pendência / Atividade','Responsável','Prazo','Status'].forEach((h,i) => {
+      doc.text(h, tX[i] + 2, y + 5.2);
+    });
+    y += rH;
+
+    (d.pendencias || []).forEach((p, idx) => {
+      checkPage(rH + 1);
+      doc.setFillColor(idx % 2 === 0 ? 245 : 235, idx % 2 === 0 ? 249 : 244, idx % 2 === 0 ? 252 : 249);
+      doc.rect(mL, y, txtW, rH, 'F');
+      doc.setDrawColor(200,230,235); doc.setLineWidth(0.2);
+      doc.rect(mL, y, txtW, rH, 'S');
+      doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(40,40,40);
+      const cells = [p.atividade||'', p.responsavel||'', p.prazo||'', p.status||''];
+      const widths = [tCols[0]-3, tCols[1]-3, tCols[2]-3, tCols[3]-3];
+      cells.forEach((cell,i) => {
+        const t = doc.splitTextToSize(cell, widths[i])[0] || '';
+        doc.text(t, tX[i]+2, y+5.2);
+      });
+      y += rH;
+    });
+    y += 3;
+  } else {
+    writeText('—', { size:9, indent:5, color:[150,150,150] });
+  }
+
+  // 4. RISCOS IDENTIFICADOS
+  sectionTitle('4', 'Riscos identificados');
+  if ((d.riscos || []).length) {
+    (d.riscos || []).forEach(t => bullet(t, 1));
+  } else {
+    writeText('Nenhum identificado.', { size:9, indent:5, color:[150,150,150] });
+  }
+
+  // 5. PRÓXIMOS PASSOS
+  sectionTitle('5', 'Próximos passos / ações da semana');
+  if ((d.proximos_passos || []).length) {
+    (d.proximos_passos || []).forEach(t => bullet(t, 1));
+  } else {
+    writeText('—', { size:9, indent:5, color:[150,150,150] });
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // RODAPÉ — fiel ao template (totvs.com + marca d'água)
+  // ══════════════════════════════════════════════════════════
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+
+    // Barra inferior
+    doc.setFillColor(245, 250, 252);
+    doc.rect(0, pageH - 14, W, 14, 'F');
+    doc.setDrawColor(0, 163, 173); doc.setLineWidth(0.5);
+    doc.line(0, pageH - 14, W, pageH - 14);
+
+    // Site
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 82, 147);
+    doc.text(site, mL, pageH - 7);
+
+    // Paginação
+    doc.setTextColor(120,140,150);
+    doc.text(`Página ${i} de ${totalPages}`, W - mR, pageH - 7, { align: 'right' });
+
+    // Círculo decorativo no canto inferior direito (como no template)
+    doc.setFillColor(0, 163, 173, 0.15);
+    doc.setDrawColor(0, 163, 173); doc.setLineWidth(0.3);
+    doc.circle(W - 12, pageH - 4, 18, 'S');
+    doc.circle(W - 8,  pageH - 1, 12, 'S');
+  }
+
+  return new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+}
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
   const W       = 210;
   const mL      = 18;   // margem esquerda
   const mR      = 18;   // margem direita
@@ -6542,11 +6805,298 @@ async function enviarEml(){
 }
 </script>
 
+<!-- ═══════════════════════════════════════════════════
+     MODAL CONFIGURAÇÕES (somente gerente)
+════════════════════════════════════════════════════ -->
+<div class="cfg-overlay" id="cfgOverlay" onclick="if(event.target===this)fecharConfiguracoes()">
+  <div class="cfg-modal">
+    <div class="cfg-header">
+      <div class="cfg-header-icon">⚙️</div>
+      <div class="cfg-title">Configurações do Sistema</div>
+      <button class="modal-x" onclick="fecharConfiguracoes()">✕</button>
+    </div>
+    <div class="cfg-body">
+
+      <!-- Template da Ata -->
+      <div class="cfg-section">
+        <div class="cfg-section-title">📄 Template da Ata de Reunião</div>
+
+        <div class="cfg-field">
+          <label class="cfg-label">Template ativo</label>
+          <span class="cfg-sublabel">O PDF gerado ao clicar em "Gerar Ata" seguirá o layout deste template. Se nenhum for cadastrado, o sistema usa o layout padrão.</span>
+          <div id="cfgTemplateAtual" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:12px;">
+            <div style="color:var(--muted);font-size:11px;">Nenhum template cadastrado — usando layout padrão do sistema.</div>
+          </div>
+
+          <label class="cfg-label">Carregar novo template (PDF)</label>
+          <span class="cfg-sublabel">Faça upload do PDF modelo. O sistema usará as cores, logotipo e estrutura dele como referência para gerar as atas.</span>
+
+          <div class="cfg-upload-zone" id="cfgDropZone"
+               ondragover="event.preventDefault();this.classList.add('drag')"
+               ondragleave="this.classList.remove('drag')"
+               ondrop="_cfgHandleDrop(event)">
+            <input type="file" accept=".pdf" id="cfgTemplateInput" onchange="_cfgHandleFile(this.files[0])">
+            <div style="font-size:28px;margin-bottom:6px;">📂</div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px;">Arraste o PDF do template ou clique para selecionar</div>
+            <div style="font-size:10px;color:var(--muted);">Máx. 10 MB · somente PDF</div>
+          </div>
+
+          <div class="cfg-file-preview" id="cfgFilePreview">
+            <div style="width:34px;height:34px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">📕</div>
+            <div style="flex:1;min-width:0;">
+              <div id="cfgFileName" style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
+              <div id="cfgFileSize" style="font-size:10px;color:var(--muted);margin-top:2px;">—</div>
+            </div>
+            <button onclick="_cfgRemoverArquivo()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:4px;" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
+          </div>
+          <div id="cfgUploadError" style="display:none;background:var(--red-bg);border:1px solid rgba(239,68,68,.3);border-radius:7px;padding:9px 12px;font-size:11px;color:#fca5a5;margin-top:8px;"></div>
+        </div>
+
+        <div class="cfg-field">
+          <label class="cfg-label">Nome do GP padrão nas atas</label>
+          <input type="text" class="cfg-input" id="cfgGpNome" placeholder="Ex: Ana Paula Colombo" value="Ana Paula Colombo">
+        </div>
+      </div>
+
+      <!-- Identidade -->
+      <div class="cfg-section">
+        <div class="cfg-section-title">🏢 Identidade Visual</div>
+        <div class="cfg-field">
+          <label class="cfg-label">Nome da empresa</label>
+          <input type="text" class="cfg-input" id="cfgEmpresaNome" placeholder="Ex: TOTVS" value="TOTVS">
+        </div>
+        <div class="cfg-field">
+          <label class="cfg-label">Site no rodapé das atas</label>
+          <input type="text" class="cfg-input" id="cfgEmpresaSite" placeholder="Ex: totvs.com" value="totvs.com">
+        </div>
+      </div>
+
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);background:var(--surface2);display:flex;gap:10px;">
+      <button class="cfg-save-btn" onclick="salvarConfiguracoes()">💾 Salvar Configurações</button>
+      <button onclick="fecharConfiguracoes()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--border2);background:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:var(--font);">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
 
 <script>
-// Função do botão "Salvar Informações no Banco" — aba Informações
+// ═══════════════════════════════════════════════════════════
+//  CONFIGURAÇÕES DO SISTEMA (somente gerente)
+// ═══════════════════════════════════════════════════════════
+
+// Estado em memória das configurações (persistido no Supabase → tabela system_config)
+let SYS_CONFIG = {
+  gpNome:        'Ana Paula Colombo',
+  empresaNome:   'TOTVS',
+  empresaSite:   'totvs.com',
+  templateNome:  null,   // nome do arquivo PDF do template
+  templatePath:  null,   // storage_path no bucket
+  templateB64:   null,   // base64 em cache (carregado na abertura do modal de ata)
+};
+
+let _cfgArquivo = null; // File selecionado no modal
+
+// ── Exibe/oculta botão de configurações conforme perfil ──────
+function _cfgAtualizarBotao() {
+  const btn = document.getElementById('btnConfiguracoes');
+  if (!btn) return;
+  const ehGerente = !CURRENT_USER || CURRENT_USER.perfil === 'gerente';
+  btn.style.display = ehGerente ? 'flex' : 'none';
+}
+
+// ── Abre o modal ─────────────────────────────────────────────
+async function abrirConfiguracoes() {
+  document.getElementById('cfgOverlay').style.display = 'flex';
+  _cfgArquivo = null;
+  document.getElementById('cfgFilePreview').style.display = 'none';
+  document.getElementById('cfgUploadError').style.display = 'none';
+  const inp = document.getElementById('cfgTemplateInput');
+  if (inp) inp.value = '';
+
+  // Preenche campos com valores atuais
+  document.getElementById('cfgGpNome').value       = SYS_CONFIG.gpNome      || '';
+  document.getElementById('cfgEmpresaNome').value  = SYS_CONFIG.empresaNome || '';
+  document.getElementById('cfgEmpresaSite').value  = SYS_CONFIG.empresaSite || '';
+
+  // Exibe template atual
+  const box = document.getElementById('cfgTemplateAtual');
+  if (SYS_CONFIG.templateNome) {
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:22px;">📕</div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);">${SYS_CONFIG.templateNome}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">Template ativo · será usado na próxima geração de ata</div>
+        </div>
+        <button onclick="_cfgRemoverTemplate()" style="margin-left:auto;background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;">Remover</button>
+      </div>`;
+  } else {
+    box.innerHTML = '<div style="color:var(--muted);font-size:11px;">Nenhum template cadastrado — usando layout padrão do sistema.</div>';
+  }
+}
+
+function fecharConfiguracoes() {
+  document.getElementById('cfgOverlay').style.display = 'none';
+}
+
+// ── Upload de arquivo ────────────────────────────────────────
+function _cfgHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('cfgDropZone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) _cfgHandleFile(f);
+}
+
+function _cfgHandleFile(file) {
+  const errBox = document.getElementById('cfgUploadError');
+  errBox.style.display = 'none';
+  if (!file) return;
+  if (file.type !== 'application/pdf') {
+    errBox.textContent = '⚠️ Apenas arquivos PDF são aceitos.';
+    errBox.style.display = 'block'; return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    errBox.textContent = '⚠️ O arquivo deve ter no máximo 10 MB.';
+    errBox.style.display = 'block'; return;
+  }
+  _cfgArquivo = file;
+  document.getElementById('cfgFileName').textContent = file.name;
+  document.getElementById('cfgFileSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+  document.getElementById('cfgFilePreview').style.display = 'flex';
+}
+
+function _cfgRemoverArquivo() {
+  _cfgArquivo = null;
+  document.getElementById('cfgFilePreview').style.display = 'none';
+  const inp = document.getElementById('cfgTemplateInput');
+  if (inp) inp.value = '';
+}
+
+async function _cfgRemoverTemplate() {
+  if (!confirm('Remover o template ativo? As próximas atas usarão o layout padrão do sistema.')) return;
+  SYS_CONFIG.templateNome  = null;
+  SYS_CONFIG.templatePath  = null;
+  SYS_CONFIG.templateB64   = null;
+  await _cfgSalvarNoSupabase();
+  await abrirConfiguracoes();
+}
+
+// ── Salvar configurações ─────────────────────────────────────
+async function salvarConfiguracoes() {
+  SYS_CONFIG.gpNome      = document.getElementById('cfgGpNome').value.trim()      || 'Ana Paula Colombo';
+  SYS_CONFIG.empresaNome = document.getElementById('cfgEmpresaNome').value.trim() || 'TOTVS';
+  SYS_CONFIG.empresaSite = document.getElementById('cfgEmpresaSite').value.trim() || 'totvs.com';
+
+  const btn = document.querySelector('.cfg-save-btn');
+  btn.textContent = '⏳ Salvando…'; btn.disabled = true;
+
+  try {
+    // Upload do template PDF se selecionado
+    if (_cfgArquivo && CURRENT_USER?.access_token) {
+      const token = CURRENT_USER.access_token;
+      const path  = 'templates/ata_template_' + Date.now() + '.pdf';
+
+      const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/kanban-documents/${path}`, {
+        method:  'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token,
+                   'Content-Type': 'application/pdf', 'x-upsert': 'true' },
+        body:    _cfgArquivo
+      });
+      if (!upRes.ok) throw new Error('Erro ao salvar template no Storage.');
+
+      // Converte para base64 e guarda em cache
+      SYS_CONFIG.templateB64  = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload  = () => res(r.result.split(',')[1]);
+        r.onerror = () => rej();
+        r.readAsDataURL(_cfgArquivo);
+      });
+      SYS_CONFIG.templateNome = _cfgArquivo.name;
+      SYS_CONFIG.templatePath = path;
+    }
+
+    await _cfgSalvarNoSupabase();
+    fecharConfiguracoes();
+
+    const t = document.getElementById('saveToast');
+    if (t) { t.textContent='⚙️ Configurações salvas!'; t.classList.add('show');
+      setTimeout(()=>{ t.classList.remove('show'); t.textContent='✓ Alterações salvas!'; }, 2500); }
+
+  } catch(err) {
+    alert('Erro ao salvar configurações: ' + err.message);
+  } finally {
+    btn.textContent = '💾 Salvar Configurações'; btn.disabled = false;
+  }
+}
+
+// ── Persiste no Supabase (tabela system_config) ──────────────
+async function _cfgSalvarNoSupabase() {
+  if (!CURRENT_USER?.access_token) return;
+  const payload = {
+    chave:  'ata_config',
+    valor:  JSON.stringify({
+      gpNome:       SYS_CONFIG.gpNome,
+      empresaNome:  SYS_CONFIG.empresaNome,
+      empresaSite:  SYS_CONFIG.empresaSite,
+      templateNome: SYS_CONFIG.templateNome,
+      templatePath: SYS_CONFIG.templatePath,
+    }),
+    updated_at: new Date().toISOString()
+  };
+  await fetch(`${SUPABASE_URL}/rest/v1/system_config?chave=eq.ata_config`, {
+    method:  'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
+  });
+  await fetch(`${SUPABASE_URL}/rest/v1/system_config`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY,
+               'Authorization': 'Bearer ' + CURRENT_USER.access_token, 'Prefer': 'return=minimal' },
+    body:    JSON.stringify(payload)
+  });
+}
+
+// ── Carrega configurações ao iniciar ─────────────────────────
+async function _cfgCarregar() {
+  if (!CURRENT_USER?.access_token) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/system_config?chave=eq.ata_config&select=valor`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (rows[0]?.valor) {
+      const cfg = JSON.parse(rows[0].valor);
+      Object.assign(SYS_CONFIG, cfg);
+
+      // Pré-carrega o template em base64 se houver path
+      if (cfg.templatePath && !SYS_CONFIG.templateB64) {
+        try {
+          const signRes = await fetch(
+            `${SUPABASE_URL}/storage/v1/object/sign/kanban-documents/${cfg.templatePath}`,
+            { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token,
+              'Content-Type': 'application/json' }, body: JSON.stringify({ expiresIn: 3600 }) }
+          );
+          const signData = signRes.ok ? await signRes.json() : null;
+          const url = signData?.signedURL
+            ? `${SUPABASE_URL}/storage/v1${signData.signedURL}`
+            : `${SUPABASE_URL}/storage/v1/object/public/kanban-documents/${cfg.templatePath}`;
+          const blob = await (await fetch(url)).blob();
+          SYS_CONFIG.templateB64 = await new Promise((res,rej) => {
+            const r = new FileReader();
+            r.onload  = () => res(r.result.split(',')[1]);
+            r.onerror = rej;
+            r.readAsDataURL(blob);
+          });
+        } catch(_) { /* template não carregado — usa padrão */ }
+      }
+    }
+  } catch(_) {}
+  _cfgAtualizarBotao();
+}
+</script>
 async function salvarInfoNoSupabase() {
   if (!currentProject) { alert('Nenhum projeto aberto.'); return; }
   const btn = document.getElementById('btn-salvar-info');
