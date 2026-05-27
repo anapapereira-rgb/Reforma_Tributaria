@@ -6167,7 +6167,6 @@ function _ataEditorKeydown(e) {
 async function salvarAtaNoCard() {
   if (!_ataDados) return;
 
-  // Captura o texto final do editor (pode ter sido editado)
   const ta = document.getElementById('ataEditorTextarea');
   if (ta) _ataDados.textoEditado = ta.value;
 
@@ -6175,46 +6174,59 @@ async function salvarAtaNoCard() {
   btn.disabled = true; btn.textContent = '⏳ Gerando ata…';
 
   try {
-    const token = CURRENT_USER.access_token;
-    const uuid  = currentProject._uuid;
-    const h     = new Date();
-    const df    = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
-    const cfg   = (typeof SYS_CONFIG !== 'undefined') ? SYS_CONFIG : {};
+    const token  = CURRENT_USER.access_token;
+    const uuid   = currentProject._uuid;
+    const h      = new Date();
+    const df     = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
+    const cfg    = (typeof SYS_CONFIG !== 'undefined') ? SYS_CONFIG : {};
     const gpNome = cfg.gpNome || 'Ana Paula Colombo';
 
     let fileBlob, nomeArq, MIME;
 
-    // ── Tenta usar o template .docx se existir no Storage ──
-    if (cfg.templatePath && token) {
+    // ── Tenta a Edge Function gerar-ata-pdf ───────────────────────
+    if (cfg.templateB64 && token) {
       try {
-        btn.textContent = '⏳ Baixando template…';
-        const signRes = await fetch(
-          `${SUPABASE_URL}/storage/v1/object/sign/kanban-documents/${cfg.templatePath}`,
-          { method:'POST', headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-            body: JSON.stringify({expiresIn:120}) }
-        );
-        const signData = signRes.ok ? await signRes.json() : null;
-        const tplUrl  = signData?.signedURL
-          ? `${SUPABASE_URL}/storage/v1${signData.signedURL}`
-          : `${SUPABASE_URL}/storage/v1/object/public/kanban-documents/${cfg.templatePath}`;
-
-        const tplRes  = await fetch(tplUrl);
-        if (!tplRes.ok) throw new Error('Template não encontrado');
-        const tplBlob = await tplRes.blob();
-
         btn.textContent = '⏳ Preenchendo template…';
-        fileBlob = await _preencherTemplateDocx(tplBlob, _ataDados, gpNome);
-        nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
-        MIME     = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      } catch(tplErr) {
-        console.warn('[ata] Erro ao usar template, usando PDF padrão:', tplErr.message);
-        // Fallback para PDF
+
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/gerar-ata-pdf`, {
+          method: 'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'apikey':        SUPABASE_KEY,
+            'Authorization': 'Bearer ' + token,
+          },
+          body: JSON.stringify({
+            dados:      { ..._ataDados, gpNome },
+            templateB64: cfg.templateB64,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Erro HTTP ${res.status}`);
+        }
+
+        const isFallbackDocx = res.headers.get('X-Fallback') === 'docx';
+        fileBlob = await res.blob();
+
+        if (isFallbackDocx) {
+          // Edge Function retornou .docx (sem CloudConvert configurado)
+          nomeArq = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
+          MIME    = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } else {
+          // Retornou PDF
+          nomeArq = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
+          MIME    = 'application/pdf';
+        }
+
+      } catch(efErr) {
+        console.warn('[ata] Edge Function falhou, usando PDF padrão:', efErr.message);
         fileBlob = _gerarPDFAta(_ataDados);
         nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
         MIME     = 'application/pdf';
       }
     } else {
-      // Sem template — gera PDF padrão
+      // Sem template cadastrado — PDF padrão
       fileBlob = _gerarPDFAta(_ataDados);
       nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
       MIME     = 'application/pdf';
