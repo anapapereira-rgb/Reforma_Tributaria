@@ -105,7 +105,8 @@ async function salvarProjetoNoSupabase(p) {
   const uuid  = p._uuid || await getProjectUuid(p.c, fase);
   if (!uuid) { console.warn('UUID não encontrado para', p.c); return; }
 
-  await sbPatch('projects', `id=eq.${uuid}`, {
+  // ── Lead Time: captura automática de datas de início e conclusão ──
+  const patchBody = {
     consultor:p.cons||'', pacote:p.pkg||'P', status:p.st||'',
     prazo:p.prazo||'', atividade_atual:p.atv||'', responsavel_tarefa:p.blk||'',
     suporte:p.sus||'',
@@ -114,7 +115,25 @@ async function salvarProjetoNoSupabase(p) {
     act_validacao:(p.acts||{}).val||'', act_prd:(p.acts||{}).prd||'',
     act_dif:(p.acts||{}).dif||'', act_nfse:(p.acts||{}).nfse||'',
     ultima_atualizacao:p.upd||'', updated_at:new Date().toISOString()
-  }, token);
+  };
+  // Grava data_inicio quando status muda para EM ANDAMENTO pela primeira vez
+  if (p.st === 'EM ANDAMENTO' && !p.data_inicio) {
+    const iso = new Date().toISOString().split('T')[0];
+    patchBody.data_inicio   = iso;
+    p.data_inicio = iso;
+  }
+  // Grava data_conclusao quando status passa para CONCLUIDO
+  if (p.st === 'CONCLUÍDO' && !p.data_conclusao) {
+    const iso = new Date().toISOString().split('T')[0];
+    patchBody.data_conclusao = iso;
+    p.data_conclusao = iso;
+  }
+  // Apaga data_conclusao se o projeto for reaberto
+  if (p.st !== 'CONCLUÍDO' && p.st !== 'CANCELADO' && p.data_conclusao) {
+    patchBody.data_conclusao = null;
+    p.data_conclusao = null;
+  }
+  await sbPatch('projects', `id=eq.${uuid}`, patchBody, token);
 
   const tasksObj  = fase===1 ? (p.tasks||{}) : fase===2 ? (p.tasks2||{}) : (p.tasks3||{});
   const listaBase = fase===1 ? F1_TASKS : fase===2 ? F2_TASKS : [];
@@ -1387,6 +1406,8 @@ async function carregarDadosDoSupabase(silencioso = false) {
           c:proj.cliente, cons:proj.consultor, pkg:proj.pacote,
           st:proj.status, prazo:proj.prazo, atv:proj.atividade_atual,
           blk:proj.responsavel_tarefa, sus:proj.suporte, upd:proj.ultima_atualizacao,
+          data_inicio:    proj.data_inicio    || null,
+          data_conclusao: proj.data_conclusao || null,
           acts:{
             amb:proj.act_ambiente, ac:proj.act_acesso, pl:proj.act_planilha,
             hmg:proj.act_hmg, val:proj.act_validacao, prd:proj.act_prd,
