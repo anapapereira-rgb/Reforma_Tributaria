@@ -4922,314 +4922,232 @@ function renderDashboard() {
       <!-- ══════════════════════════════════════════════════ -->
       <!-- MÉTRICAS ÁGEIS                                     -->
       <!-- ══════════════════════════════════════════════════ -->
-      <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">
-
-        ${(()=>{
-          // ── Lead Time / Cycle Time ─────────────────────────
-          function diffDays(a, b) {
-            if (!a || !b) return null;
-            const da = new Date(a), db = new Date(b);
-            if (isNaN(da)|isNaN(db)) return null;
-            return Math.round((db - da) / 86400000);
-          }
-
-          const allProjs = [...F1, ...F2];
-          // Projetos concluídos com data_inicio e data_conclusao
-          const concluidos = allProjs.filter(p =>
-            p.st === 'CONCLUÍDO' && p.data_inicio && p.data_conclusao
-          );
-          // Em andamento com data_inicio (cycle time parcial)
-          const emAndamento = allProjs.filter(p =>
-            p.st === 'EM ANDAMENTO' && p.data_inicio
-          );
-          const hoje = new Date().toISOString().split('T')[0];
-
-          const leadTimes = concluidos.map(p => ({
-            nome: p.c, cons: p.cons, pkg: p.pkg || 'P',
-            dias: diffDays(p.data_inicio, p.data_conclusao)
-          })).filter(x => x.dias !== null).sort((a,b)=>a.dias-b.dias);
-
-          const cycleParcial = emAndamento.map(p => ({
-            nome: p.c, cons: p.cons,
-            dias: diffDays(p.data_inicio, hoje)
-          })).filter(x => x.dias !== null).sort((a,b)=>b.dias-a.dias);
-
-          const avg = leadTimes.length
-            ? Math.round(leadTimes.reduce((s,x)=>s+x.dias,0) / leadTimes.length)
-            : null;
-          const med = leadTimes.length
-            ? leadTimes[Math.floor(leadTimes.length/2)].dias
-            : null;
-          const min = leadTimes.length ? leadTimes[0].dias : null;
-          const max = leadTimes.length ? leadTimes[leadTimes.length-1].dias : null;
-
-          // Por pacote
-          const pkgGroups = {};
-          leadTimes.forEach(x => {
-            if (!pkgGroups[x.pkg]) pkgGroups[x.pkg] = [];
-            pkgGroups[x.pkg].push(x.dias);
-          });
-          const pkgRows = Object.entries(pkgGroups).sort().map(([pkg, dias]) => {
-            const m = Math.round(dias.reduce((a,b)=>a+b,0)/dias.length);
-            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e3d5c">
-              <div style="width:28px;height:28px;border-radius:6px;background:#00c4cc22;border:1px solid #00c4cc44;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#00c4cc;flex-shrink:0">${pkg}</div>
-              <div style="flex:1">
-                <div style="font-size:11px;color:var(--text);font-weight:600">${m} dias em média</div>
-                <div style="font-size:10px;color:var(--muted)">${dias.length} projeto${dias.length>1?'s':''} concluído${dias.length>1?'s':''}</div>
-              </div>
-              <div style="height:6px;width:80px;background:#1e3d5c;border-radius:3px;overflow:hidden">
-                <div style="height:100%;width:${Math.min(100,Math.round(m/Math.max(...Object.values(pkgGroups).map(d=>Math.round(d.reduce((a,b)=>a+b,0)/d.length)))*100)}%;background:#00c4cc;border-radius:3px"></div>
-              </div>
-            </div>`;
-          }).join('');
-
-          // Top 5 em andamento mais longos
-          const topAndamento = cycleParcial.slice(0,5).map(x => {
-            const col = x.dias > 60 ? '#ef4444' : x.dias > 30 ? '#f59e0b' : '#60a5fa';
-            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e3d5c22">
-              <div style="flex:1;min-width:0">
-                <div style="font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${x.nome}">${x.nome}</div>
-                <div style="font-size:10px;color:var(--muted)">${x.cons}</div>
-              </div>
-              <div style="font-size:13px;font-weight:800;color:${col};flex-shrink:0">${x.dias}d</div>
-            </div>`;
-          }).join('');
-
-          const semDados = concluidos.length === 0;
-
-          return `
-          <div style="background:var(--surface);border:1px solid #00c4cc33;border-radius:12px;overflow:hidden">
-            <div style="background:linear-gradient(135deg,#00c4cc22,#00c4cc08);border-bottom:1px solid #00c4cc33;padding:10px 16px;display:flex;align-items:center;justify-content:space-between">
-              <div style="font-size:12px;font-weight:800;color:#00c4cc;letter-spacing:.06em">⏱ LEAD TIME / CYCLE TIME</div>
-              <div style="font-size:10px;color:var(--muted)">${concluidos.length} projetos com dados completos</div>
-            </div>
-
-            ${semDados ? `
-            <div style="padding:32px;text-align:center;color:var(--muted);font-size:12px;line-height:1.7">
-              <div style="font-size:28px;margin-bottom:8px">📈</div>
-              Dados serão preenchidos automaticamente<br>
-              conforme os projetos mudarem de status.<br>
-              <span style="font-size:10px;color:#1e3d5c;margin-top:6px;display:block">O sistema captura a data ao entrar em "Em Andamento" e ao "Concluir".</span>
-            </div>` : `
-
-            <!-- KPIs -->
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)">
-              ${[
-                {v: avg+'d', l:'Média geral', c:'#00c4cc'},
-                {v: med+'d', l:'Mediana',     c:'#a855f7'},
-                {v: min+'d', l:'Mais rápido', c:'#22c55e'},
-                {v: max+'d', l:'Mais lento',  c:'#f59e0b'},
-              ].map(k=>`<div style="background:var(--surface2);padding:12px 8px;text-align:center">
-                <div style="font-size:20px;font-weight:800;color:${k.c};line-height:1">${k.v}</div>
-                <div style="font-size:10px;color:var(--muted);margin-top:3px">${k.l}</div>
-              </div>`).join('')}
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)">
-
-              <!-- Por pacote -->
-              <div style="background:var(--surface);padding:14px 16px">
-                <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Média por Pacote</div>
-                ${pkgRows || '<div style="color:var(--muted);font-size:11px">—</div>'}
-              </div>
-
-              <!-- Em andamento mais longos -->
-              <div style="background:var(--surface2);padding:14px 16px">
-                <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">🔄 Em andamento há mais tempo</div>
-                ${topAndamento || '<div style="color:var(--muted);font-size:11px">Nenhum em andamento</div>'}
-              </div>
-            </div>
-            `}
-          </div>`;
-        })()}
-
-        ${(()=>{
-          // ── CFD — Cumulative Flow Diagram ─────────────────
-          // Usa o campo upd (ultima_atualizacao) para agrupar por semana
-          // e conta projetos em cada status ao longo do tempo
-
-          const allProjs = [...F1, ...F2];
-          // Monta pseudo-histórico a partir do estado atual + data de início/conclusão
-          // Agrupa projetos por semana da última atualização
-          const weekMap = {}; // "AAAA-Www" → {NI, EA, CO, CA}
-
-          function toWeekKey(dateStr) {
-            if (!dateStr) return null;
-            // aceita DD/MM/AAAA ou AAAA-MM-DD
-            let d;
-            if (dateStr.includes('/')) {
-              const [dd,mm,aaaa] = dateStr.split('/');
-              d = new Date(`${aaaa}-${mm}-${dd}`);
-            } else {
-              d = new Date(dateStr);
-            }
-            if (isNaN(d)) return null;
-            // ISO week
-            const jan4 = new Date(d.getFullYear(), 0, 4);
-            const wk = Math.ceil(((d - jan4) / 86400000 + jan4.getDay() + 1) / 7);
-            return `${d.getFullYear()}-W${String(wk).padStart(2,'0')}`;
-          }
-
-          // Adiciona ponto de snapshot por data relevante de cada projeto
-          allProjs.forEach(p => {
-            const dates = [p.data_inicio, p.data_conclusao, p.upd]
-              .filter(Boolean)
-              .map(s => s.includes('/') ? (() => { const [d,m,y]=s.split('/'); return `${y}-${m}-${d}`; })() : s)
-              .sort();
-            dates.forEach(ds => {
-              const wk = toWeekKey(ds);
-              if (!wk) return;
-              if (!weekMap[wk]) weekMap[wk] = {NI:0, EA:0, CO:0, CA:0};
-            });
-          });
-
-          // Para cada semana, conta quantos projetos estavam em cada status
-          // Estratégia: posição do status no tempo do projeto
-          const sortedWeeks = Object.keys(weekMap).sort();
-
-          if (sortedWeeks.length === 0) {
-            // Sem dados históricos: gera CFD estático do estado atual
-            const ni = allProjs.filter(p=>p.st==='NÃO INICIADO').length;
-            const ea = allProjs.filter(p=>p.st==='EM ANDAMENTO').length;
-            const co = allProjs.filter(p=>p.st==='CONCLUÍDO').length;
-            const ca = allProjs.filter(p=>p.st==='CANCELADO').length;
-            weekMap['Atual'] = {NI:ni, EA:ea, CO:co, CA:ca};
-          } else {
-            // Para cada semana, simula o estado acumulado
-            sortedWeeks.forEach(wk => {
-              const ni = allProjs.filter(p => {
-                const ini = p.data_inicio ? (p.data_inicio.includes('/')
-                  ? (() => { const [d,m,y]=p.data_inicio.split('/'); return `${y}-${m}-${d}`; })()
-                  : p.data_inicio) : null;
-                return !ini || ini > wk.replace('W','') || p.st === 'NÃO INICIADO';
-              }).length;
-              weekMap[wk].NI = allProjs.filter(p=>p.st==='NÃO INICIADO').length;
-              weekMap[wk].EA = allProjs.filter(p=>p.st==='EM ANDAMENTO').length;
-              weekMap[wk].CO = allProjs.filter(p=>p.st==='CONCLUÍDO').length;
-              weekMap[wk].CA = allProjs.filter(p=>p.st==='CANCELADO').length;
-            });
-          }
-
-          // SVG do CFD usando estado atual + tendência
-          const labels = Object.keys(weekMap);
-          const niVals = labels.map(w => weekMap[w].NI);
-          const eaVals = labels.map(w => weekMap[w].EA);
-          const coVals = labels.map(w => weekMap[w].CO);
-          const caVals = labels.map(w => weekMap[w].CA);
-
-          // Stacked area chart SVG
-          const W=480, H=160, padL=32, padR=12, padT=12, padB=28;
-          const innerW = W - padL - padR;
-          const innerH = H - padT - padB;
-          const n = labels.length;
-          const maxTotal = Math.max(...labels.map((_,i) => niVals[i]+eaVals[i]+coVals[i]+caVals[i]), 1);
-
-          function xOf(i) { return padL + (n===1 ? innerW/2 : i/(n-1)*innerW); }
-          function yOf(v)  { return padT + innerH - (v/maxTotal*innerH); }
-
-          // Stacked: CO bottom, EA, NI, CA top
-          function stackedPts(series, below) {
-            return series.map((v,i) => {
-              const base = below ? below[i] : 0;
-              return [xOf(i), yOf(base + v)];
-            });
-          }
-
-          function areaPath(top, bottom) {
-            const pts = [...top, ...[...bottom].reverse()];
-            return 'M' + pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L') + 'Z';
-          }
-
-          const coStack  = labels.map((_,i) => coVals[i]);
-          const eaStack  = labels.map((_,i) => coVals[i]+eaVals[i]);
-          const niStack  = labels.map((_,i) => coVals[i]+eaVals[i]+niVals[i]);
-          const caStack  = labels.map((_,i) => coVals[i]+eaVals[i]+niVals[i]+caVals[i]);
-
-          const coTop  = coStack.map((_,i)=>[xOf(i),yOf(coStack[i])]);
-          const eaTop  = eaStack.map((_,i)=>[xOf(i),yOf(eaStack[i])]);
-          const niTop  = niStack.map((_,i)=>[xOf(i),yOf(niStack[i])]);
-          const caTop  = caStack.map((_,i)=>[xOf(i),yOf(caStack[i])]);
-          const base   = labels.map((_,i)=>[xOf(i),yOf(0)]);
-
-          const ptsToD = pts => 'M'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L');
-
-          // Eixo Y labels
-          const yTicks = [0, Math.round(maxTotal/2), maxTotal];
-
-          // X labels: mostra no máx 5
-          const xStep = Math.max(1, Math.ceil(n/5));
-          const xLabels = labels.filter((_,i)=>i%xStep===0||i===n-1);
-
-          const totalAtual = allProjs.length;
-          const niAtual  = allProjs.filter(p=>p.st==='NÃO INICIADO').length;
-          const eaAtual  = allProjs.filter(p=>p.st==='EM ANDAMENTO').length;
-          const coAtual  = allProjs.filter(p=>p.st==='CONCLUÍDO').length;
-          const caAtual  = allProjs.filter(p=>p.st==='CANCELADO').length;
-
-          return `
-          <div style="background:var(--surface);border:1px solid #a855f733;border-radius:12px;overflow:hidden">
-            <div style="background:linear-gradient(135deg,#a855f722,#a855f708);border-bottom:1px solid #a855f733;padding:10px 16px;display:flex;align-items:center;justify-content:space-between">
-              <div style="font-size:12px;font-weight:800;color:#a855f7;letter-spacing:.06em">📊 CUMULATIVE FLOW DIAGRAM</div>
-              <div style="font-size:10px;color:var(--muted)">F1 + F2 · ${totalAtual} projetos</div>
-            </div>
-
-            <!-- Legenda -->
-            <div style="display:flex;gap:14px;padding:10px 16px 0;flex-wrap:wrap">
-              ${[
-                {c:'#22c55e',l:'Concluído',   v:coAtual},
-                {c:'#60a5fa',l:'Em Andamento',v:eaAtual},
-                {c:'#64748b',l:'Não Iniciado',v:niAtual},
-                {c:'#ef4444',l:'Cancelado',   v:caAtual},
-              ].map(x=>`<div style="display:flex;align-items:center;gap:5px">
-                <div style="width:10px;height:10px;border-radius:2px;background:${x.c};flex-shrink:0"></div>
-                <span style="font-size:11px;color:var(--muted)">${x.l}</span>
-                <span style="font-size:11px;font-weight:700;color:${x.c}">${x.v}</span>
-              </div>`).join('')}
-            </div>
-
-            <!-- SVG CFD -->
-            <div style="padding:12px 16px">
-              <svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible;display:block">
-                <defs>
-                  <linearGradient id="gCO" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22c55e" stop-opacity=".8"/><stop offset="100%" stop-color="#22c55e" stop-opacity=".4"/></linearGradient>
-                  <linearGradient id="gEA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#60a5fa" stop-opacity=".8"/><stop offset="100%" stop-color="#60a5fa" stop-opacity=".4"/></linearGradient>
-                  <linearGradient id="gNI" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#64748b" stop-opacity=".7"/><stop offset="100%" stop-color="#64748b" stop-opacity=".3"/></linearGradient>
-                  <linearGradient id="gCA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ef4444" stop-opacity=".7"/><stop offset="100%" stop-color="#ef4444" stop-opacity=".3"/></linearGradient>
-                </defs>
-
-                <!-- Grid lines -->
-                ${yTicks.map(v=>{
-                  const y = yOf(v).toFixed(1);
-                  return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#1e3d5c" stroke-width="1" stroke-dasharray="3,3"/>
-                          <text x="${padL-4}" y="${parseFloat(y)+4}" text-anchor="end" fill="#4a7a99" font-size="9" font-family="Inter,sans-serif">${v}</text>`;
-                }).join('')}
-
-                <!-- Áreas empilhadas (de baixo para cima: CO, EA, NI, CA) -->
-                <path d="${areaPath(coTop, base)}"  fill="url(#gCO)" stroke="#22c55e" stroke-width="1.5"/>
-                <path d="${areaPath(eaTop, coTop)}" fill="url(#gEA)" stroke="#60a5fa" stroke-width="1.5"/>
-                <path d="${areaPath(niTop, eaTop)}" fill="url(#gNI)" stroke="#64748b" stroke-width="1.5"/>
-                <path d="${areaPath(caTop, niTop)}" fill="url(#gCA)" stroke="#ef4444" stroke-width="1.5"/>
-
-                <!-- X labels -->
-                ${xLabels.map(lbl => {
-                  const i = labels.indexOf(lbl);
-                  const x = xOf(i).toFixed(1);
-                  return `<text x="${x}" y="${H-4}" text-anchor="middle" fill="#4a7a99" font-size="8.5" font-family="Inter,sans-serif">${lbl}</text>`;
-                }).join('')}
-              </svg>
-            </div>
-
-            <!-- Observação sobre dados históricos -->
-            <div style="padding:0 16px 14px;font-size:10px;color:var(--muted);line-height:1.5">
-              💡 O CFD reflete o estado atual (F1+F2). Com o passar das semanas, o gráfico acumulará o histórico de mudanças de status — tornando visível a velocidade de entrega e os gargalos no fluxo.
-            </div>
-          </div>`;
-        })()}
-
-      </div>
+      <div id="dash-metricas" style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start"></div>
     </div>`;
+
+  // Renderiza métricas ágeis em função separada (evita erros dentro do template literal)
+  _renderMetricasAgeis(F1, F2);
 }
 
+function _renderMetricasAgeis(F1, F2) {
+  const el = document.getElementById('dash-metricas');
+  if (!el) return;
+
+  try {
+    const allProjs = [...(F1||[]), ...(F2||[])];
+
+    // ── Helpers ──────────────────────────────────────────
+    function _diffDays(a, b) {
+      if (!a || !b) return null;
+      const da = new Date(a), db = new Date(b);
+      if (isNaN(da) || isNaN(db)) return null;
+      return Math.round((db - da) / 86400000);
+    }
+    function _toIsoDate(s) {
+      if (!s) return null;
+      if (s.includes('/')) { const [d,m,y]=s.split('/'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+      return s.slice(0,10);
+    }
+    function _weekKey(s) {
+      const iso = _toIsoDate(s);
+      if (!iso) return null;
+      const d = new Date(iso);
+      if (isNaN(d)) return null;
+      const jan4 = new Date(d.getFullYear(),0,4);
+      const wk = Math.ceil(((d-jan4)/86400000 + jan4.getDay()+1)/7);
+      return `${d.getFullYear()}-W${String(wk).padStart(2,'0')}`;
+    }
+
+    // ── LEAD TIME ─────────────────────────────────────────
+    const hoje = new Date().toISOString().slice(0,10);
+    const concluidos = allProjs.filter(p => p.st==='CONCLUÍDO' && p.data_inicio && p.data_conclusao);
+    const emAndamento = allProjs.filter(p => p.st==='EM ANDAMENTO' && p.data_inicio);
+
+    const leadTimes = concluidos.map(p => ({
+      nome: p.c, cons: p.cons, pkg: p.pkg||'P',
+      dias: _diffDays(_toIsoDate(p.data_inicio), _toIsoDate(p.data_conclusao))
+    })).filter(x=>x.dias!==null).sort((a,b)=>a.dias-b.dias);
+
+    const cycleParcial = emAndamento.map(p => ({
+      nome: p.c, cons: p.cons,
+      dias: _diffDays(_toIsoDate(p.data_inicio), hoje)
+    })).filter(x=>x.dias!==null).sort((a,b)=>b.dias-a.dias);
+
+    const avg = leadTimes.length ? Math.round(leadTimes.reduce((s,x)=>s+x.dias,0)/leadTimes.length) : null;
+    const med = leadTimes.length ? leadTimes[Math.floor(leadTimes.length/2)].dias : null;
+    const min = leadTimes.length ? leadTimes[0].dias : null;
+    const max = leadTimes.length ? leadTimes[leadTimes.length-1].dias : null;
+
+    // Por pacote
+    const pkgGroups = {};
+    leadTimes.forEach(x => { if(!pkgGroups[x.pkg]) pkgGroups[x.pkg]=[]; pkgGroups[x.pkg].push(x.dias); });
+    const maxPkgAvg = Math.max(...Object.values(pkgGroups).map(d=>Math.round(d.reduce((a,b)=>a+b,0)/d.length)), 1);
+    const pkgRowsHtml = Object.entries(pkgGroups).sort().map(([pkg,dias]) => {
+      const m = Math.round(dias.reduce((a,b)=>a+b,0)/dias.length);
+      const bar = Math.round(m/maxPkgAvg*100);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e3d5c">
+        <div style="width:28px;height:28px;border-radius:6px;background:#00c4cc22;border:1px solid #00c4cc44;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#00c4cc;flex-shrink:0">${pkg}</div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--text);font-weight:600">${m} dias em média</div>
+          <div style="font-size:10px;color:var(--muted)">${dias.length} projeto${dias.length>1?'s':''} concluído${dias.length>1?'s':''}</div>
+        </div>
+        <div style="height:6px;width:80px;background:#1e3d5c;border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${bar}%;background:#00c4cc;border-radius:3px"></div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const topAndamentoHtml = cycleParcial.slice(0,5).map(x => {
+      const col = x.dias>60?'#ef4444':x.dias>30?'#f59e0b':'#60a5fa';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e3d5c22">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${x.nome}">${x.nome}</div>
+          <div style="font-size:10px;color:var(--muted)">${x.cons}</div>
+        </div>
+        <div style="font-size:13px;font-weight:800;color:${col};flex-shrink:0">${x.dias}d</div>
+      </div>`;
+    }).join('');
+
+    const semDados = leadTimes.length === 0;
+    const kpiHtml = semDados ? '' : `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)">
+        ${[{v:avg+'d',l:'Média geral',c:'#00c4cc'},{v:med+'d',l:'Mediana',c:'#a855f7'},{v:min+'d',l:'Mais rápido',c:'#22c55e'},{v:max+'d',l:'Mais lento',c:'#f59e0b'}]
+          .map(k=>`<div style="background:var(--surface2);padding:12px 8px;text-align:center">
+            <div style="font-size:20px;font-weight:800;color:${k.c};line-height:1">${k.v}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">${k.l}</div>
+          </div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)">
+        <div style="background:var(--surface);padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Média por Pacote</div>
+          ${pkgRowsHtml||'<div style="color:var(--muted);font-size:11px">—</div>'}
+        </div>
+        <div style="background:var(--surface2);padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">🔄 Em andamento há mais tempo</div>
+          ${topAndamentoHtml||'<div style="color:var(--muted);font-size:11px">Nenhum em andamento</div>'}
+        </div>
+      </div>`;
+
+    const semDadosHtml = `<div style="padding:32px;text-align:center;color:var(--muted);font-size:12px;line-height:1.7">
+      <div style="font-size:28px;margin-bottom:8px">📈</div>
+      Dados serão preenchidos automaticamente<br>conforme os projetos mudarem de status.<br>
+      <span style="font-size:10px;color:#4a7a99;margin-top:6px;display:block">O sistema captura a data ao entrar em "Em Andamento" e ao "Concluir".</span>
+    </div>`;
+
+    // ── CFD ───────────────────────────────────────────────
+    const niAtual = allProjs.filter(p=>p.st==='NÃO INICIADO').length;
+    const eaAtual = allProjs.filter(p=>p.st==='EM ANDAMENTO').length;
+    const coAtual = allProjs.filter(p=>p.st==='CONCLUÍDO').length;
+    const caAtual = allProjs.filter(p=>p.st==='CANCELADO').length;
+    const totalAtual = allProjs.length;
+
+    // Monta weekMap com semanas encontradas nos dados
+    const weekMap = {};
+    allProjs.forEach(p => {
+      [p.data_inicio, p.data_conclusao, p.upd].filter(Boolean).forEach(ds => {
+        const wk = _weekKey(ds);
+        if (wk && !weekMap[wk]) weekMap[wk] = null;
+      });
+    });
+    const sortedWeeks = Object.keys(weekMap).sort();
+    if (sortedWeeks.length === 0) {
+      weekMap['Atual'] = {NI:niAtual, EA:eaAtual, CO:coAtual, CA:caAtual};
+    } else {
+      sortedWeeks.forEach(wk => {
+        weekMap[wk] = {
+          NI: allProjs.filter(p=>p.st==='NÃO INICIADO').length,
+          EA: allProjs.filter(p=>p.st==='EM ANDAMENTO').length,
+          CO: allProjs.filter(p=>p.st==='CONCLUÍDO').length,
+          CA: allProjs.filter(p=>p.st==='CANCELADO').length,
+        };
+      });
+    }
+
+    const labels = Object.keys(weekMap);
+    const niV = labels.map(w=>weekMap[w].NI);
+    const eaV = labels.map(w=>weekMap[w].EA);
+    const coV = labels.map(w=>weekMap[w].CO);
+    const caV = labels.map(w=>weekMap[w].CA);
+
+    // SVG stacked area
+    const SW=480,SH=160,pL=32,pR=12,pT=12,pB=28;
+    const iW=SW-pL-pR, iH=SH-pT-pB, n=labels.length;
+    const maxTot = Math.max(...labels.map((_,i)=>niV[i]+eaV[i]+coV[i]+caV[i]),1);
+    const xOf = i => pL + (n===1 ? iW/2 : i/(n-1)*iW);
+    const yOf = v => pT + iH - (v/maxTot*iH);
+
+    const coS = labels.map((_,i)=>coV[i]);
+    const eaS = labels.map((_,i)=>coV[i]+eaV[i]);
+    const niS = labels.map((_,i)=>coV[i]+eaV[i]+niV[i]);
+    const caS = labels.map((_,i)=>coV[i]+eaV[i]+niV[i]+caV[i]);
+
+    const coTop = coS.map((_,i)=>[xOf(i),yOf(coS[i])]);
+    const eaTop = eaS.map((_,i)=>[xOf(i),yOf(eaS[i])]);
+    const niTop = niS.map((_,i)=>[xOf(i),yOf(niS[i])]);
+    const caTop = caS.map((_,i)=>[xOf(i),yOf(caS[i])]);
+    const baseP = labels.map((_,i)=>[xOf(i),yOf(0)]);
+
+    const ap = (top,bot) => {
+      const pts=[...top,...[...bot].reverse()];
+      return 'M'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L')+'Z';
+    };
+
+    const yTicks = [0,Math.round(maxTot/2),maxTot];
+    const xStep = Math.max(1,Math.ceil(n/5));
+    const xLbls = labels.filter((_,i)=>i%xStep===0||i===n-1);
+
+    const svgHtml = `<svg viewBox="0 0 ${SW} ${SH}" width="100%" style="overflow:visible;display:block">
+      <defs>
+        <linearGradient id="gCO" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22c55e" stop-opacity=".8"/><stop offset="100%" stop-color="#22c55e" stop-opacity=".4"/></linearGradient>
+        <linearGradient id="gEA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#60a5fa" stop-opacity=".8"/><stop offset="100%" stop-color="#60a5fa" stop-opacity=".4"/></linearGradient>
+        <linearGradient id="gNI" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#64748b" stop-opacity=".7"/><stop offset="100%" stop-color="#64748b" stop-opacity=".3"/></linearGradient>
+        <linearGradient id="gCA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ef4444" stop-opacity=".7"/><stop offset="100%" stop-color="#ef4444" stop-opacity=".3"/></linearGradient>
+      </defs>
+      ${yTicks.map(v=>{const y=yOf(v).toFixed(1);return`<line x1="${pL}" y1="${y}" x2="${SW-pR}" y2="${y}" stroke="#1e3d5c" stroke-width="1" stroke-dasharray="3,3"/><text x="${pL-4}" y="${parseFloat(y)+4}" text-anchor="end" fill="#4a7a99" font-size="9" font-family="Inter,sans-serif">${v}</text>`;}).join('')}
+      <path d="${ap(coTop,baseP)}" fill="url(#gCO)" stroke="#22c55e" stroke-width="1.5"/>
+      <path d="${ap(eaTop,coTop)}" fill="url(#gEA)" stroke="#60a5fa" stroke-width="1.5"/>
+      <path d="${ap(niTop,eaTop)}" fill="url(#gNI)" stroke="#64748b" stroke-width="1.5"/>
+      <path d="${ap(caTop,niTop)}" fill="url(#gCA)" stroke="#ef4444" stroke-width="1.5"/>
+      ${xLbls.map(lbl=>{const i=labels.indexOf(lbl);return`<text x="${xOf(i).toFixed(1)}" y="${SH-4}" text-anchor="middle" fill="#4a7a99" font-size="8.5" font-family="Inter,sans-serif">${lbl}</text>`;}).join('')}
+    </svg>`;
+
+    // ── Montar HTML final ─────────────────────────────────
+    el.innerHTML = `
+      <!-- Lead Time -->
+      <div style="background:var(--surface);border:1px solid #00c4cc33;border-radius:12px;overflow:hidden">
+        <div style="background:linear-gradient(135deg,#00c4cc22,#00c4cc08);border-bottom:1px solid #00c4cc33;padding:10px 16px;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:12px;font-weight:800;color:#00c4cc;letter-spacing:.06em">⏱ LEAD TIME / CYCLE TIME</div>
+          <div style="font-size:10px;color:var(--muted)">${leadTimes.length} projetos com dados completos</div>
+        </div>
+        ${semDados ? semDadosHtml : kpiHtml}
+      </div>
+
+      <!-- CFD -->
+      <div style="background:var(--surface);border:1px solid #a855f733;border-radius:12px;overflow:hidden">
+        <div style="background:linear-gradient(135deg,#a855f722,#a855f708);border-bottom:1px solid #a855f733;padding:10px 16px;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:12px;font-weight:800;color:#a855f7;letter-spacing:.06em">📊 CUMULATIVE FLOW DIAGRAM</div>
+          <div style="font-size:10px;color:var(--muted)">F1 + F2 · ${totalAtual} projetos</div>
+        </div>
+        <div style="display:flex;gap:14px;padding:10px 16px 0;flex-wrap:wrap">
+          ${[{c:'#22c55e',l:'Concluído',v:coAtual},{c:'#60a5fa',l:'Em Andamento',v:eaAtual},{c:'#64748b',l:'Não Iniciado',v:niAtual},{c:'#ef4444',l:'Cancelado',v:caAtual}]
+            .map(x=>`<div style="display:flex;align-items:center;gap:5px">
+              <div style="width:10px;height:10px;border-radius:2px;background:${x.c};flex-shrink:0"></div>
+              <span style="font-size:11px;color:var(--muted)">${x.l}</span>
+              <span style="font-size:11px;font-weight:700;color:${x.c}">${x.v}</span>
+            </div>`).join('')}
+        </div>
+        <div style="padding:12px 16px">${svgHtml}</div>
+        <div style="padding:0 16px 14px;font-size:10px;color:var(--muted);line-height:1.5">
+          💡 O CFD reflete o estado atual (F1+F2). Com o passar das semanas, o gráfico acumulará o histórico de mudanças de status.
+        </div>
+      </div>`;
+
+  } catch(err) {
+    console.error('[metricas] Erro ao renderizar métricas ágeis:', err);
+    const el2 = document.getElementById('dash-metricas');
+    if (el2) el2.innerHTML = '';
+  }
+}
 
 
 function switchPhase(p) {
