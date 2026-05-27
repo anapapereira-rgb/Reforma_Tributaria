@@ -121,12 +121,83 @@ serve(async (req: Request) => {
       compressionOptions: { level: 6 },
     });
 
-    return new Response(docxBytes, {
+    // ── Converte para PDF via CloudConvert ──────────────────────────
+    const CLOUDCONVERT_KEY = Deno.env.get("CLOUDCONVERT_API_KEY");
+    if (!CLOUDCONVERT_KEY) throw new Error("CLOUDCONVERT_API_KEY não configurada nos secrets.");
+
+    // 1. Cria o job de conversão
+    const jobRes = await fetch("https://api.cloudconvert.com/v2/jobs", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${CLOUDCONVERT_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        tasks: {
+          "upload-docx": {
+            operation: "import/upload",
+          },
+          "convert-to-pdf": {
+            operation: "convert",
+            input: "upload-docx",
+            input_format: "docx",
+            output_format: "pdf",
+            engine: "libreoffice",
+          },
+          "export-pdf": {
+            operation: "export/url",
+            input: "convert-to-pdf",
+          },
+        },
+      }),
+    });
+    if (!jobRes.ok) throw new Error(`CloudConvert job error: ${await jobRes.text()}`);
+    const job = await jobRes.json();
+
+    // 2. Faz upload do .docx
+    const uploadTask = job.data.tasks.find((t: {name: string}) => t.name === "upload-docx");
+    const uploadUrl = uploadTask.result?.form?.url || uploadTask.result?.url;
+    if (!uploadUrl) throw new Error("CloudConvert: URL de upload não encontrada.");
+
+    const formData = new FormData();
+    if (uploadTask.result?.form?.parameters) {
+      for (const [k, v] of Object.entries(uploadTask.result.form.parameters)) {
+        formData.append(k, v as string);
+      }
+    }
+    formData.append("file", new Blob([docxBytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }), "ata.docx");
+
+    const upRes = await fetch(uploadUrl, { method: "POST", body: formData });
+    if (!upRes.ok) throw new Error(`CloudConvert upload error: ${await upRes.text()}`);
+
+    // 3. Aguarda a conclusão do job (polling)
+    let pdfUrl = "";
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const statusRes = await fetch(`https://api.cloudconvert.com/v2/jobs/${job.data.id}`, {
+        headers: { "Authorization": `Bearer ${CLOUDCONVERT_KEY}` },
+      });
+      const status = await statusRes.json();
+      const exportTask = status.data.tasks.find((t: {name: string}) => t.name === "export-pdf");
+      if (exportTask?.status === "finished" && exportTask?.result?.files?.[0]?.url) {
+        pdfUrl = exportTask.result.files[0].url;
+        break;
+      }
+      if (status.data.status === "error") throw new Error("CloudConvert: erro na conversão.");
+    }
+    if (!pdfUrl) throw new Error("CloudConvert: timeout aguardando PDF.");
+
+    // 4. Baixa o PDF
+    const pdfRes = await fetch(pdfUrl);
+    if (!pdfRes.ok) throw new Error("CloudConvert: erro ao baixar o PDF.");
+    const pdfBytes = new Uint8Array(await pdfRes.arrayBuffer());
+
+    return new Response(pdfBytes, {
       status: 200,
       headers: {
         ...CORS,
-        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="ata.docx"`,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="ata.pdf"`,
       },
     });
 
