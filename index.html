@@ -1271,6 +1271,12 @@
   .ata-doc-row { display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer; }
   .ata-doc-row:hover { border-color:var(--purple); }
   .ata-preview { background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;color:var(--text);line-height:1.7;max-height:300px;overflow-y:auto;white-space:pre-wrap;font-family:monospace; }
+  .ata-editor  { background:var(--surface2);border:1px solid var(--purple);border-radius:8px;padding:14px;font-size:12px;color:var(--text);line-height:1.7;min-height:280px;max-height:420px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;resize:none;width:100%;box-sizing:border-box;outline:none;transition:border-color .2s; }
+  .ata-editor:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(0,196,204,.12); }
+  .ata-editor-toolbar { display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface3);border:1px solid var(--purple);border-bottom:none;border-radius:8px 8px 0 0; }
+  .ata-editor-toolbar .atb-btn { background:none;border:1px solid var(--border2);color:var(--muted);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:var(--font);transition:all .15s; }
+  .ata-editor-toolbar .atb-btn:hover { border-color:var(--purple);color:var(--purple); }
+  .ata-editor-hint { font-size:10px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:5px; }
   .doc-empty { font-size: 11px; color: var(--muted); text-align: center; padding: 6px 0; }
 
   .doc-size-warning { font-size: 10px; color: var(--amber); margin-top: 4px; }
@@ -5972,18 +5978,148 @@ function _ataRenderPreview() {
     .map(p => `  • ${p.atividade||''} | ${p.responsavel||''} | ${p.prazo||''} | ${p.status||''}`).join('\n');
   const topicosTxt = (d.topicos || []).map(t => '• ' + t).join('\n');
 
+  // Monta o texto completo da ata para edição
+  const ataTexto = [
+    'ATA DE ALINHAMENTO – REFORMA TRIBUTÁRIA',
+    '',
+    `Cliente: ${d.cliente||''}`,
+    `Consultor: ${d.consultor||''}`,
+    `GP: Ana Paula Colombo  |  Data: ${d.data||''}`,
+    '',
+    '1. TÓPICOS DISCUTIDOS',
+    `Participantes: ${d.participantes||''}`,
+    `Status: ${d.status_projeto||''}`,
+    ...(topicosTxt ? ['\nAssuntos:', topicosTxt] : []),
+    '',
+    '2. DECISÕES TOMADAS',
+    (d.decisoes||[]).map(x=>'• '+x).join('\n') || '—',
+    '',
+    '3. PENDÊNCIAS E RESPONSÁVEIS',
+    pendPreview || '—',
+    '',
+    '4. RISCOS IDENTIFICADOS',
+    (d.riscos||[]).map(x=>'• '+x).join('\n') || 'Nenhum identificado',
+    '',
+    '5. PRÓXIMOS PASSOS',
+    (d.proximos_passos||[]).map(x=>'• '+x).join('\n') || '—',
+  ].join('\n');
+
+  // Guarda o texto original para poder restaurar
+  _ataTextoOriginal = ataTexto;
+
   _ataBody(`
-    <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:8px;">✅ Ata gerada com sucesso!</div>
-    <div class="ata-preview">ATA DE ALINHAMENTO – REFORMA TRIBUTÁRIA\n\nCliente: ${escapeHtml(d.cliente||'')}\nConsultor: ${escapeHtml(d.consultor||'')}\nGP: Ana Paula Colombo  |  Data: ${d.data||''}\n\n1. TÓPICOS DISCUTIDOS\nParticipantes: ${escapeHtml(d.participantes||'')}\nStatus: ${escapeHtml(d.status_projeto||'')}${topicosTxt ? '\n\nAssuntos:\n'+escapeHtml(topicosTxt) : ''}\n\n2. DECISÕES TOMADAS\n${(d.decisoes||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'—'}\n\n3. PENDÊNCIAS E RESPONSÁVEIS\n${escapeHtml(pendPreview)||'—'}\n\n4. RISCOS IDENTIFICADOS\n${(d.riscos||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'Nenhum identificado'}\n\n5. PRÓXIMOS PASSOS\n${(d.proximos_passos||[]).map(x=>'• '+escapeHtml(x)).join('\n')||'—'}</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px;">
-      Clique em <strong style="color:var(--purple);">💾 Salvar no Card</strong> para gerar o PDF no modelo padrão.
+    <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+      ✅ Ata gerada com sucesso! <span style="font-size:11px;color:var(--muted);font-weight:400;">Edite o texto abaixo antes de salvar.</span>
+    </div>
+
+    <!-- Toolbar do editor -->
+    <div class="ata-editor-toolbar">
+      <span style="font-size:10px;color:var(--muted);font-weight:600;margin-right:4px;">✏️ EDITOR</span>
+      <button class="atb-btn" onclick="_ataEditorRestaurar()" title="Restaurar texto original gerado pela IA">↩ Restaurar original</button>
+      <button class="atb-btn" onclick="_ataEditorLimparLinha()" title="Remove a linha onde o cursor está">✕ Limpar linha</button>
+      <button class="atb-btn" onclick="_ataEditorAddPendencia()" title="Adiciona linha de pendência formatada">+ Pendência</button>
+      <div style="flex:1"></div>
+      <span id="ataEditorContador" style="font-size:10px;color:var(--muted);">— chars</span>
+    </div>
+
+    <!-- Textarea editável -->
+    <textarea id="ataEditorTextarea" class="ata-editor"
+      spellcheck="false"
+      oninput="_ataEditorAtualizar()"
+      onkeydown="_ataEditorKeydown(event)"
+    ></textarea>
+
+    <div class="ata-editor-hint">
+      <span>💡 Edite livremente. O PDF será gerado com o texto final acima.</span>
     </div>
   `);
+
+  // Preenche o textarea após o DOM ser criado
+  requestAnimationFrame(() => {
+    const ta = document.getElementById('ataEditorTextarea');
+    if (ta) {
+      ta.value = ataTexto;
+      _ataEditorAtualizar();
+      ta.focus();
+      ta.setSelectionRange(0, 0);
+      ta.scrollTop = 0;
+    }
+  });
+
   _ataBtn('💾 Salvar no Card', true, false);
+}
+
+// ── Helpers do editor ─────────────────────────────────────────
+let _ataTextoOriginal = '';
+
+function _ataEditorAtualizar() {
+  const ta = document.getElementById('ataEditorTextarea');
+  const ct = document.getElementById('ataEditorContador');
+  if (!ta || !ct) return;
+  const n = ta.value.length;
+  ct.textContent = n.toLocaleString('pt-BR') + ' chars';
+  // Sincroniza _ataDados.textoEditado para uso no salvarAtaNoCard
+  if (_ataDados) _ataDados.textoEditado = ta.value;
+}
+
+function _ataEditorRestaurar() {
+  const ta = document.getElementById('ataEditorTextarea');
+  if (!ta) return;
+  if (!confirm('Restaurar o texto original gerado pela IA? Suas edições serão perdidas.')) return;
+  ta.value = _ataTextoOriginal;
+  if (_ataDados) _ataDados.textoEditado = _ataTextoOriginal;
+  _ataEditorAtualizar();
+}
+
+function _ataEditorLimparLinha() {
+  const ta = document.getElementById('ataEditorTextarea');
+  if (!ta) return;
+  const start = ta.selectionStart;
+  const val   = ta.value;
+  const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+  const lineEnd   = val.indexOf('\n', start);
+  const end = lineEnd === -1 ? val.length : lineEnd + 1;
+  ta.value = val.slice(0, lineStart) + val.slice(end);
+  ta.selectionStart = ta.selectionEnd = lineStart;
+  if (_ataDados) _ataDados.textoEditado = ta.value;
+  _ataEditorAtualizar();
+  ta.focus();
+}
+
+function _ataEditorAddPendencia() {
+  const ta = document.getElementById('ataEditorTextarea');
+  if (!ta) return;
+  const linha = '  • [Atividade] | [Responsável] | [Prazo] | Pendente';
+  const pos   = ta.selectionStart;
+  const val   = ta.value;
+  const ins   = (val[pos-1] === '\n' || pos === 0 ? '' : '\n') + linha + '\n';
+  ta.value = val.slice(0, pos) + ins + val.slice(pos);
+  ta.selectionStart = ta.selectionEnd = pos + ins.length - 1;
+  if (_ataDados) _ataDados.textoEditado = ta.value;
+  _ataEditorAtualizar();
+  ta.focus();
+}
+
+function _ataEditorKeydown(e) {
+  // Tab → insere 2 espaços em vez de trocar o foco
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const ta  = e.target;
+    const pos = ta.selectionStart;
+    ta.value  = ta.value.slice(0, pos) + '  ' + ta.value.slice(ta.selectionEnd);
+    ta.selectionStart = ta.selectionEnd = pos + 2;
+    if (_ataDados) _ataDados.textoEditado = ta.value;
+    _ataEditorAtualizar();
+  }
 }
 
 async function salvarAtaNoCard() {
   if (!_ataDados) return;
+
+  // Captura o texto final do editor (pode ter sido editado pelo usuário)
+  const ta = document.getElementById('ataEditorTextarea');
+  if (ta) _ataDados.textoEditado = ta.value;
+
   const btn = document.getElementById('ataPrimaryBtn');
   btn.disabled = true; btn.textContent = '⏳ Gerando ata…';
 
