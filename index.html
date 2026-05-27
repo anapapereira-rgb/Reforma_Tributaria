@@ -2719,12 +2719,34 @@ async function renderDocs(pid) {
   const list = document.getElementById('docList');
   if (!list) return;
 
+  // Converte "DD/MM/AAAA" → número comparável (AAAAMMDD); datas inválidas ficam em 0
+  function _dateVal(d) {
+    const raw = d.date || d.data_upload || '';
+    const parts = raw.split('/');
+    if (parts.length === 3) {
+      const [dd, mm, aaaa] = parts;
+      const n = parseInt(aaaa + mm.padStart(2,'0') + dd.padStart(2,'0'), 10);
+      return isNaN(n) ? 0 : n;
+    }
+    // Aceita também formato ISO AAAA-MM-DD (IndexedDB legado)
+    if (raw.includes('-')) {
+      const n = parseInt(raw.replace(/-/g,''), 10);
+      return isNaN(n) ? 0 : n;
+    }
+    return 0;
+  }
+
+  function _sortDocs(docs) {
+    return docs.slice().sort((a, b) => _dateVal(b) - _dateVal(a));
+  }
+
   function mostrarDocs(docs) {
-    if (!docs.length) {
+    const sorted = _sortDocs(docs);
+    if (!sorted.length) {
       list.innerHTML = '<div class="doc-empty">Nenhum documento vinculado ainda.</div>';
       return;
     }
-    list.innerHTML = docs.map((d, i) => {
+    list.innerHTML = sorted.map((d, i) => {
       const nome    = escapeHtml(d.name || d.nome_arquivo || '');
       const tamanho = d.size || d.tamanho || '';
       const data    = d.date || d.data_upload || '';
@@ -2752,7 +2774,7 @@ async function renderDocs(pid) {
 
   // ── Prioridade 1: Supabase (usuário logado com projeto sincronizado) ──
   if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER?.access_token && currentProject?._uuid) {
-    fetch(`${SUPABASE_URL}/rest/v1/documents?project_id=eq.${currentProject._uuid}&select=*&order=created_at.asc`, {
+    fetch(`${SUPABASE_URL}/rest/v1/documents?project_id=eq.${currentProject._uuid}&select=*`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + CURRENT_USER.access_token }
     })
     .then(r => r.ok ? r.json() : [])
