@@ -6413,6 +6413,181 @@ function _ataEditorKeydown(e) {
 //  substitui marcadores no XML → gera novo .docx/.pdf
 // ═══════════════════════════════════════════════════════════
 
+// ── Gera PDF da ata a partir dos dados estruturados (sem template) ──
+// Usa jsPDF (já carregado na página) para produzir um PDF limpo e formatado.
+async function _gerarPdfDadosAta(d, gpNome) {
+  if (typeof window.jspdf === 'undefined' && typeof jsPDF === 'undefined') {
+    throw new Error('jsPDF não carregado. Recarregue a página e tente novamente.');
+  }
+  const { jsPDF: JsPDF } = window.jspdf || {};
+  const doc = new (JsPDF || jsPDF)({ unit: 'mm', format: 'a4' });
+
+  const W        = 210;           // largura A4
+  const MARGIN   = 20;            // margem lateral
+  const TW       = W - MARGIN*2;  // largura útil
+  const BLUE     = [79, 129, 189];
+  const BLACK    = [36, 36, 36];
+  const GRAY     = [120, 120, 120];
+  const LGRAY    = [217, 217, 217];
+  let   y        = 20;
+
+  // ── helpers ─────────────────────────────────────────────────────────
+  function checkPage(needed) {
+    if (y + needed > 275) { doc.addPage(); y = 20; }
+  }
+  function setFont(style, size, color) {
+    doc.setFont('helvetica', style || 'normal');
+    doc.setFontSize(size || 10);
+    doc.setTextColor(...(color || BLACK));
+  }
+  function rule(color, lw) {
+    doc.setDrawColor(...(color || BLUE));
+    doc.setLineWidth(lw || 0.4);
+    doc.line(MARGIN, y, W - MARGIN, y);
+    y += 3;
+  }
+  function sectionTitle(title) {
+    checkPage(10);
+    y += 3;
+    setFont('bold', 11, BLUE);
+    doc.text(title, MARGIN, y);
+    y += 1.5;
+    rule(BLUE, 0.3);
+    y += 1;
+  }
+  function bullet(text) {
+    const lines = doc.splitTextToSize('• ' + (text || ''), TW - 4);
+    checkPage(lines.length * 5 + 1);
+    setFont('normal', 9.5, BLACK);
+    doc.text(lines, MARGIN + 3, y);
+    y += lines.length * 5 + 1;
+  }
+  function bodyText(text) {
+    const lines = doc.splitTextToSize(text || '', TW);
+    checkPage(lines.length * 5 + 1);
+    setFont('normal', 9.5, BLACK);
+    doc.text(lines, MARGIN, y);
+    y += lines.length * 5 + 1;
+  }
+
+  // ── Cabeçalho ───────────────────────────────────────────────────────
+  doc.setFillColor(...BLUE);
+  doc.rect(MARGIN, y - 2, TW, 1.5, 'F');
+  y += 3;
+  setFont('bold', 14, BLUE);
+  doc.text('ATA DE REUNIÃO', MARGIN, y);
+  y += 7;
+
+  // Card de identificação
+  doc.setDrawColor(...LGRAY);
+  doc.setFillColor(250, 250, 250);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(MARGIN, y, TW, 22, 2, 2, 'FD');
+  setFont('bold', 8.5, GRAY);
+  doc.text('PROJETO', MARGIN + 4, y + 6);
+  doc.text('CONSULTOR', MARGIN + 70, y + 6);
+  doc.text('GP', MARGIN + 130, y + 6);
+  doc.text('DATA', MARGIN + 160, y + 6);
+  setFont('normal', 10, BLACK);
+  doc.text(d.cliente || '—', MARGIN + 4, y + 13);
+  doc.text(d.consultor || '—', MARGIN + 70, y + 13);
+  doc.text(gpNome || '—', MARGIN + 130, y + 13);
+  doc.text(d.data || '—', MARGIN + 160, y + 13);
+  // linha divisória vertical
+  doc.setDrawColor(...LGRAY);
+  [65, 125, 155].forEach(x => { doc.line(MARGIN + x, y + 1, MARGIN + x, y + 21); });
+  y += 26;
+
+  // ── Participantes ───────────────────────────────────────────────────
+  if (d.participantes) {
+    sectionTitle('Participantes');
+    bodyText(d.participantes);
+    y += 1;
+  }
+
+  // ── Status do Projeto ───────────────────────────────────────────────
+  if (d.status_projeto) {
+    sectionTitle('Status do Projeto');
+    bodyText(d.status_projeto);
+    y += 1;
+  }
+
+  // ── Tópicos Discutidos ──────────────────────────────────────────────
+  if ((d.topicos||[]).length) {
+    sectionTitle('Tópicos Discutidos');
+    d.topicos.forEach(t => bullet(t));
+    y += 1;
+  }
+
+  // ── Decisões Tomadas ────────────────────────────────────────────────
+  if ((d.decisoes||[]).length) {
+    sectionTitle('Decisões Tomadas');
+    d.decisoes.forEach(t => bullet(t));
+    y += 1;
+  }
+
+  // ── Pendências / Ações ──────────────────────────────────────────────
+  if ((d.pendencias||[]).length) {
+    sectionTitle('Pendências e Ações');
+    // cabeçalho da tabela
+    const cols = [TW * 0.40, TW * 0.22, TW * 0.18, TW * 0.20];
+    const colX = [MARGIN, MARGIN + cols[0], MARGIN + cols[0] + cols[1], MARGIN + cols[0] + cols[1] + cols[2]];
+    checkPage(8 + d.pendencias.length * 7);
+    doc.setFillColor(...LGRAY);
+    doc.rect(MARGIN, y, TW, 6, 'F');
+    setFont('bold', 8, GRAY);
+    ['Atividade','Responsável','Prazo','Status'].forEach((h, i) => doc.text(h, colX[i] + 1, y + 4.5));
+    y += 6;
+    d.pendencias.forEach((p, idx) => {
+      const rowH = 6;
+      checkPage(rowH + 2);
+      if (idx % 2 === 0) {
+        doc.setFillColor(248, 248, 255);
+        doc.rect(MARGIN, y, TW, rowH, 'F');
+      }
+      doc.setDrawColor(...LGRAY);
+      doc.setLineWidth(0.2);
+      doc.rect(MARGIN, y, TW, rowH, 'S');
+      setFont('normal', 8, BLACK);
+      const cells = [p.atividade||'', p.responsavel||'', p.prazo||'', p.status||'Pendente'];
+      cells.forEach((c, i) => {
+        const txt = doc.splitTextToSize(c, cols[i] - 2);
+        doc.text(txt[0], colX[i] + 1, y + 4);
+      });
+      y += rowH;
+    });
+    y += 2;
+  }
+
+  // ── Riscos ──────────────────────────────────────────────────────────
+  if ((d.riscos||[]).length) {
+    sectionTitle('Riscos Identificados');
+    d.riscos.forEach(t => bullet(t));
+    y += 1;
+  }
+
+  // ── Próximos Passos ─────────────────────────────────────────────────
+  if ((d.proximos_passos||[]).length) {
+    sectionTitle('Próximos Passos');
+    d.proximos_passos.forEach(t => bullet(t));
+    y += 1;
+  }
+
+  // ── Rodapé em todas as páginas ───────────────────────────────────────
+  const totalPgs = doc.getNumberOfPages();
+  for (let pg = 1; pg <= totalPgs; pg++) {
+    doc.setPage(pg);
+    doc.setDrawColor(...LGRAY);
+    doc.setLineWidth(0.3);
+    doc.line(MARGIN, 287, W - MARGIN, 287);
+    setFont('normal', 7.5, GRAY);
+    doc.text('Reforma Tributária TOTVS — Documento gerado automaticamente', MARGIN, 291);
+    doc.text(`Página ${pg} / ${totalPgs}`, W - MARGIN, 291, { align: 'right' });
+  }
+
+  return new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+}
+
 // ── Salva automaticamente após gerar a prévia (sem fechar o modal) ──
 async function _ataSalvarAutomatico() {
   if (!_ataDados) return;
@@ -6463,7 +6638,12 @@ async function _ataSalvarAutomatico() {
           MIME     = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         } else { throw _; }
       }
-    } else { return; } // sem template — não salva automaticamente
+    } else {
+      // Sem template: gera PDF diretamente dos dados com jsPDF
+      fileBlob = await _gerarPdfDadosAta(_ataDados, gpNome);
+      nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
+      MIME     = 'application/pdf';
+    }
 
     // Upload Storage
     const storagePath = uuid+'/'+Date.now()+'_'+nomeArq;
@@ -6618,8 +6798,10 @@ async function salvarAtaNoCard() {
         }
       }
     } else {
-      // Sem template cadastrado nas Configurações
-      throw new Error('Nenhum template cadastrado. Acesse ⚙️ Configurações e faça o upload do modelo .docx da ata.');
+      // Sem template: gera PDF diretamente dos dados com jsPDF
+      fileBlob = await _gerarPdfDadosAta(_ataDados, gpNome);
+      nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
+      MIME     = 'application/pdf';
     }
 
     // ── Upload para o Storage ──────────────────────────────
