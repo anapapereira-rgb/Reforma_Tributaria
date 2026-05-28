@@ -5626,10 +5626,11 @@ function _errMsg(e) {
 // ═══════════════════════════════════════
 let _ataDados  = null;
 let _ataPdfFile = null;
+let _ataDocsExistentes = [];
 
 function fecharAta() {
   document.getElementById('ataOverlay').style.display = 'none';
-  _ataPdfFile = null; _ataDados = null;
+  _ataPdfFile = null; _ataDados = null; _ataDocsExistentes = []; _ataUltimoStoragePath = null;
 }
 
 function _ataBody(html) { document.getElementById('ataBody').innerHTML = html; }
@@ -5696,11 +5697,46 @@ async function _renderSeletorDocs() {
       });
       const rows = res.ok ? await res.json() : [];
       pdfDocs = rows.filter(r => (r.mime_type||'').includes('pdf') || (r.nome_arquivo||'').toLowerCase().endsWith('.pdf'));
+      // Separar atas já geradas por IA dos demais documentos
+      _ataDocsExistentes = rows.filter(r => (r.nome_arquivo||'').toLowerCase().startsWith('ata_'));
     } catch(_) { /* sem conexão — vai para upload direto */ }
   }
 
+  // ── Atas já geradas por IA ─────────────────────────────────────────
+  const atasGeradas = _ataDocsExistentes || [];
+
+  let atasSection = '';
+  if (atasGeradas.length > 0) {
+    const ataNome = escapeHtml(atasGeradas[0].nome_arquivo || '');
+    const ataData = atasGeradas[0].data_upload || '';
+    const ataPath = atasGeradas[0].storage_path || '';
+    atasSection = `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;
+                    letter-spacing:.06em;margin-bottom:6px;">✅ Ata já gerada</div>
+        <div style="background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.25);border-radius:8px;
+                    padding:10px 12px;display:flex;align-items:center;gap:10px;">
+          <div style="font-size:22px;flex-shrink:0;">📋</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;
+                        overflow:hidden;text-overflow:ellipsis;" title="${ataNome}">${ataNome}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Gerada em ${ataData}</div>
+          </div>
+          <button onclick="_ataVisualizarExistente('${ataPath}')"
+                  style="background:var(--purple);border:none;color:#fff;border-radius:6px;
+                         padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;
+                         white-space:nowrap;font-family:var(--font);">👁 Visualizar</button>
+        </div>
+        ${atasGeradas.length > 1 ? `<div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right;">${atasGeradas.length - 1} versão(ões) anterior(es) na Documentação</div>` : ''}
+        <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;
+                    font-size:11px;color:var(--muted);text-align:center;">
+          Quer gerar uma nova ata com outra transcrição?
+        </div>
+      </div>`;
+  }
+
   if (pdfDocs.length > 0) {
-    // Mostra seletor de docs existentes
+    // Mostra seletor de docs existentes para gerar nova ata
     const itens = pdfDocs.map(d => `
       <div class="ata-doc-row" onclick="_ataEscolherDoc('${d.id}','${escapeHtml(d.nome_arquivo||'')}','${d.storage_path||''}')"
            style="cursor:pointer;">
@@ -5716,6 +5752,7 @@ async function _renderSeletorDocs() {
 
     _ataBody(`
       ${cabecalho}
+      ${atasSection}
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
                   letter-spacing:.06em;margin-bottom:8px;">Selecione a transcrição do card</div>
       <div style="display:flex;flex-direction:column;gap:8px;">
@@ -5730,10 +5767,42 @@ async function _renderSeletorDocs() {
       </div>
     `);
     _ataBtn('', false, true);
+  } else if (atasGeradas.length > 0) {
+    // Só tem atas geradas, sem PDFs de transcrição
+    _ataBody(`
+      ${cabecalho}
+      ${atasSection}
+      <div style="text-align:center;margin-top:4px;">
+        <button onclick="_renderUploadUI()"
+                style="background:none;border:1px solid var(--purple);color:var(--purple);border-radius:7px;
+                       padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);">
+          + Gerar nova ata com upload
+        </button>
+      </div>
+    `);
+    _ataBtn('', false, true);
   } else {
     // Sem PDFs no card — vai direto para upload
     _renderUploadUI();
   }
+}
+
+// Abre a ata já gerada em nova aba
+async function _ataVisualizarExistente(storagePath) {
+  const token = CURRENT_USER?.access_token;
+  if (!token) { alert('Faça login para visualizar.'); return; }
+  try {
+    const signRes = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/sign/kanban-documents/${storagePath}`,
+      { method:'POST', headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body: JSON.stringify({ expiresIn: 3600 }) }
+    );
+    const signData = signRes.ok ? await signRes.json() : null;
+    const url = signData?.signedURL
+      ? `${SUPABASE_URL}/storage/v1${signData.signedURL}`
+      : `${SUPABASE_URL}/storage/v1/object/public/kanban-documents/${storagePath}`;
+    window.open(url, '_blank');
+  } catch(e) { alert('Não foi possível abrir o documento: ' + _errMsg(e)); }
 }
 
 // Usuário escolheu um doc já existente no card — baixa e usa como PDF
@@ -6032,6 +6101,8 @@ Se não houver informação para algum campo, use string vazia "" ou array vazio
     _ataSetStep(2, 'done');
     _ataSetStep(3, 'done');
     _ataRenderPreview();
+    // Auto-salva no card assim que a prévia fica pronta
+    _ataSalvarAutomatico();
 
   } catch(e) {
     _ataSetStep(2, 'error');
@@ -6342,6 +6413,121 @@ function _ataEditorKeydown(e) {
 //  substitui marcadores no XML → gera novo .docx/.pdf
 // ═══════════════════════════════════════════════════════════
 
+// ── Salva automaticamente após gerar a prévia (sem fechar o modal) ──
+async function _ataSalvarAutomatico() {
+  if (!_ataDados) return;
+  const token = CURRENT_USER?.access_token;
+  const uuid  = currentProject?._uuid;
+  if (!token || !uuid) return; // sem login/card — silencioso
+
+  const cfg    = (typeof SYS_CONFIG !== 'undefined') ? SYS_CONFIG : {};
+  const gpNome = cfg.gpNome || 'Ana Paula Colombo';
+  const h      = new Date();
+  const df     = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
+
+  // Marca o botão indicando salvamento em background
+  const btn = document.getElementById('ataPrimaryBtn');
+  if (btn) { btn.textContent = '⏳ Salvando automaticamente…'; btn.disabled = true; }
+
+  try {
+    let fileBlob, nomeArq, MIME;
+
+    if (cfg.templateB64 && token) {
+      const templateEhPdf = (cfg.templateNome || '').toLowerCase().endsWith('.pdf');
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/gerar-ata-pdf`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({
+            dados:       { ..._ataDados, gpNome, templateNome: cfg.templateNome || '' },
+            templateB64: cfg.templateB64,
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const xFallback = res.headers.get('X-Fallback') || '';
+        fileBlob = await res.blob();
+        if (xFallback === 'docx') {
+          nomeArq = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
+          MIME    = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } else {
+          nomeArq = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
+          MIME    = 'application/pdf';
+        }
+      } catch(_) {
+        if (!templateEhPdf) {
+          // fallback browser DOCX
+          const tplBytes = Uint8Array.from(atob(cfg.templateB64), ch => ch.charCodeAt(0));
+          const tplBlob2 = new Blob([tplBytes], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+          fileBlob = await _preencherTemplateDocx(tplBlob2, _ataDados, gpNome);
+          nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
+          MIME     = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } else { throw _; }
+      }
+    } else { return; } // sem template — não salva automaticamente
+
+    // Upload Storage
+    const storagePath = uuid+'/'+Date.now()+'_'+nomeArq;
+    const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/kanban-documents/${storagePath}`, {
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':MIME,'x-upsert':'true'},
+      body: fileBlob
+    });
+    if (!upRes.ok) throw new Error('Storage: '+(await upRes.text()));
+
+    const docRes = await fetch(`${SUPABASE_URL}/rest/v1/documents`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Prefer':'return=representation'},
+      body: JSON.stringify({project_id:uuid,nome_arquivo:nomeArq,tamanho:_fmtSize(fileBlob.size),
+                            tamanho_bytes:fileBlob.size,data_upload:df,storage_path:storagePath,
+                            mime_type:MIME,uploaded_by:CURRENT_USER.nome||'',
+                            gerado_ia: true})
+    });
+    const docData = docRes.ok ? await docRes.json() : [];
+    const docId   = Array.isArray(docData) ? docData[0]?.id : docData?.id;
+
+    renderDocs(currentProjectId);
+
+    // Atualiza o botão para "Visualizar Ata"
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '✅ Salvo! Ver documento ›';
+      btn.onclick = () => {
+        // Abre a URL assinada do doc recém-salvo
+        _ataAbrirDocSalvo(storagePath, token);
+      };
+    }
+    // Armazena referência para uso posterior
+    _ataUltimoStoragePath = storagePath;
+
+    const t = document.getElementById('saveToast');
+    if (t) { t.textContent='📝 Ata salva automaticamente!'; t.style.background='var(--purple)';
+             t.classList.add('show'); setTimeout(()=>{ t.classList.remove('show'); t.textContent='✓ Alterações salvas!'; t.style.background=''; }, 3000); }
+
+  } catch(err) {
+    console.warn('[auto-save ata]', err);
+    // Falha silenciosa — usuário pode salvar manualmente depois
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar no Card'; btn.onclick = ataAcao; }
+  }
+}
+
+let _ataUltimoStoragePath = null;
+
+// Abre o documento salvo em nova aba via URL assinada
+async function _ataAbrirDocSalvo(storagePath, token) {
+  try {
+    const signRes = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/sign/kanban-documents/${storagePath}`,
+      { method:'POST', headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body: JSON.stringify({ expiresIn: 3600 }) }
+    );
+    const signData = signRes.ok ? await signRes.json() : null;
+    const url = signData?.signedURL
+      ? `${SUPABASE_URL}/storage/v1${signData.signedURL}`
+      : `${SUPABASE_URL}/storage/v1/object/public/kanban-documents/${storagePath}`;
+    window.open(url, '_blank');
+  } catch(_) { alert('Não foi possível abrir o documento.'); }
+}
+
 async function salvarAtaNoCard() {
   if (!_ataDados) return;
 
@@ -6379,7 +6565,7 @@ async function salvarAtaNoCard() {
             'Authorization': 'Bearer ' + token,
           },
           body: JSON.stringify({
-            dados:       { ..._ataDados, gpNome, templateNome: cfg.templateNome || '' },
+            dados:      { ..._ataDados, gpNome },
             templateB64: cfg.templateB64,
           }),
         });
@@ -6389,26 +6575,22 @@ async function salvarAtaNoCard() {
           throw new Error(err.error || `Erro HTTP ${res.status}`);
         }
 
-        const xFallback = res.headers.get('X-Fallback') || '';
+        const isFallbackDocx = res.headers.get('X-Fallback') === 'docx';
         fileBlob = await res.blob();
 
-        if (xFallback === 'docx') {
-          // Edge Function retornou .docx preenchido
+        if (isFallbackDocx) {
+          // Edge Function retornou .docx (sem CloudConvert configurado)
           nomeArq = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
           MIME    = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         } else {
-          // Retornou PDF (template PDF ou PDF gerado)
+          // Retornou PDF
           nomeArq = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
           MIME    = 'application/pdf';
         }
 
       } catch(efErr) {
-        console.warn('[ata] Edge Function falhou:', efErr.message);
-        // Fallback no browser — só funciona para .docx
-        const templateEhPdf = (cfg.templateNome || '').toLowerCase().endsWith('.pdf');
-        if (templateEhPdf) {
-          throw new Error('A Edge Function gerar-ata-pdf retornou um erro. Verifique os logs no Supabase Dashboard → Edge Functions → gerar-ata-pdf → Logs.');
-        }
+        console.warn('[ata] Edge Function falhou, tentando gerar .docx no browser:', efErr.message);
+        // Fallback: gera o .docx preenchido no browser via JSZip
         try {
           if (!cfg.templateB64) throw new Error('sem template');
           const tplBytes = Uint8Array.from(atob(cfg.templateB64), ch => ch.charCodeAt(0));
@@ -6417,12 +6599,12 @@ async function salvarAtaNoCard() {
           nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
           MIME     = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         } catch(_) {
-          throw new Error('Não foi possível gerar a ata. Verifique se o template (.docx) está cadastrado nas Configurações.');
+          throw new Error('Não foi possível gerar a ata. Verifique se o template está cadastrado nas Configurações.');
         }
       }
     } else {
       // Sem template cadastrado nas Configurações
-      throw new Error('Nenhum template cadastrado. Acesse ⚙️ Configurações e faça o upload do modelo da ata.');
+      throw new Error('Nenhum template cadastrado. Acesse ⚙️ Configurações e faça o upload do modelo .docx da ata.');
     }
 
     // ── Upload para o Storage ──────────────────────────────
