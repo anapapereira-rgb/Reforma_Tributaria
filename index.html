@@ -5707,25 +5707,35 @@ function _ataDadosFromTexto(texto) {
     return m ? m[1].trim() : '';
   }
   function linhas(bloco) {
-    return bloco.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+    return bloco.split('\n')
+      .filter(l => !l.trim().startsWith('#'))          // ignora linhas de comentário
+      .map(l => l.replace(/^[•\-\*]\s*/, '').trim())
+      .filter(Boolean);
   }
   function pendencias(bloco) {
-    return bloco.split('\n').map(l => {
-      const partes = l.split('|').map(s => s.trim());
-      if (partes.length >= 2) {
-        return { atividade: partes[0].replace(/^[•\-\*]\s*/,''), responsavel: partes[1]||'', prazo: partes[2]||'', status: partes[3]||'Pendente' };
-      }
-      return null;
-    }).filter(Boolean);
+    return bloco.split('\n')
+      .filter(l => !l.trim().startsWith('#'))          // ignora linhas de comentário
+      .map(l => {
+        const partes = l.split('|').map(s => s.trim());
+        if (partes.length >= 2) {
+          return {
+            atividade:   partes[0].replace(/^[•\-\*]\s*/, '').trim(),
+            responsavel: partes[1] || '',
+            prazo:       partes[2] || '',
+            status:      partes[3] || 'Pendente'
+          };
+        }
+        return null;
+      }).filter(p => p && p.atividade);
   }
 
-  _ataDados.participantes  = extrairSecao(texto, 'Participantes');
-  _ataDados.status_projeto = extrairSecao(texto, 'Status do Projeto');
-  _ataDados.topicos        = linhas(extrairSecao(texto, 'Tópicos'));
-  _ataDados.decisoes       = linhas(extrairSecao(texto, 'Decisões'));
-  _ataDados.riscos         = linhas(extrairSecao(texto, 'Riscos'));
-  _ataDados.proximos_passos= linhas(extrairSecao(texto, 'Próximos Passos'));
-  _ataDados.pendencias     = pendencias(extrairSecao(texto, 'Pendências'));
+  _ataDados.participantes   = extrairSecao(texto, 'Participantes');
+  _ataDados.status_projeto  = extrairSecao(texto, 'Status do Projeto');
+  _ataDados.topicos         = linhas(extrairSecao(texto, 'Tópicos'));
+  _ataDados.decisoes        = linhas(extrairSecao(texto, 'Decisões'));
+  _ataDados.riscos          = linhas(extrairSecao(texto, 'Riscos'));
+  _ataDados.proximos_passos = linhas(extrairSecao(texto, 'Próximos Passos'));
+  _ataDados.pendencias      = pendencias(extrairSecao(texto, 'Pendências'));
 }
 
 // ── Alterna entre editor visual e editor de texto ──────────────────
@@ -6921,12 +6931,17 @@ async function _ataAbrirDocSalvo(storagePath, token) {
 async function salvarAtaNoCard() {
   if (!_ataDados) return;
 
-  // Lê os dados do documento visual editado (se existir) ou do textarea legado
-  if (document.getElementById('ataDocWrap')) {
+  // ── Lê o estado atual de qualquer modo de edição ativo ──────────
+  const taTexto  = document.getElementById('ataTextEditor');     // novo editor de texto
+  const taLegado = document.getElementById('ataEditorTextarea'); // textarea legado
+  if (taTexto) {
+    // Modo texto: converte o conteúdo do textarea de volta para _ataDados estruturado
+    _ataDadosFromTexto(taTexto.value);
+  } else if (document.getElementById('ataDocWrap')) {
+    // Modo visual: lê os campos contenteditable do documento
     _ataDados = _ataLerDocumentoVisual();
-  } else {
-    const ta = document.getElementById('ataEditorTextarea');
-    if (ta) _ataDados.textoEditado = ta.value;
+  } else if (taLegado) {
+    _ataDados.textoEditado = taLegado.value;
   }
 
   const btn = document.getElementById('ataPrimaryBtn');
