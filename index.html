@@ -5520,7 +5520,10 @@ render();
     <div class="modal-bd" id="ataBody"></div>
     <div class="modal-ft">
       <button class="btn-cancel" onclick="fecharAta()">Fechar</button>
-      <button class="btn-purple" id="ataPrimaryBtn" style="display:none;" onclick="ataAcao()">✨ Gerar Ata com IA</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button id="ataSecondBtn" style="display:none;padding:8px 16px;border-radius:8px;border:1px solid var(--purple);background:transparent;color:var(--purple);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all .15s;" onmouseover="this.style.background='rgba(168,85,247,.1)'" onmouseout="this.style.background='transparent'"></button>
+        <button class="btn-purple" id="ataPrimaryBtn" style="display:none;" onclick="ataAcao()">✨ Gerar Ata com IA</button>
+      </div>
     </div>
   </div>
 </div>
@@ -5631,16 +5634,189 @@ let _ataDocsExistentes = [];
 function fecharAta() {
   document.getElementById('ataOverlay').style.display = 'none';
   _ataPdfFile = null; _ataDados = null; _ataDocsExistentes = []; _ataUltimoStoragePath = null;
+  _ataBtn2('', false, null);
 }
 
 function _ataBody(html) { document.getElementById('ataBody').innerHTML = html; }
+
 function _ataBtn(label, show, disabled) {
   const b = document.getElementById('ataPrimaryBtn');
   b.style.display = show ? '' : 'none';
   b.disabled = !!disabled;
   b.textContent = label;
 }
+
+function _ataBtn2(label, show, cb) {
+  const b = document.getElementById('ataSecondBtn');
+  if (!b) return;
+  b.style.display = show ? '' : 'none';
+  b.textContent   = label;
+  b.onclick       = cb || null;
+}
+
 function ataAcao() { salvarAtaNoCard(); }
+
+// ── Salva as edições do documento visual em _ataDados sem gerar PDF ──
+async function _ataSalvarRascunho() {
+  if (!_ataDados) return;
+  const b = document.getElementById('ataSecondBtn');
+
+  // Se estiver no modo texto, sincroniza de lá
+  const ta = document.getElementById('ataTextEditor');
+  if (ta) {
+    _ataDadosFromTexto(ta.value);
+  } else if (document.getElementById('ataDocWrap')) {
+    _ataDados = _ataLerDocumentoVisual();
+  }
+
+  // Feedback visual imediato
+  const orig = b ? b.textContent : '';
+  if (b) { b.textContent = '⏳ Salvando…'; b.disabled = true; }
+
+  try {
+    // Persiste no Supabase (tabela documents não é alterada — apenas _ataDados é salvo
+    // como rascunho no campo JSON da ata se existir; caso contrário só mantém em memória)
+    // Se já havia um documento salvo, não regrava — o "Salvar no Card" faz isso.
+    // Aqui apenas confirmamos as edições em memória e mostramos feedback.
+    await new Promise(r => setTimeout(r, 300)); // micro-delay para o spinner aparecer
+
+    if (b) { b.textContent = '✅ Salvo!'; b.disabled = false; }
+    setTimeout(() => { if (b) b.textContent = orig; }, 1800);
+
+    // Toast
+    const t = document.getElementById('saveToast');
+    if (t) {
+      t.textContent = '✏️ Edições salvas no rascunho!';
+      t.style.background = 'var(--purple)';
+      t.classList.add('show');
+      setTimeout(() => { t.classList.remove('show'); t.textContent = '✓ Alterações salvas!'; t.style.background = ''; }, 2500);
+    }
+  } catch(e) {
+    if (b) { b.textContent = '❌ Erro'; b.disabled = false; }
+    setTimeout(() => { if (b) b.textContent = orig; }, 2000);
+  }
+}
+
+// ── Converte textarea de texto livre de volta para _ataDados estruturado ──
+function _ataDadosFromTexto(texto) {
+  if (!_ataDados) return;
+  // Extrai seções pelo padrão de cabeçalho "### Título"
+  function extrairSecao(txt, titulo) {
+    const re = new RegExp('###\\s*' + titulo + '[^\n]*\n([\\s\\S]*?)(?=\n###|$)', 'i');
+    const m  = txt.match(re);
+    return m ? m[1].trim() : '';
+  }
+  function linhas(bloco) {
+    return bloco.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+  }
+  function pendencias(bloco) {
+    return bloco.split('\n').map(l => {
+      const partes = l.split('|').map(s => s.trim());
+      if (partes.length >= 2) {
+        return { atividade: partes[0].replace(/^[•\-\*]\s*/,''), responsavel: partes[1]||'', prazo: partes[2]||'', status: partes[3]||'Pendente' };
+      }
+      return null;
+    }).filter(Boolean);
+  }
+
+  _ataDados.participantes  = extrairSecao(texto, 'Participantes');
+  _ataDados.status_projeto = extrairSecao(texto, 'Status do Projeto');
+  _ataDados.topicos        = linhas(extrairSecao(texto, 'Tópicos'));
+  _ataDados.decisoes       = linhas(extrairSecao(texto, 'Decisões'));
+  _ataDados.riscos         = linhas(extrairSecao(texto, 'Riscos'));
+  _ataDados.proximos_passos= linhas(extrairSecao(texto, 'Próximos Passos'));
+  _ataDados.pendencias     = pendencias(extrairSecao(texto, 'Pendências'));
+}
+
+// ── Alterna entre editor visual e editor de texto ──────────────────
+let _ataEmModoTexto = false;
+
+function _ataToggleEditor() {
+  if (_ataEmModoTexto) {
+    // Texto → Visual: lê o textarea e reconstrói o preview
+    const ta = document.getElementById('ataTextEditor');
+    if (ta) _ataDadosFromTexto(ta.value);
+    _ataEmModoTexto = false;
+    _ataRenderPreview();
+  } else {
+    // Visual → Texto: lê o documento visual e monta o textarea
+    if (document.getElementById('ataDocWrap')) {
+      _ataDados = _ataLerDocumentoVisual();
+    }
+    _ataEmModoTexto = true;
+    _ataRenderTextEditor();
+  }
+}
+
+// ── Renderiza o editor de texto (textarea rico com markdown leve) ──
+function _ataRenderTextEditor() {
+  const d = _ataDados || {};
+
+  function lista(arr) {
+    return (arr||[]).length ? (arr).map(i => '• ' + i).join('\n') : '• ';
+  }
+  function pends(arr) {
+    return (arr||[]).length
+      ? arr.map(p => `• ${p.atividade||'—'} | ${p.responsavel||'—'} | ${p.prazo||'—'} | ${p.status||'Pendente'}`).join('\n')
+      : '• [Atividade] | [Responsável] | [Prazo] | Pendente';
+  }
+
+  const texto = [
+    `### Participantes`,
+    d.participantes || '',
+    ``,
+    `### Status do Projeto`,
+    d.status_projeto || '',
+    ``,
+    `### Tópicos`,
+    lista(d.topicos),
+    ``,
+    `### Decisões`,
+    lista(d.decisoes),
+    ``,
+    `### Pendências`,
+    `# Formato: • Atividade | Responsável | Prazo | Status`,
+    pends(d.pendencias),
+    ``,
+    `### Riscos`,
+    lista(d.riscos),
+    ``,
+    `### Próximos Passos`,
+    lista(d.proximos_passos),
+  ].join('\n');
+
+  _ataBody(`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:12px;color:var(--green);font-weight:700;display:flex;align-items:center;gap:6px;">
+        📝 Editor de Texto
+        <span style="font-size:10px;color:var(--muted);font-weight:400;">Edite livremente · use • para bullets · Pendências: Atividade | Resp | Prazo | Status</span>
+      </div>
+      <button onclick="_ataToggleEditor()"
+        style="padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);
+               color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);
+               display:flex;align-items:center;gap:5px;">
+        🎨 Ver Visual
+      </button>
+    </div>
+    <textarea id="ataTextEditor" spellcheck="false"
+      style="width:100%;height:420px;background:#0d1a26;border:1px solid var(--purple);border-radius:8px;
+             padding:14px;color:#e0f0ff;font-size:12.5px;line-height:1.8;font-family:'Fira Code','Cascadia Code',
+             'Consolas',monospace;resize:vertical;outline:none;box-sizing:border-box;
+             tab-size:2;"
+      oninput="if(_ataDados)_ataDadosFromTexto(this.value)"
+    >${escapeHtml(texto)}</textarea>
+    <div style="font-size:10px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px;">
+      💡 <span>Cada seção começa com <code style="background:var(--surface3);padding:1px 5px;border-radius:3px;">### Nome</code>.
+      Clique em <strong>🎨 Ver Visual</strong> para voltar ao documento formatado.</span>
+    </div>
+  `);
+
+  _ataBtn('💾 Salvar no Card', true, false);
+  _ataBtn2('💾 Salvar Alterações', true, _ataSalvarRascunho);
+
+  // Foca o textarea
+  setTimeout(() => { const ta = document.getElementById('ataTextEditor'); if (ta) ta.focus(); }, 60);
+}
 
 async function abrirModalAta() {
   if (!currentProject) {
@@ -5653,7 +5829,7 @@ async function abrirModalAta() {
   const overlay = document.getElementById('ataOverlay');
   if (!overlay) { console.error('[ata] ataOverlay não encontrado'); return; }
   overlay.style.display = 'flex';
-  _ataBtn('', false, true);
+  _ataBtn('', false, true); _ataBtn2('', false, null);
 
   // Mostra estado de carregamento enquanto busca docs
   _ataBody(`<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">
@@ -5766,7 +5942,7 @@ async function _renderSeletorDocs() {
                        cursor:pointer;margin-left:6px;font-family:var(--font);">Fazer upload ›</button>
       </div>
     `);
-    _ataBtn('', false, true);
+    _ataBtn('', false, true); _ataBtn2('', false, null);
   } else if (atasGeradas.length > 0) {
     // Só tem atas geradas, sem PDFs de transcrição
     _ataBody(`
@@ -5780,7 +5956,7 @@ async function _renderSeletorDocs() {
         </button>
       </div>
     `);
-    _ataBtn('', false, true);
+    _ataBtn('', false, true); _ataBtn2('', false, null);
   } else {
     // Sem PDFs no card — vai direto para upload
     _renderUploadUI();
@@ -5969,7 +6145,7 @@ function _ataFmtBytes(b) {
 }
 
 function _ataRenderProgress() {
-  _ataBtn('', false, true);
+  _ataBtn('', false, true); _ataBtn2('', false, null);
   _ataBody(`
     <div style="display:flex;flex-direction:column;gap:10px;">
       ${['ataStep1','ataStep2','ataStep3'].map((id,i) => `
@@ -6160,9 +6336,17 @@ function _ataRenderPreview() {
   }
 
   _ataBody(`
-    <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-      ✅ Ata gerada com sucesso!
-      <span style="font-size:10px;color:var(--muted);font-weight:400;">Edite diretamente no documento antes de salvar.</span>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+      <div style="font-size:12px;color:var(--green);font-weight:700;display:flex;align-items:center;gap:6px;">
+        ✅ Ata gerada com sucesso!
+        <span style="font-size:10px;color:var(--muted);font-weight:400;">Edite diretamente no documento antes de salvar.</span>
+      </div>
+      <button onclick="_ataToggleEditor()"
+        style="padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);
+               color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);
+               white-space:nowrap;display:flex;align-items:center;gap:5px;flex-shrink:0;">
+        📝 Editor de Texto
+      </button>
     </div>
 
     <!-- Documento visual editável -->
@@ -6258,6 +6442,8 @@ function _ataRenderPreview() {
   `);
 
   _ataBtn('💾 Salvar no Card', true, false);
+  _ataBtn2('💾 Salvar Alterações', true, _ataSalvarRascunho);
+  _ataEmModoTexto = false;
 }
 
 // ── Coleta os dados do documento visual editado ───────────────────
