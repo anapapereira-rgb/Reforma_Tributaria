@@ -6392,15 +6392,19 @@ async function salvarAtaNoCard() {
           throw new Error(err.error || `Erro HTTP ${res.status}`);
         }
 
-        const isFallbackDocx = res.headers.get('X-Fallback') === 'docx';
+        const xFallback = res.headers.get('X-Fallback') || '';
         fileBlob = await res.blob();
 
-        if (isFallbackDocx) {
-          // Edge Function retornou .docx (sem CloudConvert configurado)
+        if (xFallback === 'docx') {
+          // Edge Function retornou .docx preenchido
           nomeArq = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
           MIME    = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } else if (xFallback === 'pdf-readonly') {
+          // Template PDF — salva o PDF do template como ata (preenchimento manual)
+          nomeArq = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
+          MIME    = 'application/pdf';
         } else {
-          // Retornou PDF
+          // Retornou PDF processado
           nomeArq = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
           MIME    = 'application/pdf';
         }
