@@ -6487,6 +6487,21 @@ async function _ataSalvarAutomatico() {
 
     renderDocs(currentProjectId);
 
+    // ── Abre e rola para a aba Documentação ──────────────────────────
+    (function _abrirAbaDocAuto() {
+      const headers = document.querySelectorAll('.card-subsect-header');
+      for (const h of headers) {
+        const titleEl = h.querySelector('.card-subsect-title');
+        if (!titleEl || !titleEl.textContent.includes('Documentação')) continue;
+        const body = h.nextElementSibling;
+        if (!body) break;
+        h.classList.remove('collapsed');
+        body.classList.remove('collapsed');
+        setTimeout(() => { body.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 120);
+        break;
+      }
+    })();
+
     // Atualiza o botão para "Visualizar Ata"
     if (btn) {
       btn.disabled = false;
@@ -6628,6 +6643,27 @@ async function salvarAtaNoCard() {
 
     renderDocs(currentProjectId);
     fecharAta();
+
+    // ── Abre e rola para a aba Documentação ──────────────────────────
+    (function _abrirAbaDoc() {
+      // Localiza o header da subseção Documentação dentro do modal aberto
+      const headers = document.querySelectorAll('.card-subsect-header');
+      for (const h of headers) {
+        const titleEl = h.querySelector('.card-subsect-title');
+        if (!titleEl || !titleEl.textContent.includes('Documentação')) continue;
+        const body = h.nextElementSibling;
+        if (!body) break;
+        // Remove classe collapsed para garantir visibilidade
+        h.classList.remove('collapsed');
+        body.classList.remove('collapsed');
+        // Pequeno delay para o DOM atualizar antes de rolar
+        setTimeout(() => {
+          body.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 120);
+        break;
+      }
+    })();
+
     const t = document.getElementById('saveToast');
     if (t) { t.textContent='📝 Ata salva na Documentação!'; t.style.background='var(--purple)';
              t.classList.add('show'); setTimeout(()=>{ t.classList.remove('show'); t.textContent='✓ Alterações salvas!'; t.style.background=''; }, 3500); }
