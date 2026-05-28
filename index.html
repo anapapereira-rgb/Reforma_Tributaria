@@ -1280,6 +1280,11 @@
 
   /* ── Editor Visual da Ata ── */
   .ata-doc-wrap { background:#fff;border-radius:4px;box-shadow:0 2px 16px rgba(0,0,0,.18);width:100%;max-height:460px;overflow-y:auto;font-family:'Calibri',Arial,sans-serif;font-size:11pt;color:#242424;position:relative; }
+  .ata-doc-wrap [contenteditable="false"] { cursor:default; outline:none; }
+  .ata-doc-wrap.ata-edit-mode [contenteditable="true"] { border-bottom:1px dashed #4f81bd66; cursor:text; }
+  .ata-doc-wrap.ata-edit-mode [contenteditable="true"]:hover { background:#f5f9ff; }
+  .ata-doc-wrap.ata-edit-mode [contenteditable="true"]:focus { background:#edf5ff; outline:none; }
+  .ata-edit-banner { background:#e8f4ff;border-bottom:2px solid #4f81bd33;padding:5px 14px;font-size:10pt;color:#4f81bd;font-weight:600; }
   .ata-doc-page { padding:14px 18px 12px;min-height:200px;position:relative; }
   .ata-doc-header { border-bottom:2px solid #4f81bd;padding-bottom:8px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px; }
   .ata-doc-header-title { font-size:11pt;font-weight:700;color:#4f81bd;margin-top:2px; }
@@ -5521,8 +5526,31 @@ render();
     <div class="modal-ft">
       <button class="btn-cancel" onclick="fecharAta()">Fechar</button>
       <div style="display:flex;gap:8px;margin-left:auto;">
-        <button id="ataSecondBtn" style="display:none;padding:8px 16px;border-radius:8px;border:1px solid var(--purple);background:transparent;color:var(--purple);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all .15s;" onmouseover="this.style.background='rgba(168,85,247,.1)'" onmouseout="this.style.background='transparent'"></button>
-        <button class="btn-purple" id="ataPrimaryBtn" style="display:none;" onclick="ataAcao()">✨ Gerar Ata com IA</button>
+        <!-- Fluxo upload/seleção: único botão de ação -->
+        <button class="btn-purple" id="ataPrimaryBtn" style="display:none;" onclick="ataAcao()"></button>
+        <!-- Fluxo pós-geração: três botões independentes -->
+        <button id="ataEditBtn"
+          style="display:none;padding:8px 18px;border-radius:8px;border:1px solid var(--border2);
+                 background:var(--surface2);color:var(--text);font-size:13px;font-weight:600;
+                 cursor:pointer;font-family:var(--font);transition:all .15s;gap:6px;"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent2)'"
+          onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text)'"
+          onclick="_ataEntrarEdicao()">✏️ Editar</button>
+        <button id="ataSaveBtn"
+          style="display:none;padding:8px 18px;border-radius:8px;border:1px solid var(--green);
+                 background:rgba(34,197,94,.1);color:var(--green);font-size:13px;font-weight:700;
+                 cursor:pointer;font-family:var(--font);transition:all .15s;"
+          onmouseover="this.style.background='rgba(34,197,94,.2)'"
+          onmouseout="this.style.background='rgba(34,197,94,.1)'"
+          onclick="_ataSalvarEdicao()">💾 Salvar Ata</button>
+        <button id="ataGenBtn"
+          style="display:none;padding:8px 20px;border-radius:8px;border:none;
+                 background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff;
+                 font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);
+                 transition:opacity .15s;"
+          onmouseover="this.style.opacity='.85'"
+          onmouseout="this.style.opacity='1'"
+          onclick="_ataGerarDocumento()">📄 Gerar Documento</button>
       </div>
     </div>
   </div>
@@ -5634,198 +5662,233 @@ let _ataDocsExistentes = [];
 function fecharAta() {
   document.getElementById('ataOverlay').style.display = 'none';
   _ataPdfFile = null; _ataDados = null; _ataDocsExistentes = []; _ataUltimoStoragePath = null;
-  _ataBtn2('', false, null);
+  _ataEmEdicao = false;
+  _ataSetFooter('none');
 }
 
 function _ataBody(html) { document.getElementById('ataBody').innerHTML = html; }
 
+// Controla o botão primário (usado durante upload/seleção/progresso)
 function _ataBtn(label, show, disabled) {
   const b = document.getElementById('ataPrimaryBtn');
+  if (!b) return;
   b.style.display = show ? '' : 'none';
   b.disabled = !!disabled;
   b.textContent = label;
 }
 
-function _ataBtn2(label, show, cb) {
-  const b = document.getElementById('ataSecondBtn');
-  if (!b) return;
-  b.style.display = show ? '' : 'none';
-  b.textContent   = label;
-  b.onclick       = cb || null;
+// ── Controla qual conjunto de botões aparece no rodapé ──────────────
+// state: 'none' | 'view' | 'edit'
+function _ataSetFooter(state) {
+  const primBtn = document.getElementById('ataPrimaryBtn');
+  const editBtn = document.getElementById('ataEditBtn');
+  const saveBtn = document.getElementById('ataSaveBtn');
+  const genBtn  = document.getElementById('ataGenBtn');
+  [primBtn, editBtn, saveBtn, genBtn].forEach(b => { if (b) b.style.display = 'none'; });
+
+  if (state === 'view') {
+    if (editBtn) editBtn.style.display = '';
+    if (genBtn)  genBtn.style.display  = '';
+  } else if (state === 'edit') {
+    if (saveBtn) saveBtn.style.display = '';
+    if (genBtn)  genBtn.style.display  = '';
+  }
+  // 'none': todos ocultos (telas de upload/seleção/progresso)
 }
 
-function ataAcao() { salvarAtaNoCard(); }
+function ataAcao() { /* legado — mantido por compatibilidade */ _ataGerarDocumento(); }
 
-// ── Salva as edições do documento visual em _ataDados sem gerar PDF ──
-async function _ataSalvarRascunho() {
+// ── Estado global do modo de edição ─────────────────────────────────
+let _ataEmEdicao = false;
+
+// ── Entra no modo edição: habilita campos e botões de adição ────────
+function _ataEntrarEdicao() {
+  const wrap = document.getElementById('ataDocWrap');
+  if (!wrap) return;
+
+  _ataEmEdicao = true;
+  wrap.classList.add('ata-edit-mode');
+
+  // Habilita todos os campos contenteditable
+  wrap.querySelectorAll('[contenteditable]').forEach(el => el.contentEditable = 'true');
+
+  // Mostra botões + (adicionar item)
+  wrap.querySelectorAll('.ata-doc-add-btn').forEach(el => el.style.display = '');
+
+  // Mostra banner de modo edição
+  const banner = document.getElementById('ataEditBanner');
+  if (banner) banner.style.display = '';
+
+  // Atualiza hint
+  const hint = document.getElementById('ataEditHint');
+  if (hint) hint.textContent = '✏️ Modo edição ativo. Clique em qualquer campo para editar.';
+
+  _ataSetFooter('edit');
+
+  // Foca o primeiro campo editável
+  setTimeout(() => {
+    const first = wrap.querySelector('[contenteditable="true"]');
+    if (first) first.focus();
+  }, 80);
+}
+
+// ── Salva edições em _ataDados e volta ao modo leitura ──────────────
+function _ataSalvarEdicao() {
   if (!_ataDados) return;
-  const b = document.getElementById('ataSecondBtn');
 
-  // Se estiver no modo texto, sincroniza de lá
-  const ta = document.getElementById('ataTextEditor');
-  if (ta) {
-    _ataDadosFromTexto(ta.value);
-  } else if (document.getElementById('ataDocWrap')) {
+  const saveBtn = document.getElementById('ataSaveBtn');
+  const origLabel = saveBtn ? saveBtn.textContent : '';
+  if (saveBtn) { saveBtn.textContent = '⏳ Salvando…'; saveBtn.disabled = true; }
+
+  // Captura o conteúdo atual do documento visual
+  _ataDados = _ataLerDocumentoVisual();
+
+  // Desativa modo edição
+  _ataEmEdicao = false;
+  const wrap = document.getElementById('ataDocWrap');
+  if (wrap) {
+    wrap.classList.remove('ata-edit-mode');
+    wrap.querySelectorAll('[contenteditable]').forEach(el => el.contentEditable = 'false');
+    wrap.querySelectorAll('.ata-doc-add-btn').forEach(el => el.style.display = 'none');
+  }
+
+  // Esconde banner
+  const banner = document.getElementById('ataEditBanner');
+  if (banner) banner.style.display = 'none';
+
+  // Atualiza hint
+  const hint = document.getElementById('ataEditHint');
+  if (hint) hint.textContent = '💡 Clique em ✏️ Editar para modificar o conteúdo.';
+
+  // Feedback no botão e troca para modo leitura
+  if (saveBtn) { saveBtn.textContent = '✅ Salvo!'; saveBtn.disabled = false; }
+  setTimeout(() => {
+    if (saveBtn) saveBtn.textContent = origLabel;
+    _ataSetFooter('view');
+  }, 1200);
+
+  // Toast
+  const t = document.getElementById('saveToast');
+  if (t) {
+    t.textContent = '✅ Alterações salvas na ata!';
+    t.style.background = 'var(--green)';
+    t.classList.add('show');
+    setTimeout(() => { t.classList.remove('show'); t.textContent = '✓ Alterações salvas!'; t.style.background = ''; }, 2500);
+  }
+}
+
+// ── Gera o PDF com o conteúdo atual e grava na Documentação ─────────
+async function _ataGerarDocumento() {
+  if (!_ataDados) return;
+
+  // Garante que edições em andamento sejam capturadas
+  if (_ataEmEdicao && document.getElementById('ataDocWrap')) {
     _ataDados = _ataLerDocumentoVisual();
   }
 
-  // Feedback visual imediato
-  const orig = b ? b.textContent : '';
-  if (b) { b.textContent = '⏳ Salvando…'; b.disabled = true; }
+  const genBtn = document.getElementById('ataGenBtn');
+  const origLabel = genBtn ? genBtn.textContent : '';
+  if (genBtn) { genBtn.disabled = true; genBtn.textContent = '⏳ Gerando PDF…'; }
 
   try {
-    // Persiste no Supabase (tabela documents não é alterada — apenas _ataDados é salvo
-    // como rascunho no campo JSON da ata se existir; caso contrário só mantém em memória)
-    // Se já havia um documento salvo, não regrava — o "Salvar no Card" faz isso.
-    // Aqui apenas confirmamos as edições em memória e mostramos feedback.
-    await new Promise(r => setTimeout(r, 300)); // micro-delay para o spinner aparecer
+    const token  = CURRENT_USER.access_token;
+    const uuid   = currentProject._uuid;
+    const h      = new Date();
+    const df     = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
+    const cfg    = (typeof SYS_CONFIG !== 'undefined') ? SYS_CONFIG : {};
+    const gpNome = cfg.gpNome || 'Ana Paula Colombo';
 
-    if (b) { b.textContent = '✅ Salvo!'; b.disabled = false; }
-    setTimeout(() => { if (b) b.textContent = orig; }, 1800);
+    let fileBlob, nomeArq, MIME;
 
-    // Toast
+    if (cfg.templateB64 && token) {
+      try {
+        if (genBtn) genBtn.textContent = '⏳ Preenchendo template…';
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/gerar-ata-pdf`, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token },
+          body: JSON.stringify({ dados:{ ..._ataDados, gpNome }, templateB64:cfg.templateB64 }),
+        });
+        if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||`HTTP ${res.status}`); }
+        const isFallback = res.headers.get('X-Fallback') === 'docx';
+        fileBlob = await res.blob();
+        const ext = isFallback ? 'docx' : 'pdf';
+        nomeArq = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.'+ext;
+        MIME    = isFallback
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : 'application/pdf';
+      } catch(efErr) {
+        // fallback browser DOCX
+        try {
+          const tplBytes = Uint8Array.from(atob(cfg.templateB64), ch => ch.charCodeAt(0));
+          const tplBlob2 = new Blob([tplBytes],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+          fileBlob = await _preencherTemplateDocx(tplBlob2, _ataDados, gpNome);
+          nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.docx';
+          MIME     = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } catch(_) { throw new Error('Não foi possível gerar a ata via template.'); }
+      }
+    } else {
+      // Sem template: jsPDF direto
+      if (genBtn) genBtn.textContent = '⏳ Montando PDF…';
+      fileBlob = await _gerarPdfDadosAta(_ataDados, gpNome);
+      nomeArq  = 'Ata_'+(_ataDados.cliente||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+df.replace(/\//g,'-')+'.pdf';
+      MIME     = 'application/pdf';
+    }
+
+    // Upload Storage
+    if (genBtn) genBtn.textContent = '⏳ Enviando…';
+    const storagePath = uuid+'/'+Date.now()+'_'+nomeArq;
+    const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/kanban-documents/${storagePath}`, {
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':MIME,'x-upsert':'true'},
+      body: fileBlob
+    });
+    if (!upRes.ok) {
+      const storageErr = await upRes.text().catch(() => String(upRes.status));
+      throw new Error('Erro no Storage ('+upRes.status+'): '+storageErr);
+    }
+
+    // Salva na tabela documents
+    const docInsertRes = await fetch(`${SUPABASE_URL}/rest/v1/documents`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Prefer':'return=representation'},
+      body: JSON.stringify({project_id:uuid,nome_arquivo:nomeArq,tamanho:_fmtSize(fileBlob.size),
+                            tamanho_bytes:fileBlob.size,data_upload:df,storage_path:storagePath,
+                            mime_type:MIME,uploaded_by:CURRENT_USER.nome||''})
+    });
+    if (!docInsertRes.ok) {
+      const dbErr = await docInsertRes.text().catch(() => String(docInsertRes.status));
+      throw new Error('Erro ao registrar na tabela documents ('+docInsertRes.status+'): '+dbErr);
+    }
+
+    // Atualiza aba Documentação e fecha modal
+    renderDocs(currentProjectId);
+    fecharAta();
+
+    // Abre e rola para a aba Documentação
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.card-subsect-header').forEach(h => {
+        if (h.querySelector('.card-subsect-title')?.textContent.includes('Documentação')) {
+          h.classList.remove('collapsed');
+          const body = h.nextElementSibling;
+          if (body) { body.classList.remove('collapsed'); setTimeout(() => body.scrollIntoView({behavior:'smooth',block:'nearest'}), 100); }
+        }
+      });
+    });
+
+    // Toast de sucesso
     const t = document.getElementById('saveToast');
     if (t) {
-      t.textContent = '✏️ Edições salvas no rascunho!';
+      t.textContent = '📄 Documento gerado e salvo!';
       t.style.background = 'var(--purple)';
       t.classList.add('show');
-      setTimeout(() => { t.classList.remove('show'); t.textContent = '✓ Alterações salvas!'; t.style.background = ''; }, 2500);
+      setTimeout(() => { t.classList.remove('show'); t.textContent = '✓ Alterações salvas!'; t.style.background = ''; }, 3500);
     }
-  } catch(e) {
-    if (b) { b.textContent = '❌ Erro'; b.disabled = false; }
-    setTimeout(() => { if (b) b.textContent = orig; }, 2000);
+
+  } catch(err) {
+    if (genBtn) { genBtn.disabled = false; genBtn.textContent = origLabel; }
+    console.error('[_ataGerarDocumento]', err);
+    alert('Erro ao gerar documento: ' + _errMsg(err));
   }
-}
-
-// ── Converte textarea de texto livre de volta para _ataDados estruturado ──
-function _ataDadosFromTexto(texto) {
-  if (!_ataDados) return;
-  // Extrai seções pelo padrão de cabeçalho "### Título"
-  function extrairSecao(txt, titulo) {
-    const re = new RegExp('###\\s*' + titulo + '[^\n]*\n([\\s\\S]*?)(?=\n###|$)', 'i');
-    const m  = txt.match(re);
-    return m ? m[1].trim() : '';
-  }
-  function linhas(bloco) {
-    return bloco.split('\n')
-      .filter(l => !l.trim().startsWith('#'))          // ignora linhas de comentário
-      .map(l => l.replace(/^[•\-\*]\s*/, '').trim())
-      .filter(Boolean);
-  }
-  function pendencias(bloco) {
-    return bloco.split('\n')
-      .filter(l => !l.trim().startsWith('#'))          // ignora linhas de comentário
-      .map(l => {
-        const partes = l.split('|').map(s => s.trim());
-        if (partes.length >= 2) {
-          return {
-            atividade:   partes[0].replace(/^[•\-\*]\s*/, '').trim(),
-            responsavel: partes[1] || '',
-            prazo:       partes[2] || '',
-            status:      partes[3] || 'Pendente'
-          };
-        }
-        return null;
-      }).filter(p => p && p.atividade);
-  }
-
-  _ataDados.participantes   = extrairSecao(texto, 'Participantes');
-  _ataDados.status_projeto  = extrairSecao(texto, 'Status do Projeto');
-  _ataDados.topicos         = linhas(extrairSecao(texto, 'Tópicos'));
-  _ataDados.decisoes        = linhas(extrairSecao(texto, 'Decisões'));
-  _ataDados.riscos          = linhas(extrairSecao(texto, 'Riscos'));
-  _ataDados.proximos_passos = linhas(extrairSecao(texto, 'Próximos Passos'));
-  _ataDados.pendencias      = pendencias(extrairSecao(texto, 'Pendências'));
-}
-
-// ── Alterna entre editor visual e editor de texto ──────────────────
-let _ataEmModoTexto = false;
-
-function _ataToggleEditor() {
-  if (_ataEmModoTexto) {
-    // Texto → Visual: lê o textarea e reconstrói o preview
-    const ta = document.getElementById('ataTextEditor');
-    if (ta) _ataDadosFromTexto(ta.value);
-    _ataEmModoTexto = false;
-    _ataRenderPreview();
-  } else {
-    // Visual → Texto: lê o documento visual e monta o textarea
-    if (document.getElementById('ataDocWrap')) {
-      _ataDados = _ataLerDocumentoVisual();
-    }
-    _ataEmModoTexto = true;
-    _ataRenderTextEditor();
-  }
-}
-
-// ── Renderiza o editor de texto (textarea rico com markdown leve) ──
-function _ataRenderTextEditor() {
-  const d = _ataDados || {};
-
-  function lista(arr) {
-    return (arr||[]).length ? (arr).map(i => '• ' + i).join('\n') : '• ';
-  }
-  function pends(arr) {
-    return (arr||[]).length
-      ? arr.map(p => `• ${p.atividade||'—'} | ${p.responsavel||'—'} | ${p.prazo||'—'} | ${p.status||'Pendente'}`).join('\n')
-      : '• [Atividade] | [Responsável] | [Prazo] | Pendente';
-  }
-
-  const texto = [
-    `### Participantes`,
-    d.participantes || '',
-    ``,
-    `### Status do Projeto`,
-    d.status_projeto || '',
-    ``,
-    `### Tópicos`,
-    lista(d.topicos),
-    ``,
-    `### Decisões`,
-    lista(d.decisoes),
-    ``,
-    `### Pendências`,
-    `# Formato: • Atividade | Responsável | Prazo | Status`,
-    pends(d.pendencias),
-    ``,
-    `### Riscos`,
-    lista(d.riscos),
-    ``,
-    `### Próximos Passos`,
-    lista(d.proximos_passos),
-  ].join('\n');
-
-  _ataBody(`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <div style="font-size:12px;color:var(--green);font-weight:700;display:flex;align-items:center;gap:6px;">
-        📝 Editor de Texto
-        <span style="font-size:10px;color:var(--muted);font-weight:400;">Edite livremente · use • para bullets · Pendências: Atividade | Resp | Prazo | Status</span>
-      </div>
-      <button onclick="_ataToggleEditor()"
-        style="padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);
-               color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);
-               display:flex;align-items:center;gap:5px;">
-        🎨 Ver Visual
-      </button>
-    </div>
-    <textarea id="ataTextEditor" spellcheck="false"
-      style="width:100%;height:420px;background:#0d1a26;border:1px solid var(--purple);border-radius:8px;
-             padding:14px;color:#e0f0ff;font-size:12.5px;line-height:1.8;font-family:'Fira Code','Cascadia Code',
-             'Consolas',monospace;resize:vertical;outline:none;box-sizing:border-box;
-             tab-size:2;"
-      oninput="if(_ataDados)_ataDadosFromTexto(this.value)"
-    >${escapeHtml(texto)}</textarea>
-    <div style="font-size:10px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px;">
-      💡 <span>Cada seção começa com <code style="background:var(--surface3);padding:1px 5px;border-radius:3px;">### Nome</code>.
-      Clique em <strong>🎨 Ver Visual</strong> para voltar ao documento formatado.</span>
-    </div>
-  `);
-
-  _ataBtn('💾 Salvar no Card', true, false);
-  _ataBtn2('💾 Salvar Alterações', true, _ataSalvarRascunho);
-
-  // Foca o textarea
-  setTimeout(() => { const ta = document.getElementById('ataTextEditor'); if (ta) ta.focus(); }, 60);
 }
 
 async function abrirModalAta() {
@@ -5833,13 +5896,13 @@ async function abrirModalAta() {
     alert('Abra um card de projeto antes de preencher a ata.');
     return;
   }
-  _ataDados = null; _ataPdfFile = null;
+  _ataDados = null; _ataPdfFile = null; _ataEmEdicao = false;
 
   // Garante que o overlay existe e abre imediatamente
   const overlay = document.getElementById('ataOverlay');
   if (!overlay) { console.error('[ata] ataOverlay não encontrado'); return; }
   overlay.style.display = 'flex';
-  _ataBtn('', false, true); _ataBtn2('', false, null);
+  _ataBtn('', false, true); _ataSetFooter('none');
 
   // Mostra estado de carregamento enquanto busca docs
   _ataBody(`<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">
@@ -5952,7 +6015,7 @@ async function _renderSeletorDocs() {
                        cursor:pointer;margin-left:6px;font-family:var(--font);">Fazer upload ›</button>
       </div>
     `);
-    _ataBtn('', false, true); _ataBtn2('', false, null);
+    _ataBtn('', false, true); _ataSetFooter('none');
   } else if (atasGeradas.length > 0) {
     // Só tem atas geradas, sem PDFs de transcrição
     _ataBody(`
@@ -5966,7 +6029,7 @@ async function _renderSeletorDocs() {
         </button>
       </div>
     `);
-    _ataBtn('', false, true); _ataBtn2('', false, null);
+    _ataBtn('', false, true); _ataSetFooter('none');
   } else {
     // Sem PDFs no card — vai direto para upload
     _renderUploadUI();
@@ -6155,7 +6218,7 @@ function _ataFmtBytes(b) {
 }
 
 function _ataRenderProgress() {
-  _ataBtn('', false, true); _ataBtn2('', false, null);
+  _ataBtn('', false, true); _ataSetFooter('none');
   _ataBody(`
     <div style="display:flex;flex-direction:column;gap:10px;">
       ${['ataStep1','ataStep2','ataStep3'].map((id,i) => `
@@ -6311,11 +6374,11 @@ function _ataRenderPreview() {
     const lista = (items||[]).length
       ? (items||[]).map((t,i) => `
           <div class="ata-doc-bullet" data-section="${sectionId}" data-idx="${i}">
-            <div class="ata-doc-bullet-text" contenteditable="true" spellcheck="false">${escapeHtml(t)}</div>
+            <div class="ata-doc-bullet-text" contenteditable="false" spellcheck="false">${escapeHtml(t)}</div>
             <button onclick="_ataRemoveItem(this)" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:12px;padding:0 2px;flex-shrink:0;" title="Remover">✕</button>
           </div>`).join('')
       : `<div class="ata-doc-bullet" data-section="${sectionId}" data-idx="0">
-           <div class="ata-doc-bullet-text" contenteditable="true" spellcheck="false" data-placeholder="—"></div>
+           <div class="ata-doc-bullet-text" contenteditable="false" spellcheck="false" data-placeholder="—"></div>
            <button onclick="_ataRemoveItem(this)" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:12px;padding:0 2px;flex-shrink:0;" title="Remover">✕</button>
          </div>`;
     return lista;
@@ -6325,19 +6388,19 @@ function _ataRenderPreview() {
     const pends = d.pendencias || [];
     const rows = pends.length
       ? pends.map((p,i) => `<tr>
-          <td contenteditable="true" spellcheck="false">${escapeHtml(p.atividade||'')}</td>
-          <td contenteditable="true" spellcheck="false">${escapeHtml(p.responsavel||'')}</td>
-          <td contenteditable="true" spellcheck="false">${escapeHtml(p.prazo||'')}</td>
-          <td contenteditable="true" spellcheck="false">${escapeHtml(p.status||'Pendente')}</td>
+          <td contenteditable="false" spellcheck="false">${escapeHtml(p.atividade||'')}</td>
+          <td contenteditable="false" spellcheck="false">${escapeHtml(p.responsavel||'')}</td>
+          <td contenteditable="false" spellcheck="false">${escapeHtml(p.prazo||'')}</td>
+          <td contenteditable="false" spellcheck="false">${escapeHtml(p.status||'Pendente')}</td>
           <td style="background:#fff3f3;border:1px solid #ccc;padding:2px;text-align:center;width:24px;">
             <button onclick="_ataRemovePend(this,${i})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:11px;" title="Remover">✕</button>
           </td>
         </tr>`).join('')
       : `<tr>
-          <td contenteditable="true" spellcheck="false"></td>
-          <td contenteditable="true" spellcheck="false"></td>
-          <td contenteditable="true" spellcheck="false"></td>
-          <td contenteditable="true" spellcheck="false">Pendente</td>
+          <td contenteditable="false" spellcheck="false"></td>
+          <td contenteditable="false" spellcheck="false"></td>
+          <td contenteditable="false" spellcheck="false"></td>
+          <td contenteditable="false" spellcheck="false">Pendente</td>
           <td style="background:#fff3f3;border:1px solid #ccc;padding:2px;text-align:center;width:24px;">
             <button onclick="_ataRemovePend(this,0)" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:11px;" title="Remover">✕</button>
           </td>
@@ -6346,17 +6409,13 @@ function _ataRenderPreview() {
   }
 
   _ataBody(`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
-      <div style="font-size:12px;color:var(--green);font-weight:700;display:flex;align-items:center;gap:6px;">
-        ✅ Ata gerada com sucesso!
-        <span style="font-size:10px;color:var(--muted);font-weight:400;">Edite diretamente no documento antes de salvar.</span>
-      </div>
-      <button onclick="_ataToggleEditor()"
-        style="padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);
-               color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);
-               white-space:nowrap;display:flex;align-items:center;gap:5px;flex-shrink:0;">
-        📝 Editor de Texto
-      </button>
+    <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+      ✅ Ata gerada com sucesso!
+    </div>
+
+    <!-- Banner visível apenas em modo edição -->
+    <div id="ataEditBanner" class="ata-edit-banner" style="display:none;margin-bottom:6px;border-radius:6px;">
+      ✏️ Modo edição — clique em qualquer campo para alterar o conteúdo
     </div>
 
     <!-- Documento visual editável -->
@@ -6376,20 +6435,20 @@ function _ataRenderPreview() {
         <div class="ata-doc-card">
           <div class="ata-doc-card-row1">
             <span class="ata-doc-card-label">Projeto /Cliente: </span>
-            <span class="ata-doc-card-val ata-doc-editable" id="ata-ed-cliente" contenteditable="true" spellcheck="false">${escapeHtml(d.cliente||'')}</span>
+            <span class="ata-doc-card-val ata-doc-editable" id="ata-ed-cliente" contenteditable="false" spellcheck="false">${escapeHtml(d.cliente||'')}</span>
           </div>
           <div class="ata-doc-card-row2">
             <div class="ata-doc-card-cell">
               <div class="ata-doc-card-label">Consultor :</div>
-              <div class="ata-doc-card-val ata-doc-editable" id="ata-ed-consultor" contenteditable="true" spellcheck="false">${escapeHtml(d.consultor||'')}</div>
+              <div class="ata-doc-card-val ata-doc-editable" id="ata-ed-consultor" contenteditable="false" spellcheck="false">${escapeHtml(d.consultor||'')}</div>
             </div>
             <div class="ata-doc-card-cell">
               <div class="ata-doc-card-label">GP:</div>
-              <div class="ata-doc-card-val ata-doc-editable" id="ata-ed-gp" contenteditable="true" spellcheck="false">${escapeHtml(gpNome)}</div>
+              <div class="ata-doc-card-val ata-doc-editable" id="ata-ed-gp" contenteditable="false" spellcheck="false">${escapeHtml(gpNome)}</div>
             </div>
             <div class="ata-doc-card-cell">
               <div class="ata-doc-card-label">Data:</div>
-              <div class="ata-doc-card-val ata-doc-editable" id="ata-ed-data" contenteditable="true" spellcheck="false">${escapeHtml(d.data||'')}</div>
+              <div class="ata-doc-card-val ata-doc-editable" id="ata-ed-data" contenteditable="false" spellcheck="false">${escapeHtml(d.data||'')}</div>
             </div>
           </div>
         </div>
@@ -6398,12 +6457,12 @@ function _ataRenderPreview() {
         <div class="ata-doc-section-title">1. Tópicos discutidos</div>
         <div class="ata-doc-bullet" style="margin-bottom:2px;">
           <div class="ata-doc-bullet-text"><strong>Participantes:</strong>
-            <span class="ata-doc-editable" id="ata-ed-participantes" contenteditable="true" spellcheck="false"> ${escapeHtml(d.participantes||'')}</span>
+            <span class="ata-doc-editable" id="ata-ed-participantes" contenteditable="false" spellcheck="false"> ${escapeHtml(d.participantes||'')}</span>
           </div>
         </div>
         <div class="ata-doc-bullet" style="margin-bottom:4px;">
           <div class="ata-doc-bullet-text"><strong>Status do projeto:</strong>
-            <span class="ata-doc-editable" id="ata-ed-status" contenteditable="true" spellcheck="false"> ${escapeHtml(d.status_projeto||'')}</span>
+            <span class="ata-doc-editable" id="ata-ed-status" contenteditable="false" spellcheck="false"> ${escapeHtml(d.status_projeto||'')}</span>
           </div>
         </div>
         <div id="ata-sec-topicos">${editList(d.topicos,'topicos')}</div>
@@ -6446,14 +6505,18 @@ function _ataRenderPreview() {
       </div>
     </div>
 
-    <div style="font-size:10px;color:var(--muted);margin-top:6px;">
-      💡 Clique em qualquer campo para editar. Use os botões <strong>+</strong> para adicionar itens.
+    <div id="ataEditHint" style="font-size:10px;color:var(--muted);margin-top:6px;">
+      💡 Clique em ✏️ Editar para modificar o conteúdo.
     </div>
   `);
 
-  _ataBtn('💾 Salvar no Card', true, false);
-  _ataBtn2('💾 Salvar Alterações', true, _ataSalvarRascunho);
-  _ataEmModoTexto = false;
+  // Oculta botões + por padrão (modo leitura)
+  const wrap = document.getElementById('ataDocWrap');
+  if (wrap) wrap.querySelectorAll('.ata-doc-add-btn').forEach(el => el.style.display = 'none');
+
+  _ataBtn('', false, true);
+  _ataSetFooter('view');
+  _ataEmEdicao = false;
 }
 
 // ── Coleta os dados do documento visual editado ───────────────────
@@ -6928,31 +6991,9 @@ async function _ataAbrirDocSalvo(storagePath, token) {
   } catch(_) { alert('Não foi possível abrir o documento.'); }
 }
 
-async function salvarAtaNoCard() {
-  if (!_ataDados) return;
-
-  // ── Lê o estado atual de qualquer modo de edição ativo ──────────
-  const taTexto  = document.getElementById('ataTextEditor');     // novo editor de texto
-  const taLegado = document.getElementById('ataEditorTextarea'); // textarea legado
-  if (taTexto) {
-    // Modo texto: converte o conteúdo do textarea de volta para _ataDados estruturado
-    _ataDadosFromTexto(taTexto.value);
-  } else if (document.getElementById('ataDocWrap')) {
-    // Modo visual: lê os campos contenteditable do documento
-    _ataDados = _ataLerDocumentoVisual();
-  } else if (taLegado) {
-    _ataDados.textoEditado = taLegado.value;
-  }
-
-  const btn = document.getElementById('ataPrimaryBtn');
-  btn.disabled = true; btn.textContent = '⏳ Gerando ata…';
-
-  try {
-    const token  = CURRENT_USER.access_token;
-    const uuid   = currentProject._uuid;
-    const h      = new Date();
-    const df     = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
-    const cfg    = (typeof SYS_CONFIG !== 'undefined') ? SYS_CONFIG : {};
+// salvarAtaNoCard é alias de _ataGerarDocumento (mantido por compatibilidade)
+async function salvarAtaNoCard() { return _ataGerarDocumento(); }
+;
     const gpNome = cfg.gpNome || 'Ana Paula Colombo';
 
     let fileBlob, nomeArq, MIME;
