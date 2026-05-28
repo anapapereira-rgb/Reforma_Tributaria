@@ -6585,7 +6585,8 @@ async function _gerarPdfDadosAta(d, gpNome) {
     doc.text(`Página ${pg} / ${totalPgs}`, W - MARGIN, 291, { align: 'right' });
   }
 
-  return new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+  // output('blob') retorna diretamente um Blob com type application/pdf
+  return doc.output('blob');
 }
 
 // ── Salva automaticamente após gerar a prévia (sem fechar o modal) ──
@@ -6659,9 +6660,12 @@ async function _ataSalvarAutomatico() {
       headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Prefer':'return=representation'},
       body: JSON.stringify({project_id:uuid,nome_arquivo:nomeArq,tamanho:_fmtSize(fileBlob.size),
                             tamanho_bytes:fileBlob.size,data_upload:df,storage_path:storagePath,
-                            mime_type:MIME,uploaded_by:CURRENT_USER.nome||'',
-                            gerado_ia: true})
+                            mime_type:MIME,uploaded_by:CURRENT_USER.nome||''})
     });
+    if (!docRes.ok) {
+      const errBody = await docRes.text().catch(() => '');
+      throw new Error('Erro ao registrar documento ('+docRes.status+'): '+errBody);
+    }
     const docData = docRes.ok ? await docRes.json() : [];
     const docId   = Array.isArray(docData) ? docData[0]?.id : docData?.id;
 
@@ -6699,9 +6703,14 @@ async function _ataSalvarAutomatico() {
              t.classList.add('show'); setTimeout(()=>{ t.classList.remove('show'); t.textContent='✓ Alterações salvas!'; t.style.background=''; }, 3000); }
 
   } catch(err) {
-    console.warn('[auto-save ata]', err);
-    // Falha silenciosa — usuário pode salvar manualmente depois
-    if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar no Card'; btn.onclick = ataAcao; }
+    console.error('[auto-save ata]', err);
+    // Mostra o erro real para facilitar diagnóstico
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '⚠️ Erro ao salvar — clique para tentar';
+      btn.title = String(err?.message || err);
+      btn.onclick = ataAcao;
+    }
   }
 }
 
@@ -6813,15 +6822,22 @@ async function salvarAtaNoCard() {
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':MIME,'x-upsert':'true'},
       body: fileBlob
     });
-    if (!upRes.ok) throw new Error('Erro ao salvar no Storage: '+(await upRes.text()));
+    if (!upRes.ok) {
+      const storageErr = await upRes.text().catch(() => String(upRes.status));
+      throw new Error('Erro no Storage ('+upRes.status+'): '+storageErr);
+    }
 
-    await fetch(`${SUPABASE_URL}/rest/v1/documents`, {
+    const docInsertRes = await fetch(`${SUPABASE_URL}/rest/v1/documents`, {
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Prefer':'return=representation'},
       body: JSON.stringify({project_id:uuid,nome_arquivo:nomeArq,tamanho:_fmtSize(fileBlob.size),
                             tamanho_bytes:fileBlob.size,data_upload:df,storage_path:storagePath,
                             mime_type:MIME,uploaded_by:CURRENT_USER.nome||''})
     });
+    if (!docInsertRes.ok) {
+      const dbErr = await docInsertRes.text().catch(() => String(docInsertRes.status));
+      throw new Error('Erro ao registrar na tabela documents ('+docInsertRes.status+'): '+dbErr);
+    }
 
     renderDocs(currentProjectId);
     fecharAta();
