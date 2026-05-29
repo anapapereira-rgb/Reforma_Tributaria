@@ -1247,6 +1247,40 @@
   .modal-x:hover { color:var(--text); }
   .modal-bd { padding:18px 20px;display:flex;flex-direction:column;gap:12px;overflow-y:auto; }
   .modal-ft { padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0; }
+
+  /* ── Definition of Done modal ─────────────────────────────────── */
+  .dod-hd { background:linear-gradient(135deg,#450a0a,#7f1d1d);border-bottom:2px solid #ef4444; }
+  .dod-hd .modal-hd-sub { color:#fca5a5; }
+  .dod-task-list { list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px; }
+  .dod-task-item { display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:8px;
+                   background:var(--surface2);border:1px solid var(--border2); }
+  .dod-task-item.blocker { border-color:#ef444455;background:#450a0a33; }
+  .dod-task-item.warning { border-color:#f5973455;background:#431a0533; }
+  .dod-task-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px; }
+  .dod-task-label { font-size:12.5px;color:var(--text);flex:1;line-height:1.4; }
+  .dod-task-status { font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:4px;flex-shrink:0; }
+  .dod-st-ni  { background:#1e293b;color:#94a3b8; }
+  .dod-st-ea  { background:#052e16;color:#4ade80; }
+  .dod-override-box { background:var(--surface2);border:1px solid #f59734;border-radius:8px;padding:12px;
+                       display:none;flex-direction:column;gap:8px; }
+  .dod-override-box.visible { display:flex; }
+  .dod-override-box label { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#f59734; }
+  .dod-override-box textarea { background:var(--surface3);border:1px solid var(--border);border-radius:6px;
+                                 padding:8px;color:var(--text);font-family:var(--font);font-size:12px;
+                                 resize:vertical;min-height:64px;width:100%;box-sizing:border-box;outline:none; }
+  .dod-override-box textarea:focus { border-color:#f59734; }
+  .btn-dod-cancel  { padding:8px 18px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);
+                     color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font); }
+  .btn-dod-cancel:hover { border-color:var(--muted); }
+  .btn-dod-override{ padding:8px 18px;border-radius:8px;border:1px solid #f59734;background:transparent;
+                     color:#f59734;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font); }
+  .btn-dod-override:hover { background:#f5973411; }
+  .btn-dod-confirm { padding:8px 20px;border-radius:8px;border:none;background:#ef4444;color:#fff;
+                     font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);display:none; }
+  .btn-dod-confirm:hover { background:#dc2626; }
+  /* Cadeado no card quando tem pendências DoD */
+  .card-dod-lock { position:absolute;top:8px;right:36px;font-size:13px;opacity:.7;cursor:help; }
+  .card-dod-lock:hover { opacity:1; }
   .mf { display:flex;flex-direction:column;gap:5px; }
   .mf label { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent); }
   .mf input,.mf textarea { background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font);font-size:13px;resize:vertical;transition:border-color .2s;width:100%;box-sizing:border-box; }
@@ -2296,14 +2330,14 @@ const F1_TASKS = [
   {k:'t2',  label:'Envio de Acessos'},
   {k:'t3',  label:'Envio de Planilha com regras CST / CClass'},
   {k:'t4',  label:'Atualização do ambiente'},
-  {k:'t5',  label:'Configuração das IBS/CBS Saída'},
-  {k:'t6',  label:'Validação das Operações Saída'},
-  {k:'t7',  label:'Levar regras para produção'},
-  {k:'t8',  label:'Atualizar ambiente de produção'},
+  {k:'t5',  label:'Configuração das IBS/CBS Saída',          mandatory:true},
+  {k:'t6',  label:'Validação das Operações Saída',            mandatory:true},
+  {k:'t7',  label:'Levar regras para produção',               mandatory:true},
+  {k:'t8',  label:'Atualizar ambiente de produção',           mandatory:true},
   {k:'t9',  label:'Customização NFe/Danfe (DIFF)'},
-  {k:'t10', label:'Validação NFe'},
+  {k:'t10', label:'Validação NFe',                            mandatory:true},
   {k:'t11', label:'Validação NFSe'},
-  {k:'t12', label:'Acompanhamento em produção'},
+  {k:'t12', label:'Acompanhamento em produção',               mandatory:true},
   {k:'t13', label:'Compartilhamento de tabela'},
 ];
 const F1_RESP_OPTS   = ['GP','Consultor','Cliente','Sustentação','Infra','Matriz'];
@@ -2320,16 +2354,16 @@ const EMPTY_TASKS = () => Object.fromEntries(
 );
 const F2_TASKS = [
   {k:'f2t1',  label:'Atualização ambiente homologação'},
-  {k:'f2t2',  label:'Levantamento operações entrada (CFOP x CClass)'},
+  {k:'f2t2',  label:'Levantamento operações entrada (CFOP x CClass)', mandatory:true},
   {k:'f2t3',  label:'Treinamento CBENEF'},
-  {k:'f2t4',  label:'Validação CBENEF'},
+  {k:'f2t4',  label:'Validação CBENEF',                               mandatory:true},
   {k:'f2t5',  label:'Configuração Devoluções'},
-  {k:'f2t6',  label:'Validação Devoluções'},
+  {k:'f2t6',  label:'Validação Devoluções',                           mandatory:true},
   {k:'f2t7',  label:'Configuração Entradas'},
-  {k:'f2t8',  label:'Validação Entradas'},
+  {k:'f2t8',  label:'Validação Entradas',                             mandatory:true},
   {k:'f2t9',  label:'Configuração Notas D/C'},
-  {k:'f2t10', label:'Validação Notas D/C'},
-  {k:'f2t11', label:'Acompanhamento em produção'},
+  {k:'f2t10', label:'Validação Notas D/C',                            mandatory:true},
+  {k:'f2t11', label:'Acompanhamento em produção',                     mandatory:true},
   {k:'f2t12', label:'Compartilhamento de tabela'},
 ];
 const EMPTY_TASKS2 = () => Object.fromEntries(
@@ -2599,12 +2633,19 @@ function makeCard(p) {
         return `<span class="card-task-dot${dc?' '+dc:''}${isTaskFinished(td.status||'')?' tdone':''}" title="${t.label}${td.status?' — '+td.status:''}${td.resp?' ('+td.resp+')':''}"></span>`;
       }).join('');
 
+  // ── Cadeado DoD: exibe quando há tarefas obrigatórias não concluídas ─
+  const dod = _dodValidar(p, 'done');
+  const dodLockHtml = (!dod.ok && p.st !== 'CONCLUÍDO' && p.st !== 'CANCELADO')
+    ? `<span class="card-dod-lock" title="⛔ DoD: ${dod.blocked.length} tarefa${dod.blocked.length>1?'s obrigatórias':' obrigatória'} pendente${dod.blocked.length>1?'s':''}&#10;${dod.blocked.map(b=>'• '+b.label+' ('+b.status+')').join('&#10;')}">🔒</span>`
+    : '';
+
   el.innerHTML = `
     ${isAtrasado ? '<div class="card-alert"></div>' : ''}
     ${blockedBannerHtml}
     <div class="card-top">
       <div class="card-name">${p.c}</div>
       <span class="pkg-badge pkg-${p.pkg||'P'}">${p.pkg||'P'}</span>
+      ${dodLockHtml}
       <button class="card-del-btn" title="Excluir projeto" onclick="event.stopPropagation();openConfirmDelete('${projectId(p).replace(/'/g,String.fromCharCode(39))}','${p.c.replace(/'/g,'&#39;')}')">✕</button>
     </div>
     <div class="card-cons">
@@ -4498,36 +4539,182 @@ function onDrop(e) {
   const col   = cols.find(c => c.id === colId);
   if (!col) return;
 
-  // Apply column mutations to the project object in memory
-  col.apply(draggedProject);
-
-  // Save to localStorage directly and explicitly
-  try {
-    const pid = projectId(draggedProject);
-    const allEdits = JSON.parse(localStorage.getItem('kanban_edits') || '{}');
-    if (!allEdits[pid]) allEdits[pid] = {};
-    allEdits[pid].st    = draggedProject.st;
-    allEdits[pid].atv   = draggedProject.atv;
-    allEdits[pid].prazo = draggedProject.prazo;
-    allEdits[pid].cons  = draggedProject.cons;
-    allEdits[pid].pkg   = draggedProject.pkg;
-    allEdits[pid].blk   = draggedProject.blk;
-    allEdits[pid].upd   = draggedProject.upd; // já atualizado pelo apply()
-    allEdits[pid].sus   = draggedProject.sus || '';
-    allEdits[pid].acts  = { ...draggedProject.acts };
-    if (draggedProject.tasks)  allEdits[pid].tasks  = JSON.parse(JSON.stringify(draggedProject.tasks));
-    if (draggedProject.tasks2) allEdits[pid].tasks2 = JSON.parse(JSON.stringify(draggedProject.tasks2));
-    if (draggedProject.tasks3) allEdits[pid].tasks3 = JSON.parse(JSON.stringify(draggedProject.tasks3));
-    localStorage.setItem('kanban_edits', JSON.stringify(allEdits));
-  } catch(err) {
-    console.error('Erro ao salvar:', err);
+  // ── Definition of Done: valida antes de aplicar a transição ──────
+  const dod = _dodValidar(draggedProject, colId);
+  if (!dod.ok) {
+    _dodMostrarModal(draggedProject, col, dod.blocked);
+    return; // Drop suspenso até o usuário cancelar ou confirmar override
   }
 
-  render();
-  showMoveToast(draggedProject.c, col.label);
+  // Sem pendências DoD: aplica a transição diretamente
+  _dodAplicarTransicao(draggedProject, col);
+}
 
-  // Salvar no Supabase
-  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(draggedProject);
+// ═══════════════════════════════════════════════════════════════════
+//  DEFINITION OF DONE (DoD) — Validação de Transição de Colunas
+// ═══════════════════════════════════════════════════════════════════
+
+// Estado temporário: guarda o drop pendente enquanto o modal está aberto
+let _dodPending = null;
+
+/**
+ * Verifica se o projeto pode avançar para a coluna destino.
+ * Retorna { ok: true } ou { ok: false, blocked: [{label, status}] }
+ */
+function _dodValidar(project, targetColId) {
+  // Só bloqueia ao mover para 'done' (Concluído)
+  if (targetColId !== 'done') return { ok: true, blocked: [] };
+
+  const ph = phase;
+  let blocked = [];
+
+  if (ph === 1) {
+    const tasks = project.tasks || {};
+    const mandatory = F1_TASKS.filter(t => t.mandatory);
+    mandatory.forEach(t => {
+      const st = (tasks[t.k] || {}).status || '';
+      const done = st === 'Concluído' || st === 'N/A';
+      if (!done) blocked.push({ label: t.label, status: st || 'Não Iniciado' });
+    });
+
+  } else if (ph === 2) {
+    const tasks = project.tasks2 || {};
+    const mandatory = F2_TASKS.filter(t => t.mandatory);
+    mandatory.forEach(t => {
+      const st = (tasks[t.k] || {}).status || '';
+      const done = st === 'Concluído' || st === 'N/A';
+      if (!done) blocked.push({ label: t.label, status: st || 'Não Iniciado' });
+    });
+
+  } else if (ph === 3) {
+    // F3: tarefas personalizadas — bloqueia se TODAS estiverem Não Iniciado
+    const tasks3 = project.tasks3 || {};
+    const keys   = Object.keys(tasks3);
+    if (keys.length > 0) {
+      const allBlocked = keys.every(k => {
+        const st = tasks3[k].status || '';
+        return st !== 'Concluído' && st !== 'N/A' && st !== 'Em andamento';
+      });
+      if (allBlocked) {
+        keys.forEach(k => {
+          const st = tasks3[k].status || 'Não Iniciado';
+          if (st !== 'Concluído' && st !== 'N/A') {
+            blocked.push({ label: tasks3[k]._label || k, status: st });
+          }
+        });
+      }
+    }
+  }
+
+  return blocked.length ? { ok: false, blocked } : { ok: true, blocked: [] };
+}
+
+/**
+ * Mostra o modal DoD com as tarefas bloqueadoras.
+ * Guarda o contexto do drop em _dodPending para uso posterior.
+ */
+function _dodMostrarModal(project, col, blockers) {
+  _dodPending = { project, col };
+
+  document.getElementById('dodTitle').textContent =
+    `${project.c} — não pode ir para "${col.label.replace(/^\S+\s/,'')}"`;
+
+  document.getElementById('dodDesc').innerHTML =
+    `O projeto <strong>${project.c}</strong> possui ${blockers.length} tarefa${blockers.length > 1 ? 's' : ''} ` +
+    `obrigatória${blockers.length > 1 ? 's' : ''} não concluída${blockers.length > 1 ? 's' : ''}. ` +
+    `Conclua as atividades abaixo antes de mover para <strong>Concluído</strong>, ` +
+    `ou utilize o override com justificativa.`;
+
+  const list = document.getElementById('dodTaskList');
+  list.innerHTML = blockers.map(b => {
+    const isNI  = !b.status || b.status === 'Não Iniciado';
+    const cls   = isNI ? 'blocker' : 'warning';
+    const dot   = isNI ? '#ef4444' : '#f59734';
+    const stCls = isNI ? 'dod-st-ni' : 'dod-st-ea';
+    const stLbl = b.status || 'Não Iniciado';
+    return `<li class="dod-task-item ${cls}">
+      <span class="dod-task-dot" style="background:${dot}"></span>
+      <span class="dod-task-label">${b.label}</span>
+      <span class="dod-task-status ${stCls}">${stLbl}</span>
+    </li>`;
+  }).join('');
+
+  // Reset override
+  document.getElementById('dodOverrideBox').classList.remove('visible');
+  document.getElementById('dodJustificativa').value = '';
+  document.getElementById('dodConfirmBtn').style.display = 'none';
+
+  document.getElementById('dodOverlay').style.display = 'flex';
+}
+
+function _dodMostrarOverride() {
+  document.getElementById('dodOverrideBox').classList.add('visible');
+  document.getElementById('dodJustificativa').focus();
+}
+
+function _dodCheckJustificativa() {
+  const val = document.getElementById('dodJustificativa').value.trim();
+  const btn = document.getElementById('dodConfirmBtn');
+  btn.style.display = val.length >= 10 ? '' : 'none';
+}
+
+function dodCancelar() {
+  document.getElementById('dodOverlay').style.display = 'none';
+  _dodPending = null;
+}
+
+function dodConfirmar() {
+  if (!_dodPending) return;
+  const justificativa = document.getElementById('dodJustificativa').value.trim();
+  if (justificativa.length < 10) return;
+
+  const { project, col } = _dodPending;
+
+  // Registra o override no histórico do projeto
+  if (!project.dodOverrides) project.dodOverrides = [];
+  project.dodOverrides.push({
+    data:      _hojeFormatado(),
+    usuario:   (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.nome) || 'GP',
+    destino:   col.label,
+    motivo:    justificativa,
+  });
+
+  // Executa a transição normalmente
+  _dodAplicarTransicao(project, col);
+
+  document.getElementById('dodOverlay').style.display = 'none';
+  _dodPending = null;
+}
+
+/** Aplica a mutação, salva no Storage/Supabase e re-renderiza. */
+function _dodAplicarTransicao(project, col) {
+  col.apply(project);
+
+  try {
+    const pid = projectId(project);
+    const allEdits = JSON.parse(localStorage.getItem('kanban_edits') || '{}');
+    if (!allEdits[pid]) allEdits[pid] = {};
+    Object.assign(allEdits[pid], {
+      st:    project.st,
+      atv:   project.atv,
+      prazo: project.prazo,
+      cons:  project.cons,
+      pkg:   project.pkg,
+      blk:   project.blk,
+      upd:   project.upd,
+      sus:   project.sus || '',
+      acts:  { ...project.acts },
+    });
+    if (project.tasks)        allEdits[pid].tasks        = JSON.parse(JSON.stringify(project.tasks));
+    if (project.tasks2)       allEdits[pid].tasks2       = JSON.parse(JSON.stringify(project.tasks2));
+    if (project.tasks3)       allEdits[pid].tasks3       = JSON.parse(JSON.stringify(project.tasks3));
+    if (project.dodOverrides) allEdits[pid].dodOverrides = [...project.dodOverrides];
+    localStorage.setItem('kanban_edits', JSON.stringify(allEdits));
+  } catch(err) { console.error('Erro ao salvar DoD:', err); }
+
+  render();
+  showMoveToast(project.c, col.label);
+  if (typeof salvarProjetoNoSupabase === 'function') salvarProjetoNoSupabase(project);
 }
 
 function getDragAfterElement(container, y) {
@@ -7372,6 +7559,56 @@ async function enviarEml(){
     <div style="padding:14px 20px;border-top:1px solid var(--border);background:var(--surface2);display:flex;gap:10px;">
       <button class="cfg-save-btn" onclick="salvarConfiguracoes()">💾 Salvar Configurações</button>
       <button onclick="fecharConfiguracoes()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--border2);background:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:var(--font);">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL — Definition of Done (DoD) — Bloqueio de Transição
+     ═══════════════════════════════════════════════════════════ -->
+<div id="dodOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)dodCancelar()">
+  <div class="modal-box" style="max-width:480px;">
+
+    <div class="modal-hd dod-hd">
+      <div>
+        <div class="modal-hd-sub">⛔ Definition of Done — Critérios não atendidos</div>
+        <div class="modal-hd-title" id="dodTitle">Bloqueio de Transição</div>
+      </div>
+    </div>
+
+    <div class="modal-bd" style="gap:14px;">
+      <p id="dodDesc" style="font-size:12.5px;color:var(--muted);margin:0;line-height:1.5;"></p>
+
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+                    color:#ef4444;margin-bottom:8px;">
+          🔴 Tarefas obrigatórias pendentes
+        </div>
+        <ul id="dodTaskList" class="dod-task-list"></ul>
+      </div>
+
+      <!-- Override opcional -->
+      <div>
+        <button class="btn-dod-override" onclick="_dodMostrarOverride()">
+          ⚠️ Prosseguir mesmo assim (requer justificativa)
+        </button>
+      </div>
+
+      <div class="dod-override-box" id="dodOverrideBox">
+        <label>Justificativa para override (obrigatória)</label>
+        <textarea id="dodJustificativa" placeholder="Descreva o motivo pelo qual este projeto está sendo movido sem atender todos os critérios de DoD..."
+          oninput="_dodCheckJustificativa()"></textarea>
+        <div style="font-size:10px;color:var(--muted);">
+          Esta ação ficará registrada no histórico do projeto.
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-ft">
+      <button class="btn-dod-cancel" onclick="dodCancelar()">↩ Voltar</button>
+      <button class="btn-dod-confirm" id="dodConfirmBtn" onclick="dodConfirmar()">
+        ✅ Confirmar Override
+      </button>
     </div>
   </div>
 </div>
