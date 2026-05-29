@@ -2374,10 +2374,62 @@ const EMPTY_TASKS2 = () => Object.fromEntries(
 // COLUMNS CONFIG
 // ──────────────────────────────────────────────
 // Helper: data de hoje DD/MM/AAAA
-function _hojeFormatado() {
-  const d = new Date();
-  return String(d.getDate()).padStart(2,'0') + '/' +
-         String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+// ── Camada de datas ────────────────────────────────────────────────
+// Regra: persistir SEMPRE em ISO (YYYY-MM-DD); exibir em BR (DD/MM/AAAA)
+
+/** Retorna hoje em ISO — usado para gravar em objetos/banco. */
+function _hojeISO() {
+  return new Date().toISOString().split('T')[0];
+}
+
+/**
+ * Alias legado: agora retorna ISO também.
+ * Todos os `p.upd = _hojeFormatado()` passam a gravar ISO.
+ */
+function _hojeFormatado() { return _hojeISO(); }
+
+/**
+ * Exibição: ISO (YYYY-MM-DD) → BR (DD/MM/AAAA).
+ * Aceita DD/MM/AAAA legado passando direto, e '' retorna ''.
+ */
+function _fmtDataBR(iso) {
+  if (!iso) return '';
+  if (iso.includes('/')) return iso;           // legado DD/MM/AAAA — passa direto
+  const [y, m, d] = iso.split('-');
+  if (!y || !m || !d) return iso;
+  return `${d}/${m}/${y}`;
+}
+
+/**
+ * Entrada do usuário: BR (DD/MM/AAAA) → ISO (YYYY-MM-DD).
+ * Se já for ISO, retorna sem alterar.
+ */
+function _parseBRToISO(br) {
+  if (!br) return '';
+  if (br.includes('-')) return br;             // já ISO
+  if (br.includes('/')) {
+    const [d, m, y] = br.split('/');
+    if (y?.length === 4) return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  }
+  return br;
+}
+
+/**
+ * Parseia qualquer formato de data (ISO ou BR legado) em Date.
+ * Retorna null para strings inválidas.
+ */
+function _parseDate(s) {
+  if (!s) return null;
+  if (s.includes('-')) {
+    const dt = new Date(s + 'T00:00:00');
+    return isNaN(dt) ? null : dt;
+  }
+  if (s.includes('/')) {
+    const [d, m, y] = s.split('/').map(Number);
+    if (!d || !m || !y || y < 2000) return null;
+    return new Date(y, m - 1, d);
+  }
+  return null;
 }
 
 const COLS_F1 = [
@@ -2633,19 +2685,12 @@ function makeCard(p) {
         return `<span class="card-task-dot${dc?' '+dc:''}${isTaskFinished(td.status||'')?' tdone':''}" title="${t.label}${td.status?' — '+td.status:''}${td.resp?' ('+td.resp+')':''}"></span>`;
       }).join('');
 
-  // ── Cadeado DoD: exibe quando há tarefas obrigatórias não concluídas ─
-  const dod = _dodValidar(p, 'done');
-  const dodLockHtml = (!dod.ok && p.st !== 'CONCLUÍDO' && p.st !== 'CANCELADO')
-    ? `<span class="card-dod-lock" title="⛔ DoD: ${dod.blocked.length} tarefa${dod.blocked.length>1?'s obrigatórias':' obrigatória'} pendente${dod.blocked.length>1?'s':''}&#10;${dod.blocked.map(b=>'• '+b.label+' ('+b.status+')').join('&#10;')}">🔒</span>`
-    : '';
-
   el.innerHTML = `
     ${isAtrasado ? '<div class="card-alert"></div>' : ''}
     ${blockedBannerHtml}
     <div class="card-top">
       <div class="card-name">${p.c}</div>
       <span class="pkg-badge pkg-${p.pkg||'P'}">${p.pkg||'P'}</span>
-      ${dodLockHtml}
       <button class="card-del-btn" title="Excluir projeto" onclick="event.stopPropagation();openConfirmDelete('${projectId(p).replace(/'/g,String.fromCharCode(39))}','${p.c.replace(/'/g,'&#39;')}')">✕</button>
     </div>
     <div class="card-cons">
@@ -2658,7 +2703,7 @@ function makeCard(p) {
     <div class="card-footer">
       ${p.prazo ? `<span class="prazo-tag ${p.prazo === 'ATRASADO' ? 'prazo-at' : p.prazo === 'ADIANTADO' ? 'prazo-ad' : 'prazo-ok'}">${p.prazo === 'ATRASADO' ? '⚠ Atrasado' : p.prazo === 'ADIANTADO' ? '⚡ Adiantado' : '✓ No prazo'}</span>` : '<span></span>'}
       ${!isBlocked && mostrarStale ? staleBadgeHtml : ''}
-      ${p.upd ? `<span class="upd-date">${p.upd}</span>` : ''}
+      ${p.upd ? `<span class="upd-date">${_fmtDataBR(p.upd)}</span>` : ''}
     </div>`;
 
   el.addEventListener('click', () => openModal(p));
@@ -2672,12 +2717,9 @@ function makeCard(p) {
 // Retorna null se a data for inválida ou ausente.
 function _calcDiasParado(upd) {
   if (!upd) return null;
-  const partes = upd.split('/');
-  if (partes.length !== 3) return null;
-  const [d, m, a] = partes.map(Number);
-  if (!d || !m || !a || a < 2000) return null;
-  const dataUpd = new Date(a, m - 1, d);
-  const hoje    = new Date();
+  const dataUpd = _parseDate(upd);
+  if (!dataUpd) return null;
+  const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const diff = Math.floor((hoje - dataUpd) / 86400000);
   return diff >= 0 ? diff : null;
@@ -2817,19 +2859,16 @@ async function renderDocs(pid) {
   const list = document.getElementById('docList');
   if (!list) return;
 
-  // Converte "DD/MM/AAAA" → número comparável (AAAAMMDD); datas inválidas ficam em 0
+  // Converte qualquer formato de data para número comparável AAAAMMDD
   function _dateVal(d) {
     const raw = d.date || d.data_upload || '';
-    const parts = raw.split('/');
-    if (parts.length === 3) {
-      const [dd, mm, aaaa] = parts;
-      const n = parseInt(aaaa + mm.padStart(2,'0') + dd.padStart(2,'0'), 10);
-      return isNaN(n) ? 0 : n;
+    if (!raw) return 0;
+    if (raw.includes('-')) {                            // ISO YYYY-MM-DD
+      return parseInt(raw.replace(/-/g, ''), 10) || 0;
     }
-    // Aceita também formato ISO AAAA-MM-DD (IndexedDB legado)
-    if (raw.includes('-')) {
-      const n = parseInt(raw.replace(/-/g,''), 10);
-      return isNaN(n) ? 0 : n;
+    if (raw.includes('/')) {                            // Legado DD/MM/AAAA
+      const [dd, mm, aaaa] = raw.split('/');
+      return parseInt((aaaa||'') + (mm||'').padStart(2,'0') + (dd||'').padStart(2,'0'), 10) || 0;
     }
     return 0;
   }
@@ -2847,7 +2886,7 @@ async function renderDocs(pid) {
     list.innerHTML = sorted.map((d, i) => {
       const nome    = escapeHtml(d.name || d.nome_arquivo || '');
       const tamanho = d.size || d.tamanho || '';
-      const data    = d.date || d.data_upload || '';
+      const data    = _fmtDataBR(d.date || d.data_upload || '');
       // Docs offline têm objectURL gerado na hora; docs online têm URL do Supabase
       const href    = d.objectURL || d.data || d.url || '#';
       const docId   = d.sbId || d.id || '';
@@ -3014,9 +3053,7 @@ function _processDocFiles(files) {
   // Upload para Supabase Storage se disponível
   if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER?.access_token && currentProject?._uuid) {
     const today = new Date();
-    const dataFmt = String(today.getDate()).padStart(2,'0') + '/' +
-                    String(today.getMonth()+1).padStart(2,'0') + '/' +
-                    today.getFullYear();
+    const dataFmt = today.toISOString().split('T')[0]; // ISO YYYY-MM-DD
 
     const faseLabel = RAW.f1?.includes(currentProject) ? 'Fase 1 — Saídas'
                     : RAW.f2?.includes(currentProject) ? 'Fase 2 — Entradas'
@@ -3086,9 +3123,7 @@ function _processDocFiles(files) {
     // Nenhuma conversão base64 → zero overhead de memória/CPU,
     // sem limite prático de tamanho (IndexedDB suporta GBs).
     const today   = new Date();
-    const dataFmt = String(today.getDate()).padStart(2,'0') + '/' +
-                    String(today.getMonth()+1).padStart(2,'0') + '/' +
-                    today.getFullYear();
+    const dataFmt = today.toISOString().split('T')[0]; // ISO YYYY-MM-DD
 
     // Lê lista atual de forma assíncrona antes de gravar
     getDocs(currentProjectId).then(async docs => {
@@ -3987,7 +4022,7 @@ function populateEditPanel() {
   });
 
   // Upd date and obs
-  document.getElementById('edit-upd').value = p.upd || '';
+  document.getElementById('edit-upd').value = _fmtDataBR(p.upd || '');
 
 }
 
@@ -4040,7 +4075,7 @@ function saveEditsStore(e) {
 
 function saveEdits() {
   if (!currentProject) return;
-  editState.upd = document.getElementById('edit-upd').value.trim() || editState.upd;
+  editState.upd = _parseBRToISO(document.getElementById('edit-upd').value.trim()) || editState.upd;
 
   // Apply to RAW data
   const pid = currentProjectId;
@@ -7138,7 +7173,7 @@ async function salvarAtaNoCard() {
     const token  = CURRENT_USER.access_token;
     const uuid   = currentProject._uuid;
     const h      = new Date();
-    const df     = String(h.getDate()).padStart(2,'0')+'/'+String(h.getMonth()+1).padStart(2,'0')+'/'+h.getFullYear();
+    const df     = h.toISOString().split('T')[0]; // ISO YYYY-MM-DD
     const cfg    = (typeof SYS_CONFIG !== 'undefined') ? SYS_CONFIG : {};
     const gpNome = cfg.gpNome || 'Ana Paula Colombo';
 
