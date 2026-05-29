@@ -5260,14 +5260,15 @@ function renderDashboard() {
         ${phaseCard(F3, s3, c3, 'FASE 3 — IMPOSTOS LEGADOS',  '#f59e0b',       '⚙️')}
       </div>
 
-      <!-- ══════════════════════════════════════════════════ -->
-      <!-- MÉTRICAS ÁGEIS                                     -->
-      <!-- ══════════════════════════════════════════════════ -->
+      <!-- MÉTRICAS ÁGEIS -->
       <div id="dash-metricas" style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start"></div>
+
+      <!-- ALERTA DE AGING -->
+      <div id="dash-aging" style="margin-top:12px"></div>
     </div>`;
 
-  // Renderiza métricas ágeis em função separada (evita erros dentro do template literal)
   _renderMetricasAgeis(F1, F2);
+  _renderAgingAlert([...F1, ...F2, ...F3]);
 }
 
 function _renderMetricasAgeis(F1, F2) {
@@ -5488,6 +5489,209 @@ function _renderMetricasAgeis(F1, F2) {
     const el2 = document.getElementById('dash-metricas');
     if (el2) el2.innerHTML = '';
   }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  ALERTA DE PROJETOS ESTAGNADOS — Dashboard
+// ═══════════════════════════════════════════════════════════════════
+function _renderAgingAlert(allProjs) {
+  const el = document.getElementById('dash-aging');
+  if (!el) return;
+
+  // Filtra projetos ativos com aging, exclui Concluídos e Cancelados
+  const LIMIAR_CRITICO = 14;
+  const LIMIAR_ATENCAO  = 7;
+
+  const aging = allProjs
+    .filter(p => p.st !== 'CONCLUÍDO' && p.atv !== 'CANCELADO' && p.upd)
+    .map(p => {
+      const dias = _calcDiasParado(p.upd) ?? 0;
+      // Detectar a fase do projeto
+      const fase = (RAW.f1||[]).some(x => x===p) ? 1
+                 : (RAW.f2||[]).some(x => x===p) ? 2 : 3;
+      return { ...p, _dias: dias, _fase: fase };
+    })
+    .filter(p => p._dias >= LIMIAR_ATENCAO)
+    .sort((a, b) => b._dias - a._dias); // mais parados primeiro
+
+  if (aging.length === 0) {
+    el.innerHTML = `
+      <div style="background:var(--surface);border:1px solid #22c55e33;border-radius:12px;
+                  padding:12px 18px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">✅</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#22c55e">Nenhum projeto estagnado</div>
+          <div style="font-size:10.5px;color:var(--muted);margin-top:1px">
+            Todos os projetos ativos foram movimentados nos últimos ${LIMIAR_ATENCAO} dias.
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const criticos = aging.filter(p => p._dias >= LIMIAR_CRITICO);
+  const atencao  = aging.filter(p => p._dias < LIMIAR_CRITICO);
+
+  // ── Navega para a fase e aplica o filtro de aging ───────────────
+  function _irParaFase(fase, limiar) {
+    // Ativa o botão de fase correto na sidebar
+    const btn = document.getElementById('sb-fase-' + fase);
+    if (btn) sbSwitchPhase(fase, btn);
+    // Aplica filtro aging (toggle: se já ativo no mesmo limiar, desliga)
+    filterAging_ = limiar;
+    render();
+  }
+
+  // ── Constrói a linha de um projeto ──────────────────────────────
+  function projectRow(p, accent) {
+    const upd = _fmtDataBR(p.upd || '');
+    const phLabel = ['','F1','F2','F3'][p._fase];
+    const phColor = ['','var(--accent)','#a855f7','#f59e0b'][p._fase];
+    const bar = Math.min(Math.round(p._dias / 30 * 100), 100); // escala 0-30d = 0-100%
+    const stIcon = p.st === 'EM ANDAMENTO' ? '🔄'
+                 : p.st === 'NÃO INICIADO' ? '⏸' : '⚠️';
+
+    return `
+      <div onclick="_irParaFase(${p._fase}, ${p._dias >= LIMIAR_CRITICO ? LIMIAR_CRITICO : LIMIAR_ATENCAO})"
+           style="display:flex;align-items:center;gap:10px;padding:8px 14px;
+                  border-bottom:1px solid #1e3d5c22;cursor:pointer;transition:background .12s;border-radius:4px;"
+           onmouseover="this.style.background='#ffffff08'" onmouseout="this.style.background=''">
+
+        <!-- Dias parados (destaque) -->
+        <div style="width:44px;text-align:center;flex-shrink:0">
+          <div style="font-size:18px;font-weight:900;color:${accent};line-height:1">${p._dias}</div>
+          <div style="font-size:8.5px;color:var(--muted);margin-top:1px">dias</div>
+        </div>
+
+        <!-- Barra de aging -->
+        <div style="width:52px;flex-shrink:0">
+          <div style="height:5px;background:#1e3d5c;border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${bar}%;background:${accent};border-radius:3px;
+                        transition:width .4s;opacity:.8"></div>
+          </div>
+        </div>
+
+        <!-- Dados do projeto -->
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:700;color:var(--text);
+                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+               title="${p.c}">${p.c}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:1px;display:flex;gap:8px">
+            <span>${stIcon} ${p.st}</span>
+            <span>·</span>
+            <span>${p.cons || '—'}</span>
+            <span>·</span>
+            <span>Últ. mov: ${upd || '—'}</span>
+          </div>
+        </div>
+
+        <!-- Badges -->
+        <div style="display:flex;gap:5px;flex-shrink:0;align-items:center">
+          <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;
+                       background:${phColor}22;color:${phColor};border:1px solid ${phColor}44">
+            ${phLabel}
+          </span>
+          ${p.blk && p.blk !== 'Consultor'
+            ? `<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;
+                            background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44">🔒 ${p.blk}</span>`
+            : ''}
+        </div>
+
+        <!-- Seta -->
+        <span style="color:var(--muted);font-size:12px;flex-shrink:0;opacity:.5">›</span>
+      </div>`;
+  }
+
+  // ── Monta os dois grupos ─────────────────────────────────────────
+  const criticosHtml = criticos.length ? `
+    <div style="padding:8px 14px 4px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+                  color:#ef4444;display:flex;align-items:center;gap:6px">
+        🔴 Crítico — mais de ${LIMIAR_CRITICO} dias parados
+        <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">
+          (${criticos.length} projeto${criticos.length>1?'s':''})
+        </span>
+      </div>
+    </div>
+    ${criticos.map(p => projectRow(p, '#ef4444')).join('')}` : '';
+
+  const atencaoHtml = atencao.length ? `
+    <div style="padding:${criticos.length?'12px':'8px'} 14px 4px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+                  color:#f59e0b;display:flex;align-items:center;gap:6px">
+        🟡 Atenção — ${LIMIAR_ATENCAO} a ${LIMIAR_CRITICO-1} dias parados
+        <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">
+          (${atencao.length} projeto${atencao.length>1?'s':''})
+        </span>
+      </div>
+    </div>
+    ${atencao.map(p => projectRow(p, '#f59e0b')).join('')}` : '';
+
+  // ── Rodapé com ação rápida ───────────────────────────────────────
+  const footerHtml = `
+    <div style="padding:10px 14px;border-top:1px solid #1e3d5c;display:flex;align-items:center;
+                justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="font-size:10.5px;color:var(--muted)">
+        💡 Clique em qualquer linha para ir direto à fase e aplicar o filtro de aging.
+      </div>
+      <div style="display:flex;gap:6px">
+        ${criticos.length ? `
+        <button onclick="_irParaFase(1,${LIMIAR_CRITICO})"
+          style="padding:5px 12px;border-radius:6px;border:1px solid #ef444466;background:#ef444411;
+                 color:#ef4444;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">
+          Ver críticos (F1) ›
+        </button>` : ''}
+        <button onclick="_irParaFase(1,${LIMIAR_ATENCAO})"
+          style="padding:5px 12px;border-radius:6px;border:1px solid #f59e0b66;background:#f59e0b11;
+                 color:#f59e0b;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">
+          Ver todos ≥7d ›
+        </button>
+      </div>
+    </div>`;
+
+  el.innerHTML = `
+    <div style="background:var(--surface);border:1px solid #ef444433;border-radius:12px;overflow:hidden">
+
+      <!-- Cabeçalho -->
+      <div style="background:linear-gradient(135deg,#ef444418,#ef444406);
+                  border-bottom:1px solid #ef444433;padding:10px 16px;
+                  display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:14px">⏳</span>
+          <div>
+            <div style="font-size:12px;font-weight:800;color:#ef4444;letter-spacing:.06em">
+              ALERTA — PROJETOS SEM MOVIMENTAÇÃO
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:1px">
+              ${aging.length} projeto${aging.length>1?'s':''} parado${aging.length>1?'s':''} ·
+              ${criticos.length} crítico${criticos.length!==1?'s':''} (≥${LIMIAR_CRITICO}d) ·
+              ${atencao.length} atenção (≥${LIMIAR_ATENCAO}d)
+            </div>
+          </div>
+        </div>
+        <!-- Mini-KPI -->
+        <div style="display:flex;gap:10px">
+          <div style="text-align:center">
+            <div style="font-size:20px;font-weight:900;color:#ef4444;line-height:1">${criticos.length}</div>
+            <div style="font-size:8.5px;color:var(--muted)">críticos</div>
+          </div>
+          <div style="width:1px;background:#1e3d5c"></div>
+          <div style="text-align:center">
+            <div style="font-size:20px;font-weight:900;color:#f59e0b;line-height:1">${atencao.length}</div>
+            <div style="font-size:8.5px;color:var(--muted)">atenção</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Listas -->
+      <div style="max-height:320px;overflow-y:auto">
+        ${criticosHtml}
+        ${atencaoHtml}
+      </div>
+
+      ${footerHtml}
+    </div>`;
 }
 
 
