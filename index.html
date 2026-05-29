@@ -144,10 +144,20 @@
 
   /* ── STATS ROW ── */
   .stats-row { padding: 12px 24px; display: flex; gap: 12px; flex-wrap: wrap; }
-  .stat-card { background: linear-gradient(135deg, var(--surface), var(--surface2)); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 16px; display: flex; align-items: center; gap: 10px; min-width: 130px; }
+  .stat-card { background: linear-gradient(135deg, var(--surface), var(--surface2)); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 16px; display: flex; align-items: center; gap: 10px; min-width: 130px; transition: border-color .15s, box-shadow .15s; }
+  .stat-card.aging-active-7  { border-color: #f59e0b; box-shadow: 0 0 0 2px #f59e0b33; }
+  .stat-card.aging-active-14 { border-color: #ef4444; box-shadow: 0 0 0 2px #ef444433; }
+  .stat-card.clickable { cursor: pointer; }
+  .stat-card.clickable:hover { border-color: var(--border2); }
   .stat-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
   .stat-info .val { font-size: 20px; font-weight: 700; line-height: 1; }
   .stat-info .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .stat-aging-faixas { display:flex; gap:4px; margin-top:4px; }
+  .aging-faixa { font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; cursor:pointer; border:1px solid transparent; transition:all .12s; }
+  .aging-faixa.f7  { background:#f59e0b22; color:#f59e0b; border-color:#f59e0b44; }
+  .aging-faixa.f14 { background:#ef444422; color:#ef4444; border-color:#ef444444; }
+  .aging-faixa.f7.on  { background:#f59e0b; color:#000; }
+  .aging-faixa.f14.on { background:#ef4444; color:#fff; }
 
   /* ── BOARD ── */
   .board-area { padding: 16px 24px 32px; overflow-x: auto; }
@@ -2306,6 +2316,7 @@ const RAW = {"f1":[{"c":"AMAFIL","cons":"Erica","pkg":"M","st":"CONCLUÍDO","atv
 // STATE
 // ──────────────────────────────────────────────
 let phase = 1, filterCons_ = 'all', filterAtv_ = 'all', searchTerm = '';
+let filterAging_ = 0; // 0 = desativado | 7 = ≥7 dias | 14 = ≥14 dias
 
 // Fase 3 — Impostos Legados: cópia dos projetos da Fase 2 (carregada do Supabase na inicialização)
 // RAW.f3 será populado pelo carregarDadosDoSupabase(); inicializamos vazio aqui
@@ -2540,7 +2551,6 @@ function filtered() {
       if (filterSt_ === 'CANCELADO') {
         if (p.atv !== 'CANCELADO') return false;
       } else if (filterSt_ === 'BLOQUEADO') {
-        // Pseudo-status: em andamento com responsável ≠ Consultor
         const isBlocked = p.st === 'EM ANDAMENTO' && p.blk && p.blk !== 'Consultor';
         if (!isBlocked) return false;
       } else {
@@ -2550,6 +2560,13 @@ function filtered() {
     if (filterPrazo_ !== 'all' && (p.prazo || '') !== filterPrazo_) return false;
     if (filterAtv_   !== 'all' && p.atv !== filterAtv_) return false;
     if (filterBlk_   !== 'all' && (p.blk || '') !== filterBlk_) return false;
+    if (filterAging_) {
+      // Exclui projetos já finalizados ou cancelados do aging
+      if (p.st === 'CONCLUÍDO' || p.atv === 'CANCELADO') return false;
+      // Só mostra projetos com diasParado >= limiar escolhido
+      const dias = _calcDiasParado(p.upd) ?? 0;
+      if (dias < filterAging_) return false;
+    }
     if (searchTerm && !p.c.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
@@ -2725,15 +2742,56 @@ function _calcDiasParado(upd) {
   return diff >= 0 ? diff : null;
 }
 
+function _agingCount(data, minDias) {
+  return data.filter(p => {
+    if (p.st === 'CONCLUÍDO' || p.atv === 'CANCELADO') return false;
+    return (_calcDiasParado(p.upd) ?? 0) >= minDias;
+  }).length;
+}
+
+function toggleAgingFilter(dias) {
+  filterAging_ = (filterAging_ === dias) ? 0 : dias;
+  render(); // re-renderiza board + stats (inclui atualização visual dos botões)
+}
+
 function renderStats(data) {
   const el = document.getElementById('statsRow');
 
-  // Projetos bloqueados: em andamento com responsável ≠ Consultor
-  const bloq = data.filter(p =>
-    p.st === 'EM ANDAMENTO' && p.blk && p.blk !== 'Consultor'
-  ).length;
+  // Contagens de aging (calculadas sobre TODOS os projetos da fase, não só os filtrados)
+  const src      = phase === 1 ? RAW.f1 : phase === 2 ? RAW.f2 : RAW.f3;
+  const aging7   = _agingCount(src, 7);
+  const aging14  = _agingCount(src, 14);
+  const agingColor  = aging7  > 0 ? '#f59e0b' : 'var(--muted)';
+  const agingColor2 = aging14 > 0 ? '#ef4444' : 'var(--muted)';
 
-  // Cor do card de bloqueio: destaque se houver algum
+  // Card de aging: classe ativa conforme filtro atual
+  const agingCardCls = filterAging_ === 7  ? 'aging-active-7'
+                     : filterAging_ === 14 ? 'aging-active-14'
+                     : '';
+  const agingCardTitle = 'Clique em ≥7d ou ≥14d para filtrar apenas projetos estagnados.\nProjetos Concluídos e Cancelados são excluídos.';
+
+  const agingCard = `
+    <div class="stat-card clickable ${agingCardCls}" title="${agingCardTitle}">
+      <div class="stat-icon" style="background:#f59e0b22;font-size:15px;">⏳</div>
+      <div class="stat-info" style="flex:1;">
+        <div class="lbl" style="margin-bottom:3px;">Aging — Estagnados</div>
+        <div class="stat-aging-faixas">
+          <span class="aging-faixa f7  ${filterAging_===7  ? 'on' : ''}"
+                onclick="event.stopPropagation();toggleAgingFilter(7)"
+                title="${aging7} projeto${aging7!==1?'s':''} sem movimentação há ≥7 dias">
+            ≥7d&nbsp;${aging7}
+          </span>
+          <span class="aging-faixa f14 ${filterAging_===14 ? 'on' : ''}"
+                onclick="event.stopPropagation();toggleAgingFilter(14)"
+                title="${aging14} projeto${aging14!==1?'s':''} sem movimentação há ≥14 dias">
+            ≥14d&nbsp;${aging14}
+          </span>
+        </div>
+      </div>
+    </div>`;
+
+  // Projetos bloqueados
+  const bloq      = data.filter(p => p.st === 'EM ANDAMENTO' && p.blk && p.blk !== 'Consultor').length;
   const bloqColor = bloq > 0 ? '#f59e0b' : 'var(--muted)';
   const bloqBg    = bloq > 0 ? '#f59e0b22' : '#1e293b22';
   const bloqIcon  = bloq > 0 ? '🔒' : '🔓';
@@ -2748,7 +2806,8 @@ function renderStats(data) {
       <div class="stat-card"><div class="stat-icon" style="background:#3b82f622">🔄</div><div class="stat-info"><div class="val" style="color:#60a5fa">${prog}</div><div class="lbl">Em andamento</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#ef444422">⚠️</div><div class="stat-info"><div class="val" style="color:var(--red)">${at}</div><div class="lbl">Atrasados</div></div></div>
       <div class="stat-card" title="Projetos aguardando ação de Cliente, Sustentação ou terceiros"><div class="stat-icon" style="background:${bloqBg}">${bloqIcon}</div><div class="stat-info"><div class="val" style="color:${bloqColor}">${bloq}</div><div class="lbl">Bloqueados</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${Math.round(done/Math.max(data.length,1)*100)}%</div><div class="lbl">Conclusão</div></div></div>`;
+      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${Math.round(done/Math.max(data.length,1)*100)}%</div><div class="lbl">Conclusão</div></div></div>
+      ${agingCard}`;
   } else {
     const done = data.filter(p => p.st === 'CONCLUÍDO').length;
     const prog = data.filter(p => p.st !== 'NÃO INICIADO' && p.st !== 'CONCLUÍDO').length;
@@ -2759,7 +2818,8 @@ function renderStats(data) {
       <div class="stat-card"><div class="stat-icon" style="background:#3b82f622">🔄</div><div class="stat-info"><div class="val" style="color:#60a5fa">${prog}</div><div class="lbl">Em andamento</div></div></div>
       <div class="stat-card"><div class="stat-icon" style="background:#1e293b22">⏸</div><div class="stat-info"><div class="val" style="color:var(--muted)">${ni}</div><div class="lbl">Não iniciado</div></div></div>
       <div class="stat-card" title="Projetos aguardando ação de Cliente, Sustentação ou terceiros"><div class="stat-icon" style="background:${bloqBg}">${bloqIcon}</div><div class="stat-info"><div class="val" style="color:${bloqColor}">${bloq}</div><div class="lbl">Bloqueados</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${Math.round(done/Math.max(data.length,1)*100)}%</div><div class="lbl">Conclusão</div></div></div>`;
+      <div class="stat-card"><div class="stat-icon" style="background:#22c55e22">📊</div><div class="stat-info"><div class="val" style="color:var(--green)">${Math.round(done/Math.max(data.length,1)*100)}%</div><div class="lbl">Conclusão</div></div></div>
+      ${agingCard}`;
   }
 }
 
@@ -4883,6 +4943,7 @@ function sbSwitchPhase(p, btn) {
   filterSt_    = 'all';
   filterPrazo_ = 'all';
   filterBlk_   = 'all';
+  filterAging_ = 0;
   render();
 }
 
@@ -4925,6 +4986,7 @@ function sbClearAll() {
   filterSt_     = 'all';
   filterPrazo_  = 'all';
   filterBlk_    = 'all';
+  filterAging_  = 0;
   document.getElementById('searchInput').value = '';
   searchTerm = '';
   // ensure board is visible if filters are being cleared
